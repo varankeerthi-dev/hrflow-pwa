@@ -341,6 +341,31 @@ body {
   color: #334155;
 }
 
+/* Compact / Small variant for secondary tabs (used in Advance/Expense subtabs) */
+.fleet-secondary-tabs-sm {
+  min-height: 32px;
+  padding: 2px 8px 0;
+  gap: 3px;
+}
+
+.fleet-secondary-tab-sm {
+  min-height: 28px;
+  padding: 5px 12px;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.fleet-secondary-tab-sm.fleet-secondary-tab-active {
+  min-height: 28px;
+  padding: 5px 12px;
+  border-top-width: 2px;
+}
+
+.fleet-secondary-tab-sm:not(.fleet-secondary-tab-active):not(:first-child)::before {
+  top: 6px;
+  bottom: 6px;
+}
+
 .fleet-vehicle-status-rail {
   border-bottom: 1px solid var(--fleet-border);
   background: var(--fleet-container);
@@ -372,9 +397,11 @@ body {
 
 @media (max-width: 640px) {
   .fleet-vehicle-tabs,
-  .fleet-secondary-tabs { padding-inline: 12px; }
+  .fleet-secondary-tabs:not(.fleet-secondary-tabs-sm) { padding-inline: 12px; }
   .fleet-vehicle-tab,
-  .fleet-secondary-tab { padding-inline: 16px; }
+  .fleet-secondary-tab:not(.fleet-secondary-tab-sm) { padding-inline: 16px; }
+  .fleet-secondary-tabs-sm { padding-inline: 4px; }
+  .fleet-secondary-tab-sm { padding-inline: 10px; }
   .fleet-vehicle-content,
   .fleet-vehicle-mileage { margin-inline: 12px; }
 }

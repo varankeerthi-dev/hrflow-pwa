@@ -9,6 +9,7 @@ export function normalizeExpenseCategory(cat) {
 }
 
 export const DEFAULT_ADVANCE_CATEGORIES = [
+  'Cash Advance',
   'Salary Advance',
   'Travel Advance',
   'Site Advance',
@@ -59,7 +60,7 @@ export function isAdvanceCategory(cat, advanceCategories = []) {
   const clean = String(raw).replace(/\s*\[[^\]]*\]\s*$/, '').trim().toLowerCase()
   if (!clean) return false
 
-  // "given to others" or "salary to others" is explicitly NOT an advance
+  // "given to others" or "salary to others" is strictly an EXPENSE, NEVER an advance
   if (clean.includes('given to others') || clean.includes('salary to others')) return false
 
   // Petrol / Sitepetrol / Fuel / Diesel is strictly an EXPENSE, NEVER an advance (unless explicitly named e.g. "fuel advance")
@@ -69,6 +70,7 @@ export function isAdvanceCategory(cat, advanceCategories = []) {
     .map(c => (typeof c === 'string' ? c : c?.name || '').trim().toLowerCase())
     .filter(Boolean)
     .filter(c => !isPetrolCategory(c))
+    .filter(c => !c.includes('given to others') && !c.includes('salary to others'))
   if (list.includes(clean)) return true
 
   // Fallback keyword check: e.g. "Salary Advance", "Travel Advance", "Site Advance", etc.
@@ -115,13 +117,22 @@ export function getAccountingEntryType(entry, advanceCats = [], expenseCats = []
   const cleanCategory = String(rawCategory).replace(/\s*\[[^\]]*\]\s*$/, '').trim()
   const lower = cleanCategory.toLowerCase()
 
-  // 1. Explicit exception: "Given to Others" / "Salary to Others" giver entries are ALWAYS Expenses
-  // (even if legacy documents were mistakenly stored with type: 'Advance')
+  // 1. Explicit exception: Advances paid from Company Account / Bank Account are ALWAYS Advances, NEVER Expenses
+  if (
+    entry.paymentSource === 'company_account' ||
+    entry.isCompanyAccountAdvance ||
+    entry.paidFromAccount
+  ) {
+    return 'Advance'
+  }
+
+  // 1b. Explicit exception: "Given to Others" / "Salary to Others" out-of-pocket records are ALWAYS Expenses for the giver!
+  // (Even if legacy records or yesterday's records were stored with type: 'Advance')
   if (lower.includes('given to others') || lower.includes('salary to others')) {
     return 'Expense'
   }
 
-  // 1b. Explicit exception: Petrol, Sitepetrol, Fuel, Diesel are ALWAYS Expenses
+  // 1c. Explicit exception: Petrol, Sitepetrol, Fuel, Diesel are ALWAYS Expenses
   // (even if legacy documents were mistakenly stored with type: 'Advance')
   if (isPetrolCategory(cleanCategory)) {
     return 'Expense'
@@ -199,6 +210,59 @@ export function resolveReportEntryDetails(entry, employees = [], allEntries = []
     return {
       ...res,
       displayRemarks: displayRemarks || (entry.remarks || entry.reason || '—')
+    }
+  }
+
+  // 0. If this entry is an Advance directly from a Company Bank Account:
+  if (isAdvance && (entry.paymentSource === 'company_account' || entry.isCompanyAccountAdvance || entry.paidFromAccount)) {
+    const accountName = entry.companyAccount || entry.paidFromAccount || entry.paidByName || 'Company Account'
+    const cleanCat = rawCat.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+    return buildResult({
+      isTransferAdvance: true,
+      effectiveEmployeeId: recipientId || entry.employeeId,
+      displayEmployeeName: recipientEmp?.name || recipientName || entry.employeeName || '—',
+      displayGivenBy: `Bank: ${accountName}`,
+      displayCategory: cleanCat || 'Given to Others',
+      recipientName: recipientEmp?.name || recipientName || entry.employeeName || null
+    })
+  }
+
+  // 0b. If this entry is an EXPENSE where Employee A gave cash to Employee B ("Given to Others" / "Salary to Others"):
+  const cleanCat = rawCat.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+  const lowerCat = cleanCat.toLowerCase()
+  const isGivenToOthers = lowerCat.includes('given to others') || lowerCat.includes('salary to others')
+  if (!isAdvance && isGivenToOthers) {
+    // Check if this was a record (like yesterday's) where employeeId was saved as recipient (Employee B)
+    // while givenByEmployeeId was saved as the giver (Employee A)
+    const hasDistinctGiver = entry.givenByEmployeeId && (
+      entry.givenByEmployeeId !== entry.employeeId ||
+      (entry.givenByEmployeeName && entry.employeeName && entry.givenByEmployeeName.toLowerCase().trim() !== entry.employeeName.toLowerCase().trim())
+    )
+
+    if (hasDistinctGiver) {
+      const giverEmp = employees.find(e => e.id === entry.givenByEmployeeId)
+      const giverName = entry.givenByEmployeeName || giverEmp?.name || 'Unknown'
+      const actualRecipientName = entry.employeeName || recipientName || (entry.employeeId ? employees.find(e => e.id === entry.employeeId)?.name : null) || 'Unknown'
+
+      return buildResult({
+        isTransferAdvance: false,
+        effectiveEmployeeId: entry.givenByEmployeeId,
+        displayEmployeeName: giverName,
+        displayGivenBy: null,
+        displayCategory: cleanCat || 'Given to Others',
+        recipientName: actualRecipientName
+      })
+    } else {
+      // Standard / previous records where employeeId is already the giver (Employee A)
+      const actualRecipientName = recipientEmp?.name || recipientName || entry.paidToName || null
+      return buildResult({
+        isTransferAdvance: false,
+        effectiveEmployeeId: entry.employeeId,
+        displayEmployeeName: entry.employeeName || '—',
+        displayGivenBy: null,
+        displayCategory: cleanCat || 'Given to Others',
+        recipientName: actualRecipientName
+      })
     }
   }
 
@@ -298,6 +362,7 @@ export function resolveReportEntryDetails(entry, employees = [], allEntries = []
     effectiveEmployeeId: entry.employeeId,
     displayEmployeeName: entry.employeeName || '—',
     displayGivenBy: entry.givenByEmployeeName || null,
-    displayCategory: rawCat
+    displayCategory: rawCat,
+    recipientName: recipientEmp?.name || recipientName || null
   })
 }

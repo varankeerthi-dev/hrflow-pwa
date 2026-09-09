@@ -14,7 +14,8 @@ export function FleetSecondaryTabs({
   onTabChange,
   className = '',
   ariaLabel = 'Workspace sections',
-  twoRows = false
+  twoRows = false,
+  size = 'md'
 }) {
   const scrollContainerRef = useRef(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -145,6 +146,8 @@ export function FleetSecondaryTabs({
     )
   }
 
+  const isSm = size === 'sm'
+
   return (
     <div className={`relative flex items-center w-full bg-[#F4FAFD] border-b border-[#E0E0E0] ${className}`.trim()}>
       {/* Left Scroll Arrow */}
@@ -152,12 +155,12 @@ export function FleetSecondaryTabs({
         <button
           type="button"
           onClick={() => scrollBy(-260)}
-          className="absolute left-0 top-0 bottom-0 z-30 flex items-center justify-center w-9 bg-gradient-to-r from-[#F4FAFD] via-[#F4FAFD]/95 to-transparent text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+          className={`absolute left-0 top-0 bottom-0 z-30 flex items-center justify-center ${isSm ? 'w-7' : 'w-9'} bg-gradient-to-r from-[#F4FAFD] via-[#F4FAFD]/95 to-transparent text-slate-600 hover:text-slate-900 transition-all cursor-pointer`}
           title="Scroll left"
           aria-label="Scroll left"
         >
-          <div className="p-1 rounded-full bg-white/95 border border-slate-200 shadow-xs hover:bg-white hover:scale-105 transition-all">
-            <ChevronLeft size={14} strokeWidth={2.5} />
+          <div className={`${isSm ? 'p-0.5' : 'p-1'} rounded-full bg-white/95 border border-slate-200 shadow-xs hover:bg-white hover:scale-105 transition-all`}>
+            <ChevronLeft size={isSm ? 12 : 14} strokeWidth={2.5} />
           </div>
         </button>
       )}
@@ -166,7 +169,7 @@ export function FleetSecondaryTabs({
       <div
         ref={scrollContainerRef}
         onWheel={handleWheel}
-        className="fleet-secondary-tabs flex-1 min-w-0"
+        className={`fleet-secondary-tabs ${isSm ? 'fleet-secondary-tabs-sm' : ''} flex-1 min-w-0`}
         role="tablist"
         aria-label={ariaLabel}
       >
@@ -179,7 +182,7 @@ export function FleetSecondaryTabs({
               role="tab"
               data-tab-id={tab.id}
               aria-selected={isActive}
-              className={`fleet-secondary-tab ${isActive ? 'fleet-secondary-tab-active' : ''}`}
+              className={`fleet-secondary-tab ${isSm ? 'fleet-secondary-tab-sm' : ''} ${isActive ? 'fleet-secondary-tab-active' : ''}`}
               onClick={() => onTabChange(tab)}
             >
               {tab.icon && <span className="fleet-secondary-tab-icon" aria-hidden="true">{tab.icon}</span>}
@@ -194,12 +197,12 @@ export function FleetSecondaryTabs({
         <button
           type="button"
           onClick={() => scrollBy(260)}
-          className="absolute right-0 top-0 bottom-0 z-30 flex items-center justify-center w-9 bg-gradient-to-l from-[#F4FAFD] via-[#F4FAFD]/95 to-transparent text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+          className={`absolute right-0 top-0 bottom-0 z-30 flex items-center justify-center ${isSm ? 'w-7' : 'w-9'} bg-gradient-to-l from-[#F4FAFD] via-[#F4FAFD]/95 to-transparent text-slate-600 hover:text-slate-900 transition-all cursor-pointer`}
           title="Scroll right"
           aria-label="Scroll right"
         >
-          <div className="p-1 rounded-full bg-white/95 border border-slate-200 shadow-xs hover:bg-white hover:scale-105 transition-all">
-            <ChevronRight size={14} strokeWidth={2.5} />
+          <div className={`${isSm ? 'p-0.5' : 'p-1'} rounded-full bg-white/95 border border-slate-200 shadow-xs hover:bg-white hover:scale-105 transition-all`}>
+            <ChevronRight size={isSm ? 12 : 14} strokeWidth={2.5} />
           </div>
         </button>
       )}

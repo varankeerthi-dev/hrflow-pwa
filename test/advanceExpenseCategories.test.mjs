@@ -221,3 +221,130 @@ test('resolveReportEntryDetails attributes transferred advance to recipient empl
   assert.equal(mismatchDetails.displayRemarks, 'Cash paid from Karthik - Given to Others')
 })
 
+test('resolveReportEntryDetails attributes out-of-pocket Given to Others expense to the giver (Employee A) with recipient (Employee B)', () => {
+  const employees = [
+    { id: 'emp-1', name: 'Employee A' },
+    { id: 'emp-2', name: 'Employee B' }
+  ]
+
+  // 1. Standard historical out-of-pocket expense format
+  const standardExpense = {
+    id: 'exp-std-1',
+    employeeId: 'emp-1',
+    employeeName: 'Employee A',
+    category: 'Given to Others [Employee B]',
+    type: 'Expense',
+    paidTo: 'emp-2',
+    paidToName: 'Employee B',
+    amount: 500
+  }
+  assert.equal(getAccountingEntryType(standardExpense), 'Expense')
+  const stdDetails = resolveReportEntryDetails(standardExpense, employees)
+  assert.equal(stdDetails.effectiveEmployeeId, 'emp-1')
+  assert.equal(stdDetails.displayEmployeeName, 'Employee A')
+  assert.equal(stdDetails.recipientName, 'Employee B')
+
+  // 2. Yesterday's format (where employeeId was stored as recipient, givenByEmployeeId as giver, type: 'Advance')
+  const yesterdayExpense = {
+    id: 'exp-yest-1',
+    employeeId: 'emp-2',
+    employeeName: 'Employee B',
+    givenByEmployeeId: 'emp-1',
+    givenByEmployeeName: 'Employee A',
+    category: 'Given to Others [Employee B]',
+    type: 'Advance',
+    amount: 750
+  }
+  assert.equal(getAccountingEntryType(yesterdayExpense), 'Expense')
+  const yestDetails = resolveReportEntryDetails(yesterdayExpense, employees)
+  assert.equal(yestDetails.effectiveEmployeeId, 'emp-1')
+  assert.equal(yestDetails.displayEmployeeName, 'Employee A')
+  assert.equal(yestDetails.recipientName, 'Employee B')
+
+  // 3. Pure Company Bank Account advance with "Given to Others" category remains an Advance
+  const bankAdvance = {
+    id: 'adv-bank-1',
+    employeeId: 'emp-2',
+    employeeName: 'Employee B',
+    category: 'Given to Others',
+    type: 'Advance',
+    paymentSource: 'company_account',
+    companyAccount: 'Main Bank Account',
+    amount: 5000
+  }
+  assert.equal(getAccountingEntryType(bankAdvance), 'Advance')
+  const bankDetails = resolveReportEntryDetails(bankAdvance, employees)
+  assert.equal(bankDetails.isTransferAdvance, true)
+  assert.equal(bankDetails.effectiveEmployeeId, 'emp-2')
+  assert.equal(bankDetails.displayEmployeeName, 'Employee B')
+  assert.equal(bankDetails.displayGivenBy, 'Bank: Main Bank Account')
+})
+
+test('sidepanel partitioning: Add Advance and Add Expense attribute properly to Self vs Employee', () => {
+  const employees = [
+    { id: 'emp-user', name: 'Logged In User' },
+    { id: 'emp-other', name: 'Other Employee' }
+  ]
+
+  // Scenario 1: Add Advance -> User gave advance to Employee B
+  // Beneficiary (receiver) is Other Employee. Even though User is giver, it belongs to Employee Advance!
+  const advanceGivenByUser = {
+    id: 'adv-given-1',
+    employeeId: 'emp-other',
+    employeeName: 'Other Employee',
+    givenByEmployeeId: 'emp-user',
+    givenByEmployeeName: 'Logged In User',
+    category: 'Cash Advance (Paid)',
+    type: 'Advance',
+    amount: 1500
+  }
+  const advDetails = resolveReportEntryDetails(advanceGivenByUser, employees)
+  assert.equal(advDetails.effectiveEmployeeId, 'emp-other')
+  // For User (emp-user): effectiveEmployeeId !== emp-user -> NOT Self Advance (it is Employee Advance)
+  assert.notEqual(advDetails.effectiveEmployeeId, 'emp-user')
+
+  // Scenario 2: Add Advance -> User received advance from company or another employee
+  const advanceReceivedByUser = {
+    id: 'adv-recv-1',
+    employeeId: 'emp-user',
+    employeeName: 'Logged In User',
+    category: 'Salary Advance',
+    type: 'Advance',
+    amount: 5000
+  }
+  const advRecvDetails = resolveReportEntryDetails(advanceReceivedByUser, employees)
+  assert.equal(advRecvDetails.effectiveEmployeeId, 'emp-user') // Self Advance
+
+  // Scenario 3: Add Expense -> Other Employee incurred expense even though paid advance to user
+  // Other Employee is the one who incurred the expense. Belongs to Employee Expense!
+  const expenseIncurredByOther = {
+    id: 'exp-other-1',
+    employeeId: 'emp-other',
+    employeeName: 'Other Employee',
+    category: 'Given to Others [Logged In User]',
+    paidTo: 'emp-user',
+    paidToName: 'Logged In User',
+    type: 'Expense',
+    amount: 800
+  }
+  const expOtherDetails = resolveReportEntryDetails(expenseIncurredByOther, employees)
+  assert.equal(expOtherDetails.effectiveEmployeeId, 'emp-other')
+  // For User (emp-user): effectiveEmployeeId !== emp-user -> NOT Self Expense (it is Employee Expense)
+  assert.notEqual(expOtherDetails.effectiveEmployeeId, 'emp-user')
+
+  // Scenario 4: Add Expense -> User incurred expense giving cash to Other Employee
+  // User is the one who incurred the expense out of pocket. Belongs to Self Expense!
+  const expenseIncurredByUser = {
+    id: 'exp-user-1',
+    employeeId: 'emp-user',
+    employeeName: 'Logged In User',
+    category: 'Given to Others [Other Employee]',
+    paidTo: 'emp-other',
+    paidToName: 'Other Employee',
+    type: 'Expense',
+    amount: 1200
+  }
+  const expUserDetails = resolveReportEntryDetails(expenseIncurredByUser, employees)
+  assert.equal(expUserDetails.effectiveEmployeeId, 'emp-user') // Self Expense
+})
+

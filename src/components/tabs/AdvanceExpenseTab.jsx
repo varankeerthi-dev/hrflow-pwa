@@ -347,7 +347,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const isCategoryPayableToOthers = useCallback((categoryName) => {
     if (!categoryName) return false
     const clean = String(categoryName).replace(/\s*\[[^\]]*\]\s*$/, '').trim().toLowerCase()
-    if (clean.includes('given to others') || clean.includes('salary to others')) return true
+    if (clean.includes('given to others') || clean.includes('salary to others') || clean.includes('cash advance')) return true
     const found = (expenseCategoriesList || []).find(c => {
       const name = (typeof c === 'string' ? c : c?.name || '').toLowerCase().trim()
       return name === clean
@@ -360,10 +360,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const list = advanceCategoriesList && advanceCategoriesList.length > 0
       ? advanceCategoriesList
       : DEFAULT_ADVANCE_CATEGORIES
-    return list
+    const names = list
       .map(c => typeof c === 'string' ? c : c?.name)
       .filter(Boolean)
       .filter(c => !isPetrolCategory(c))
+    if (!names.some(c => c.toLowerCase().trim() === 'cash advance')) {
+      names.unshift('Cash Advance')
+    }
+    if (!names.some(c => c.toLowerCase().trim() === 'given to others')) {
+      names.push('Given to Others')
+    }
+    return names
   }, [advanceCategoriesList])
 
   const expenseCategoriesOnly = useMemo(() => {
@@ -477,6 +484,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       (prevModule === 'Add Advance' && activeModule === 'Add Expense') ||
       (prevModule === 'Add Expense' && activeModule === 'Add Advance')
     ) {
+      setShowAdvanceFields(false)
+      setShowProjectColumn(false)
       if (activeModule === 'Add Advance') {
         setAddRows(prev => prev.map(row => {
           if (row.category && isPetrolCategory(row.category)) {
@@ -519,11 +528,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [sessionAccount, setSessionAccount] = useState(draft?.sessionAccount || 'Petty Cash - HO')
   const [sessionDefaultEmp, setSessionDefaultEmp] = useState(draft?.sessionDefaultEmp || '')
   const [sessionPayout, setSessionPayout] = useState(draft?.sessionPayout || 'Immediate')
-  const [showAdvanceFields, setShowAdvanceFields] = useState(draft?.showAdvanceFields || false)
+  const [showAdvanceFields, setShowAdvanceFields] = useState(false)
   const [showAdvancedColumns, setShowAdvancedColumns] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showAdvanceFieldsDropdown, setShowAdvanceFieldsDropdown] = useState(false)
-  const [showProjectColumn, setShowProjectColumn] = useState(draft?.showProjectColumn ?? false)
+  const [advanceFieldsDropdownPos, setAdvanceFieldsDropdownPos] = useState({ top: 200, left: 200 })
+  const advanceFieldsButtonRef = useRef(null)
+  const [showProjectColumn, setShowProjectColumn] = useState(false)
   const [showSessionEmployee, setShowSessionEmployee] = useState(draft?.showSessionEmployee ?? true)
   const [showSessionAccount, setShowSessionAccount] = useState(draft?.showSessionAccount ?? true)
   const [showSessionPayout, setShowSessionPayout] = useState(draft?.showSessionPayout ?? true)
@@ -544,6 +555,44 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [isCustomVehicleActive, setIsCustomVehicleActive] = useState(false)
   const vehiclePopoverRef = useRef(null)
 
+  const updateAdvanceFieldsDropdownPos = useCallback(() => {
+    if (advanceFieldsButtonRef.current) {
+      const rect = advanceFieldsButtonRef.current.getBoundingClientRect()
+      const dropdownWidth = 256
+      let left = rect.right - dropdownWidth
+      if (left < 10) left = 10
+      if (left + dropdownWidth > window.innerWidth - 10) {
+        left = Math.max(10, window.innerWidth - dropdownWidth - 10)
+      }
+      setAdvanceFieldsDropdownPos({
+        top: rect.bottom + 6,
+        left
+      })
+    }
+  }, [])
+
+  const toggleAdvanceFieldsDropdown = () => {
+    if (!showAdvanceFieldsDropdown) {
+      updateAdvanceFieldsDropdownPos()
+      setShowAdvanceFieldsDropdown(true)
+    } else {
+      setShowAdvanceFieldsDropdown(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!showAdvanceFieldsDropdown) return
+    const handleReposition = () => {
+      updateAdvanceFieldsDropdownPos()
+    }
+    window.addEventListener('scroll', handleReposition, true)
+    window.addEventListener('resize', handleReposition)
+    return () => {
+      window.removeEventListener('scroll', handleReposition, true)
+      window.removeEventListener('resize', handleReposition)
+    }
+  }, [showAdvanceFieldsDropdown, updateAdvanceFieldsDropdownPos])
+
   // Auto-save draft to localStorage on state changes
   useEffect(() => {
     const draftData = {
@@ -553,8 +602,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       sessionAccount,
       sessionDefaultEmp,
       sessionPayout,
-      showAdvanceFields,
-      showProjectColumn,
+      showAdvanceFields: false,
+      showProjectColumn: false,
       showSessionEmployee,
       showSessionAccount,
       showSessionPayout,
@@ -562,7 +611,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(draftData))
     } catch (e) { /* quota exceeded, ignore */ }
-  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn, showSessionEmployee, showSessionAccount, showSessionPayout])
+  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn, showSessionEmployee, showSessionAccount, showSessionPayout, activeModule])
 
   useEffect(() => {
     draftDirtyRef.current = hasUnsavedEntries
@@ -677,7 +726,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
   const [selectedDeletedEntryIds, setSelectedDeletedEntryIds] = useState([])
-  const [expandedRecentExpenseDates, setExpandedRecentExpenseDates] = useState([])
+  const [collapsedRecentDates, setCollapsedRecentDates] = useState([])
   const [summaryEmployeeSearch, setSummaryEmployeeSearch] = useState('')
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
   const [portalEditForm, setPortalEditForm] = useState(null)
@@ -698,6 +747,62 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [editForm, setEditForm] = useState({})
   const [isEditCustomSite, setIsEditCustomSite] = useState(false)
   const [revokeAdvance, setRevokeAdvance] = useState(true)
+
+  // Available categories grouped for the Edit Modal
+  const editCategories = useMemo(() => {
+    const isAdv = getAccountingEntryType(editForm) === 'Advance'
+    const advanceSet = new Set([
+      'Cash Advance',
+      'Salary Advance',
+      'Travel Advance',
+      'Site Advance',
+      'Medical Advance',
+      'Festival Advance',
+      'Given to Others',
+      'Others',
+      ...advanceCategoriesOnly
+    ])
+    const expenseSet = new Set([
+      'Petrol',
+      'Sitepetrol',
+      'Food & Refreshment',
+      'Office Supplies',
+      'Hotel & Lodging',
+      'Travel & Taxi',
+      'Stationery',
+      'Given to Others',
+      'Subcontractor Payment',
+      'Commission',
+      ...expenseCategoriesOnly
+    ])
+    if (editForm.category) {
+      if (isAdv) {
+        advanceSet.add(editForm.category)
+      } else {
+        expenseSet.add(editForm.category)
+      }
+    }
+    return {
+      advance: Array.from(advanceSet).filter(Boolean),
+      expense: Array.from(expenseSet).filter(Boolean)
+    }
+  }, [editForm, advanceCategoriesOnly, expenseCategoriesOnly, getAccountingEntryType])
+
+  const isEditTransfer = useMemo(() => {
+    const cat = (editForm.category || '').toLowerCase().trim()
+    const isAdv = getAccountingEntryType(editForm) === 'Advance'
+    return (
+      cat.includes('given to others') ||
+      cat.includes('salary to others') ||
+      cat.includes('cash advance') ||
+      editForm.paymentSource === 'company_account' ||
+      editForm.isCompanyAccountAdvance ||
+      !!editForm.paidFromAccount ||
+      !!editForm.givenByEmployeeId ||
+      isCategoryPayableToOthers(editForm.category) ||
+      (isAdv && !!editForm.paidTo && editForm.paidTo !== editForm.employeeId)
+    )
+  }, [editForm, getAccountingEntryType, isCategoryPayableToOthers])
 
   // For finalizing pre-approvals
   const [finalizingId, setFinalizingId] = useState(null)
@@ -839,16 +944,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
         const isGivenToOthers = isGivenToOthersCategory(resolvedCategory)
         const isPetrol = isPetrolCategory(resolvedCategory)
-        const isExplicitAdvance = !isGivenToOthers && !isPetrol && (
+        const paymentSource = row.paymentSource || (activeModule === 'Add Advance' ? 'company_account' : 'employee')
+        const isCompanyAccount = isGivenToOthers && paymentSource === 'company_account'
+        const isExplicitAdvance = !isPetrol && (
           isAdvanceCategory(resolvedCategory, advanceCategoriesList) ||
           (resolvedCategory.toLowerCase().includes('advance') && !resolvedCategory.toLowerCase().includes('expense'))
         )
         let type = 'Expense'
-        if (isGivenToOthers || isPetrol) {
+        if (isPetrol) {
           type = 'Expense'
+        } else if (isCompanyAccount) {
+          // Advance directly from Company Bank Account - NEVER an expense!
+          type = 'Advance'
         } else if (activeModule === 'Add Expense') {
           type = 'Expense'
-        } else if (isExplicitAdvance || activeModule === 'Add Advance') {
+        } else if (activeModule === 'Add Advance') {
+          type = 'Advance'
+        } else if (isExplicitAdvance) {
           type = 'Advance'
         } else {
           type = resolvedCategory.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
@@ -868,11 +980,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const paidToEmp = row.paidToType === 'employee' ? employees.find(e => e.id === row.paidTo) : null
         const paidToName = row.paidToType === 'employee' ? (paidToEmp?.name || null) : (row.paidToCustomName || null)
 
-        // Auto-link to employee advance if expense is paid to another employee
-        // ANY expense paid to an employee creates an advance for that receiving employee (petrol/fuel strictly excluded)
+        // Auto-link to employee advance ONLY for out-of-pocket employee expenses paid to another employee
+        // (Company account advances and Advance module transfers are already Advances, not expenses!)
         let linkedAdvanceId = null
         const isPaidToEmployee = row.paidToType === 'employee' && row.paidTo
-        if (type === 'Expense' && isPaidToEmployee && !isPetrol) {
+        if (type === 'Expense' && isPaidToEmployee && !isPetrol && !isCompanyAccount) {
           // Create linked Advance record for the receiving employee
           const advanceTxnNo = `ADV-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
           const advanceDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
@@ -895,7 +1007,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             paymentStatus: 'Paid',
             paidBy: user.uid,
             paidByName: emp?.name || user.name || user.email,
-            givenByEmployeeId: row.employeeId,
+            givenByEmployeeId: row.fromEmployeeId || row.employeeId,
             givenByEmployeeName: emp?.name || 'Unknown',
             linkedExpenseId: null, // Will be updated after expense creation
             createdBy: user.name || user.email,
@@ -909,15 +1021,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           : (row.transferredToName ? employees.find(e => e.name && e.name.toLowerCase().trim() === row.transferredToName.toLowerCase().trim()) : null)
         
         const isAdvanceTransfer = type === 'Advance' && (
+          isCompanyAccount ||
           (row.paidToType === 'employee' && row.paidTo && row.paidTo !== row.employeeId) ||
           (row.transferredToName && row.transferredToName.toLowerCase().trim() !== String(emp?.name || '').toLowerCase().trim())
         )
 
-        const finalEmployeeId = isAdvanceTransfer && recipientEmpForAdv ? recipientEmpForAdv.id : row.employeeId
-        const finalEmployeeName = isAdvanceTransfer && recipientEmpForAdv ? recipientEmpForAdv.name : (emp?.name || 'Unknown')
-        const finalGivenByEmployeeId = isAdvanceTransfer ? row.employeeId : (row.givenByEmployeeId || null)
-        const finalGivenByEmployeeName = isAdvanceTransfer ? (emp?.name || 'Unknown') : (row.givenByEmployeeName || null)
-        const finalPaidByName = isAdvanceTransfer ? (emp?.name || user.name || user.email) : (user.name || user.email)
+        const selectedCompanyAccount = row.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'
+
+        const finalEmployeeId = isCompanyAccount
+          ? (row.paidTo || row.employeeId)
+          : (type === 'Expense' ? row.employeeId : (isAdvanceTransfer && recipientEmpForAdv ? recipientEmpForAdv.id : row.employeeId))
+
+        const finalEmployeeName = isCompanyAccount
+          ? (paidToEmp?.name || row.paidToCustomName || 'Unknown')
+          : (type === 'Expense' ? (emp?.name || 'Unknown') : (isAdvanceTransfer && recipientEmpForAdv ? recipientEmpForAdv.name : (emp?.name || 'Unknown')))
+
+        const finalGivenByEmployeeId = isCompanyAccount
+          ? null
+          : (type === 'Expense' ? (row.fromEmployeeId || row.employeeId) : (isAdvanceTransfer ? (row.fromEmployeeId || row.employeeId) : (row.givenByEmployeeId || null)))
+
+        const finalGivenByEmployeeName = isCompanyAccount
+          ? selectedCompanyAccount
+          : (type === 'Expense' ? (emp?.name || 'Unknown') : (isAdvanceTransfer ? (emp?.name || 'Unknown') : (row.givenByEmployeeName || null)))
+
+        const finalPaidByName = isCompanyAccount
+          ? selectedCompanyAccount
+          : (isAdvanceTransfer ? (emp?.name || user.name || user.email) : (user.name || user.email))
 
         const standardApprovalRequired = !portalMode && requiresStandardApproval(approvalSettings, type)
         const autoApproveStandardEntry = !portalMode && !standardApprovalRequired
@@ -946,7 +1075,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           payoutMethod: row.payoutMethod || 'Immediate',
           amount: Number(row.amount),
           date: row.date,
-          reason: row.reason,
+          reason: row.reason || (isCompanyAccount ? `Advance from Company Account (${selectedCompanyAccount})` : ''),
           project: row.project || '',
           status: initialStatus,
           approved_by: initialApprovedBy,
@@ -960,9 +1089,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           approvalRequired: portalMode || standardApprovalRequired,
           approvalWorkflow: portalMode ? 'portal-config' : (standardApprovalRequired ? 'standard' : 'none'),
           paidTo: row.paidTo || (recipientEmpForAdv ? recipientEmpForAdv.id : null),
-          paidToType: row.paidToType || (isAdvanceTransfer ? 'employee' : null),
+          paidToType: row.paidToType || (isAdvanceTransfer || isCompanyAccount ? 'employee' : null),
           paidToName: paidToName || (recipientEmpForAdv ? recipientEmpForAdv.name : null),
           paidToCustomName: row.paidToCustomName || null,
+          paymentSource: isCompanyAccount ? 'company_account' : (paymentSource || 'employee'),
+          companyAccount: isCompanyAccount ? selectedCompanyAccount : null,
+          paidFromAccount: isCompanyAccount ? selectedCompanyAccount : null,
+          isCompanyAccountAdvance: isCompanyAccount,
           givenByEmployeeId: finalGivenByEmployeeId,
           givenByEmployeeName: finalGivenByEmployeeName,
           paidByName: finalPaidByName,
@@ -1025,6 +1158,74 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
       delete updatedData.id
       await updateDoc(itemRef, updatedData)
+
+      // Mutual link synchronization:
+      // If this transaction has a linked advance or linked expense, keep it in sync!
+      let linkedId = itemData?.linkedAdvanceId || itemData?.linkedExpenseId || data?.linkedAdvanceId || data?.linkedExpenseId
+      if (!linkedId) {
+        try {
+          const qAdv = query(
+            collection(db, 'organisations', user.orgId, 'advances_expenses'),
+            where('linkedAdvanceId', '==', id)
+          )
+          const qExp = query(
+            collection(db, 'organisations', user.orgId, 'advances_expenses'),
+            where('linkedExpenseId', '==', id)
+          )
+          const [snapAdv, snapExp] = await Promise.all([getDocs(qAdv), getDocs(qExp)])
+          const found = snapAdv.docs[0] || snapExp.docs[0]
+          if (found) {
+            linkedId = found.id
+          }
+        } catch (linkQueryErr) {
+          console.warn('Failed to query reverse linked advance/expense on edit:', linkQueryErr)
+        }
+      }
+
+      if (linkedId) {
+        try {
+          const linkedRef = doc(db, 'organisations', user.orgId, 'advances_expenses', linkedId)
+          const linkedSnap = await getDoc(linkedRef)
+          if (linkedSnap.exists()) {
+            const linkedData = linkedSnap.data()
+            const syncUpdates = {
+              updatedAt: serverTimestamp()
+            }
+            if (data.amount != null) syncUpdates.amount = Number(data.amount)
+            if (data.date) syncUpdates.date = data.date
+            if (data.project !== undefined) syncUpdates.project = data.project
+            if (data.siteName !== undefined) syncUpdates.siteName = data.siteName
+
+            // If an Expense was edited, update receiver and giver details on the linked Advance
+            if (data.type === 'Expense') {
+              if (data.paidTo) {
+                syncUpdates.employeeId = data.paidTo
+                syncUpdates.employeeName = data.paidToName || linkedData.employeeName
+              }
+              if (data.employeeId || data.givenByEmployeeId) {
+                syncUpdates.givenByEmployeeId = data.employeeId || data.givenByEmployeeId
+                syncUpdates.givenByEmployeeName = data.employeeName || data.givenByEmployeeName
+                syncUpdates.reason = `Cash paid from ${data.employeeName || user.name || user.email} - ${data.reason || data.category || ''}`
+              }
+              syncUpdates.linkedExpenseId = id
+            } else if (data.type === 'Advance') {
+              // If an Advance was edited, update receiver on the linked Expense
+              if (data.employeeId) {
+                syncUpdates.paidTo = data.employeeId
+                syncUpdates.paidToName = data.employeeName
+              }
+              if (data.givenByEmployeeId) {
+                syncUpdates.employeeId = data.givenByEmployeeId
+                syncUpdates.employeeName = data.givenByEmployeeName || linkedData.employeeName
+              }
+              syncUpdates.linkedAdvanceId = id
+            }
+            await updateDoc(linkedRef, syncUpdates)
+          }
+        } catch (syncErr) {
+          console.warn('Failed to sync linked advance/expense on edit:', syncErr)
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
@@ -1161,10 +1362,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const requiresPaidTo = isCategoryPayableToOthers(row.category)
 
     const selfExpenseEmployeeId = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : ''
+    const currentPaymentSource = row.paymentSource || (activeModule === 'Add Advance' ? 'company_account' : 'employee')
+    const currentFromEmpId = row.fromEmployeeId || row.employeeId || getMyEmpId()
+
     const activeEmps = employees.filter((employee) => (
       (employee.status || 'Active').toLowerCase() === 'active'
-      && employee.id !== row.employeeId
-      && employee.id !== selfExpenseEmployeeId
+      && (currentPaymentSource === 'company_account' || (employee.id !== currentFromEmpId && employee.id !== row.employeeId))
+      && (currentPaymentSource === 'company_account' || employee.id !== selfExpenseEmployeeId)
     ))
     const employeeOptions = activeEmps.map(e => ({ label: e.name, value: e.id }))
 
@@ -1176,7 +1380,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const emp = employees.find(e => e.id === row.paidTo)
         return emp ? emp.name : row.paidTo
       }
-      return isMobile ? 'Select paid to...' : 'Select...'
+      return isMobile ? 'Select recipient...' : 'Select...'
     })()
 
     if (!requiresPaidTo) {
@@ -1188,7 +1392,69 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
 
     return (
-      <div>
+      <div className="space-y-1.5">
+        {/* Source Toggle: Company Bank Account vs Employee */}
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-md text-[10px] font-semibold">
+          <button
+            type="button"
+            onClick={() => {
+              handleRowChange(rowId, 'paymentSource', 'company_account')
+              if (!row.companyAccount) {
+                handleRowChange(rowId, 'companyAccount', sessionAccount || companyAccountsList?.[0] || 'Main Bank Account')
+              }
+            }}
+            className={`flex-1 py-0.5 px-1.5 rounded text-center transition-all ${
+              currentPaymentSource === 'company_account'
+                ? 'bg-white text-blue-700 font-bold shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🏦 Company A/c
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRowChange(rowId, 'paymentSource', 'employee')}
+            className={`flex-1 py-0.5 px-1.5 rounded text-center transition-all ${
+              currentPaymentSource === 'employee'
+                ? 'bg-white text-blue-700 font-bold shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            👤 Employee
+          </button>
+        </div>
+
+        {/* If Company Account: Bank selector */}
+        {currentPaymentSource === 'company_account' && (
+          <select
+            value={row.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'}
+            onChange={(e) => handleRowChange(rowId, 'companyAccount', e.target.value)}
+            className="w-full h-7 bg-white border border-slate-200 rounded px-1.5 text-[11px] font-semibold text-slate-800 outline-none"
+          >
+            {(companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS).map(acc => (
+              <option key={acc} value={acc}>{acc}</option>
+            ))}
+          </select>
+        )}
+
+        {/* If Employee: Giver / Payer Employee selector */}
+        {currentPaymentSource === 'employee' && (
+          <div className="space-y-0.5">
+            <span className="text-[9.5px] text-slate-500 font-medium block">From (Payer):</span>
+            <select
+              value={row.fromEmployeeId || row.employeeId || ''}
+              onChange={(e) => handleRowChange(rowId, 'fromEmployeeId', e.target.value)}
+              className="w-full h-7 bg-white border border-slate-200 rounded px-1.5 text-[11px] font-semibold text-slate-800 outline-none"
+            >
+              <option value="">Select Payer Employee...</option>
+              {sortedEmployees.map(e => (
+                <option key={e.id} value={e.id}>{e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Recipient Dropdown */}
         <Dropdown
           value={row.paidToType === 'employee' ? (row.paidTo || '') : ''}
           onChange={(val) => handleRowChange(rowId, 'paidTo', val)}
@@ -1206,11 +1472,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         {row.paidToType === 'custom' && (
           <input
             type="text"
-            value={row.paidToCustomName}
+            value={row.paidToCustomName || ''}
             onChange={(e) => handleRowChange(rowId, 'paidToCustomName', e.target.value)}
             placeholder="Enter recipient name..."
-            className={`w-full border border-zinc-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-2 ${
-              isMobile ? 'h-11 px-3 text-sm' : 'h-10'
+            className={`w-full border border-zinc-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-1 ${
+              isMobile ? 'h-11 px-3 text-sm' : 'h-8 text-xs'
             }`}
           />
         )}
@@ -1237,10 +1503,47 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const currentMonthPrefix = format(new Date(), 'yyyy-MM')
 
     const isOwnItem = (item) => {
-      if (myEmpId && item.employeeId) return item.employeeId === myEmpId
-      if (item.submittedByUid && user?.uid) return item.submittedByUid === user.uid
-      if (item.createdBy && (user?.name || user?.email)) {
-        return item.createdBy === user.name || item.createdBy === user.email
+      const details = resolveReportEntryDetails(item, employees, entries)
+      const effectiveEmpId = details?.effectiveEmployeeId || item.employeeId
+      const effectiveEmpName = details?.displayEmployeeName || item.employeeName
+
+      // For both Advance & Expense, resolveReportEntryDetails produces the exact target employee:
+      // - Advance: effectiveEmployeeId is strictly the RECEIVER (beneficiary).
+      //            If user gave advance to an employee, effectiveEmployeeId is the employee (Employee Advance).
+      //            If user received the advance, effectiveEmployeeId is the user (Self Advance).
+      // - Expense: effectiveEmployeeId is strictly the INCURRING employee (who paid/spent the cash).
+      //            If user incurred expense (including cash given to others), effectiveEmployeeId is user (Self Expense).
+      //            If employee incurred expense (even if paid advance to user), effectiveEmployeeId is employee (Employee Expense).
+      const targetEmpId = effectiveEmpId || item.employeeId
+
+      if (portalMode && portalEmployeeId) {
+        return targetEmpId === portalEmployeeId
+      }
+      if (myEmpId) {
+        return targetEmpId === myEmpId
+      }
+      if (user?.email) {
+        const normEmail = user.email.toLowerCase().trim()
+        const targetEmp = employees.find(e => e.id === targetEmpId)
+        if (targetEmp) {
+          if (
+            (targetEmp.email && targetEmp.email.toLowerCase().trim() === normEmail) ||
+            (targetEmp.workEmail && targetEmp.workEmail.toLowerCase().trim() === normEmail) ||
+            (targetEmp.personalEmail && targetEmp.personalEmail.toLowerCase().trim() === normEmail)
+          ) {
+            return true
+          }
+        }
+        if (item.employeeEmail && item.employeeEmail.toLowerCase().trim() === normEmail && targetEmpId === item.employeeId) {
+          return true
+        }
+      }
+      if (user?.name) {
+        const normName = user.name.toLowerCase().trim()
+        const dispName = (effectiveEmpName || '').toLowerCase().trim()
+        if (dispName && dispName === normName) {
+          return true
+        }
       }
       return false
     }
@@ -1249,12 +1552,15 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     // "Given to Others" giver record can have type=Advance, but it belongs to
     // the Expense side while its linked recipient record is the real Advance.
     const filtered = entries.filter((item) => {
+      // Exclude rejected entries from totals and recent reports
+      if (item.status === 'Rejected') return false
+
       // Scope based on mode: Self mode strictly shows the logged-in user's own items
       if (isSelf) {
         if (!isOwnItem(item)) return false
       } else {
         // Staff/employee mode shows items for other staff
-        if (myEmpId && isOwnItem(item)) return false
+        if (isOwnItem(item)) return false
       }
 
       const accountingType = getAccountingEntryType(item)
@@ -1293,7 +1599,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     filtered.forEach(item => {
       const dStr = item.date || (item.createdAt?.toDate ? format(item.createdAt.toDate(), 'yyyy-MM-dd') : '') || item.createdAt?.slice?.(0, 10) || ''
       if (!dStr && !item.createdAt) return
-      const amt = parseFloat(item.amount) || 0
+      const amt = (item.status === 'Partial' && item.partialAmount != null && item.partialAmount !== '')
+        ? Number(item.partialAmount)
+        : (parseFloat(item.amount) || 0)
 
       // Include all entries belonging to the current month in monthTotal
       if (isCurrentMonthItem(dStr, item)) {
@@ -1335,15 +1643,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
       if (cellElem) {
         const rect = cellElem.getBoundingClientRect()
-        const popupHeight = 220
+        const popupHeight = 320
         const spaceBelow = window.innerHeight - rect.bottom
         let topPos = rect.bottom + 4
-        if (spaceBelow < popupHeight && rect.top > popupHeight) {
+
+        // Always prefer opening directly below the row cell.
+        // Only flip upwards if space below is extremely cramped (<140px)
+        // AND opening upwards won't cover the top header/tabs (topPos >= 110px).
+        if (spaceBelow < 140 && rect.top - popupHeight >= 110) {
           topPos = rect.top - popupHeight - 4
+        } else if (spaceBelow < 280) {
+          cellElem.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+          const updatedRect = cellElem.getBoundingClientRect()
+          topPos = updatedRect.bottom + 4
         }
+
         setPaidToPopoverPos({
-          top: Math.max(10, topPos),
-          left: Math.min(window.innerWidth - 270, Math.max(10, rect.left))
+          top: Math.max(110, topPos),
+          left: Math.min(window.innerWidth - 360, Math.max(10, rect.left))
         })
       }
       setActivePaidToRowId(rowId)
@@ -1362,11 +1679,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const popupHeight = 220
         const spaceBelow = window.innerHeight - rect.bottom
         let topPos = rect.bottom + 4
-        if (spaceBelow < popupHeight && rect.top > popupHeight) {
+        if (spaceBelow < 120 && rect.top - popupHeight >= 110) {
           topPos = rect.top - popupHeight - 4
         }
         setSitePopoverPos({
-          top: Math.max(10, topPos),
+          top: Math.max(110, topPos),
           left: Math.min(window.innerWidth - 330, Math.max(10, rect.left))
         })
       }
@@ -1388,11 +1705,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const popupHeight = 260
         const spaceBelow = window.innerHeight - rect.bottom
         let topPos = rect.bottom + 4
-        if (spaceBelow < popupHeight && rect.top > popupHeight) {
+        if (spaceBelow < 120 && rect.top - popupHeight >= 110) {
           topPos = rect.top - popupHeight - 4
         }
         setVehiclePopoverPos({
-          top: Math.max(10, topPos),
+          top: Math.max(110, topPos),
           left: Math.min(window.innerWidth - 330, Math.max(10, rect.left))
         })
       }
@@ -1431,7 +1748,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (advanceFieldsDropdownRef.current && !advanceFieldsDropdownRef.current.contains(event.target)) {
+      if (
+        advanceFieldsDropdownRef.current &&
+        !advanceFieldsDropdownRef.current.contains(event.target) &&
+        advanceFieldsButtonRef.current &&
+        !advanceFieldsButtonRef.current.contains(event.target)
+      ) {
         setShowAdvanceFieldsDropdown(false)
       }
       if (paidToPopoverRef.current && !paidToPopoverRef.current.contains(event.target)) {
@@ -1467,6 +1789,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     setSessionAccount(companyAccountsList?.[0] || 'Petty Cash - HO')
     setSessionDefaultEmp('')
     setSessionPayout('Immediate')
+    setShowAdvanceFields(false)
+    setShowProjectColumn(false)
     const myId = !canSelectAll ? getMyEmpId() : ''
     setAddRows([
       { id: Date.now(), date: todayStr, employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }
@@ -1958,7 +2282,44 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const handleEdit = (entry) => {
     setEditingId(entry.id)
-    setEditForm(entry)
+
+    // Detect if payment was from company bank account
+    const isCompany = entry.paymentSource === 'company_account' ||
+      entry.isCompanyAccountAdvance ||
+      !!entry.paidFromAccount ||
+      (companyAccountsList && companyAccountsList.includes(entry.paidByName))
+
+    const resolvedPaymentSource = isCompany ? 'company_account' : (entry.paymentSource || 'employee')
+    const resolvedCompanyAccount = entry.companyAccount || entry.paidFromAccount || (companyAccountsList && companyAccountsList.includes(entry.paidByName) ? entry.paidByName : (companyAccountsList?.[0] || 'Main Bank Account'))
+
+    // Determine recipient
+    const resolvedPaidTo = entry.paidTo ||
+      (entry.transferredToName ? (employees.find(e => e.name && e.name.toLowerCase().trim() === entry.transferredToName.toLowerCase().trim())?.id || '') : '') ||
+      (entry.givenByEmployeeId && entry.givenByEmployeeId !== entry.employeeId ? entry.employeeId : '')
+
+    // Determine payer / giver
+    const resolvedGivenBy = entry.givenByEmployeeId ||
+      (entry.paymentSource === 'employee' && entry.givenByEmployeeName ? (employees.find(e => e.name && e.name.toLowerCase().trim() === entry.givenByEmployeeName.toLowerCase().trim())?.id || '') : '') ||
+      (!isCompany && entry.employeeId && entry.employeeId !== resolvedPaidTo ? entry.employeeId : '')
+
+    const recEmp = employees.find(e => e.id === resolvedPaidTo)
+    const payerEmp = employees.find(e => e.id === resolvedGivenBy)
+
+    // For out-of-pocket expenses, the primary employee is the giver
+    const effectivePrimaryEmpId = (!isCompany && resolvedGivenBy) ? resolvedGivenBy : (resolvedPaidTo || entry.employeeId)
+
+    setEditForm({
+      ...entry,
+      paymentSource: resolvedPaymentSource,
+      companyAccount: resolvedCompanyAccount,
+      paidTo: resolvedPaidTo,
+      paidToName: entry.paidToName || entry.transferredToName || recEmp?.name || '',
+      paidToType: entry.paidToType || (entry.paidToCustomName ? 'custom' : 'employee'),
+      paidToCustomName: entry.paidToCustomName || '',
+      givenByEmployeeId: resolvedGivenBy,
+      givenByEmployeeName: entry.givenByEmployeeName || payerEmp?.name || '',
+      employeeId: effectivePrimaryEmpId
+    })
     setIsEditCustomSite(Boolean(entry?.siteName && !availableSiteNames.includes(entry.siteName)))
     setRevokeAdvance(true)
   }
@@ -1969,19 +2330,65 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const type = isPetrolCategory(category)
         ? 'Expense'
         : resolveAccountingEntryType({ ...editForm, category }, advanceCategoriesList, expenseCategoriesList)
-      
-      const emp = employees.find(e => e.id === editForm.employeeId) || {}
+
+      const isExpense = type === 'Expense'
+      const isCompanyAccount = !isExpense && (
+        editForm.paymentSource === 'company_account' ||
+        editForm.isCompanyAccountAdvance ||
+        (!editForm.paymentSource && isEditTransfer)
+      )
+
+      const selectedCompanyAccount = editForm.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'
+
+      const payerEmp = editForm.givenByEmployeeId ? employees.find(e => e.id === editForm.givenByEmployeeId) : null
+      const recipientEmp = editForm.paidTo ? employees.find(e => e.id === editForm.paidTo) : (editForm.employeeId ? employees.find(e => e.id === editForm.employeeId) : null)
+
+      const finalEmployeeId = isExpense
+        ? (editForm.givenByEmployeeId || editForm.employeeId)
+        : (isCompanyAccount
+            ? (editForm.paidTo || editForm.employeeId)
+            : (isEditTransfer ? (editForm.paidTo || editForm.employeeId) : editForm.employeeId))
+
+      const primaryEmp = employees.find(e => e.id === finalEmployeeId) || {}
+      const finalEmployeeName = primaryEmp.name || editForm.paidToName || editForm.employeeName || 'Unknown'
+
+      const finalPaidToName = editForm.paidToType === 'custom'
+        ? editForm.paidToCustomName
+        : (recipientEmp?.name || editForm.paidToName || finalEmployeeName)
+
+      const finalGivenByEmployeeId = isCompanyAccount ? null : (payerEmp?.id || editForm.givenByEmployeeId || null)
+      const finalGivenByEmployeeName = isCompanyAccount ? selectedCompanyAccount : (payerEmp?.name || editForm.givenByEmployeeName || null)
+      const finalPaidByName = isCompanyAccount ? selectedCompanyAccount : (payerEmp?.name || editForm.paidByName || user.name || user.email)
+
       const updatedData = {
         ...editForm,
         type: type,
-        employeeName: emp.name || editForm.employeeName,
-        amount: Number(editForm.amount)
+        category: category,
+        employeeId: finalEmployeeId,
+        employeeName: finalEmployeeName,
+        amount: Number(editForm.amount),
+        paymentSource: isEditTransfer ? (isCompanyAccount ? 'company_account' : 'employee') : (editForm.paymentSource || 'employee'),
+        companyAccount: isCompanyAccount ? selectedCompanyAccount : null,
+        paidFromAccount: isCompanyAccount ? selectedCompanyAccount : null,
+        isCompanyAccountAdvance: isCompanyAccount && type === 'Advance',
+        givenByEmployeeId: finalGivenByEmployeeId,
+        givenByEmployeeName: finalGivenByEmployeeName,
+        paidByName: finalPaidByName,
+        paidTo: isEditTransfer ? (editForm.paidTo || finalEmployeeId) : null,
+        paidToName: isEditTransfer ? finalPaidToName : null,
+        paidToType: isEditTransfer ? (editForm.paidToType || 'employee') : null,
+        paidToCustomName: isEditTransfer ? (editForm.paidToCustomName || null) : null,
+        transferredToName: isEditTransfer ? finalPaidToName : null
       }
-      
+
       await updateMutation.mutateAsync({ id: editingId, data: updatedData, revokeAdvFlag: revokeAdvance })
-      alert('Updated and reset for re-approval')
+      setEditingId(null)
+      setEditForm({})
+      setIsEditCustomSite(false)
+      alert('Updated successfully and reset for re-approval')
     } catch (err) {
-      alert('Failed to update')
+      console.error('Failed to update transaction:', err)
+      alert('Failed to update transaction: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -2182,24 +2589,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const isNoAppr = appType === 'none'
 
         if (isNoAppr) {
-          // If No Approval is configured in Settings, do NOT open the Approval Drawer!
-          setAddRows([{
-            id: 'row-1',
-            date: new Date().toISOString().slice(0, 10),
-            employeeId: user?.uid || '',
-            paidToType: 'employee',
-            paidTo: '',
-            paidToCustomName: '',
-            category: activeModule === 'Add Advance' ? 'Salary Advance' : '',
-            customCategory: '',
-            transferredToName: '',
-            requestType: 'Reimbursement',
-            payoutMethod: 'Immediate',
-            amount: '',
-            project: '',
-            reason: ''
-          }])
-          if (rowType === 'Advance') setActiveModule('Reports')
+          // If No Approval is configured in Settings, do NOT open the Approval Drawer.
+          // Remain on the current active tab (e.g. 'Add Advance')
           return
         }
 
@@ -2413,11 +2804,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       if (!itemData) return
 
-      // Copy to deleted_advances_expenses
+      // Identify linked counterpart (e.g. out-of-pocket cash advance / expense pair)
+      let linkedId = itemData.linkedAdvanceId || itemData.linkedExpenseId
+      if (!linkedId) {
+        try {
+          const qAdv = query(
+            collection(db, 'organisations', user.orgId, 'advances_expenses'),
+            where('linkedAdvanceId', '==', id)
+          )
+          const qExp = query(
+            collection(db, 'organisations', user.orgId, 'advances_expenses'),
+            where('linkedExpenseId', '==', id)
+          )
+          const [snapAdv, snapExp] = await Promise.all([getDocs(qAdv), getDocs(qExp)])
+          const found = snapAdv.docs[0] || snapExp.docs[0]
+          if (found) linkedId = found.id
+        } catch (e) {
+          console.warn('Could not query linked records on delete:', e)
+        }
+      }
+
+      // Copy primary item to deleted_advances_expenses
       await setDoc(doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', id), {
         ...itemData,
         deletedAt: serverTimestamp(),
-        deletedBy: user.email || user.name
+        deletedBy: user.email || user.name,
+        deletedWithLinkedId: linkedId || null
       })
 
       // Revoke logic for paid advances AND paid immediate expenses (unless user chose to keep it)
@@ -2434,6 +2846,39 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
       
       await deleteDoc(itemRef)
+
+      // Mutual link deletion: also delete linked counterpart from advances_expenses if it exists
+      if (linkedId) {
+        try {
+          const linkedRef = doc(db, 'organisations', user.orgId, 'advances_expenses', linkedId)
+          const linkedSnap = await getDoc(linkedRef)
+          if (linkedSnap.exists()) {
+            const linkedData = linkedSnap.data()
+            await setDoc(doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', linkedId), {
+              ...linkedData,
+              deletedAt: serverTimestamp(),
+              deletedBy: user.email || user.name,
+              deletedWithLinkedId: id
+            })
+
+            if (!keepAdvanceRecord && linkedData?.paymentStatus === 'Paid' && 
+               (linkedData?.type === 'Advance' || (linkedData?.type === 'Expense' && linkedData?.payoutMethod !== 'With Salary'))) {
+              const advQ = query(
+                collection(db, 'organisations', user.orgId, 'advances'),
+                where('linkedRequestId', '==', linkedId)
+              )
+              const advSnap = await getDocs(advQ)
+              for (const d of advSnap.docs) {
+                await deleteDoc(doc(db, 'organisations', user.orgId, 'advances', d.id))
+              }
+            }
+
+            await deleteDoc(linkedRef)
+          }
+        } catch (linkErr) {
+          console.warn('Failed to delete linked counterpart:', linkErr)
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
@@ -2449,8 +2894,33 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       if (!itemData) return
 
+      let linkedId = itemData.linkedAdvanceId || itemData.linkedExpenseId || itemData.deletedWithLinkedId
+      if (!linkedId) {
+        try {
+          const qAdv = query(
+            collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+            where('linkedAdvanceId', '==', id)
+          )
+          const qExp = query(
+            collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+            where('linkedExpenseId', '==', id)
+          )
+          const qWith = query(
+            collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+            where('deletedWithLinkedId', '==', id)
+          )
+          const [snapAdv, snapExp, snapWith] = await Promise.all([getDocs(qAdv), getDocs(qExp), getDocs(qWith)])
+          const foundDoc = snapAdv.docs[0] || snapExp.docs[0] || snapWith.docs[0]
+          if (foundDoc) {
+            linkedId = foundDoc.id
+          }
+        } catch (e) {
+          console.warn('Could not query deleted linked records on restore:', e)
+        }
+      }
+
       // Remove deleted metadata
-      const { deletedAt, deletedBy, ...originalData } = itemData
+      const { deletedAt, deletedBy, deletedWithLinkedId, ...originalData } = itemData
 
       // Restore to advances_expenses
       await setDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), {
@@ -2478,6 +2948,44 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
 
       await deleteDoc(itemRef)
+
+      // Mutual link restoration: also restore linked counterpart if present in deleted_advances_expenses
+      if (linkedId) {
+        try {
+          const linkedDelRef = doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', linkedId)
+          const linkedDelSnap = await getDoc(linkedDelRef)
+          if (linkedDelSnap.exists()) {
+            const linkedDelData = linkedDelSnap.data()
+            const { deletedAt: dAt, deletedBy: dBy, deletedWithLinkedId: dWith, ...linkedOriginalData } = linkedDelData
+            await setDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', linkedId), {
+              ...linkedOriginalData,
+              updatedAt: serverTimestamp(),
+              restoredAt: serverTimestamp(),
+              restoredBy: user.email || user.name
+            })
+
+            if ((linkedOriginalData.type === 'Advance' || (linkedOriginalData.type === 'Expense' && linkedOriginalData.payoutMethod !== 'With Salary')) && linkedOriginalData.paymentStatus === 'Paid') {
+              const finalAmount = linkedOriginalData.partialAmount || linkedOriginalData.amount
+              await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
+                employeeId: linkedOriginalData.employeeId,
+                employeeName: linkedOriginalData.employeeName,
+                amount: finalAmount,
+                type: 'Advance',
+                date: linkedOriginalData.date || new Date().toISOString().split('T')[0],
+                reason: `Auto-restored from deleted request: ${linkedOriginalData.reason || linkedOriginalData.category || 'No Reason'}`,
+                status: 'Pending',
+                linkedRequestId: linkedId,
+                createdAt: serverTimestamp(),
+                createdBy: user.uid
+              })
+            }
+
+            await deleteDoc(linkedDelRef)
+          }
+        } catch (linkErr) {
+          console.warn('Failed to restore linked counterpart:', linkErr)
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
@@ -2489,7 +2997,44 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const permanentDeleteMutation = useMutation({
     mutationFn: async (id) => {
       const itemRef = doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const itemData = itemSnap.data()
       await deleteDoc(itemRef)
+
+      if (itemData) {
+        let linkedId = itemData.linkedAdvanceId || itemData.linkedExpenseId || itemData.deletedWithLinkedId
+        if (!linkedId) {
+          try {
+            const qAdv = query(
+              collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+              where('linkedAdvanceId', '==', id)
+            )
+            const qExp = query(
+              collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+              where('linkedExpenseId', '==', id)
+            )
+            const qWith = query(
+              collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+              where('deletedWithLinkedId', '==', id)
+            )
+            const [snapAdv, snapExp, snapWith] = await Promise.all([getDocs(qAdv), getDocs(qExp), getDocs(qWith)])
+            const foundDoc = snapAdv.docs[0] || snapExp.docs[0] || snapWith.docs[0]
+            if (foundDoc) {
+              linkedId = foundDoc.id
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (linkedId) {
+          try {
+            await deleteDoc(doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', linkedId))
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['deleted_advances_expenses', user?.orgId])
@@ -2694,7 +3239,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const monthlyStatement = useMemo(() => {
     const periodRows = entries
-      .filter((entry) => String(entry.date || '').startsWith(summaryMonth))
+      .filter((entry) => String(entry.date || '').startsWith(summaryMonth) && entry.status !== 'Rejected')
       .map((entry) => {
         const details = resolveReportEntryDetails(entry, employees, entries)
         const effectiveId = details.effectiveEmployeeId || entry.employeeId
@@ -2705,6 +3250,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           statementAmount: effectiveAmount(entry),
           statementEmployeeId: effectiveId,
           statementEmployeeName: details.displayEmployeeName || entry.employeeName || employee?.name || employee?.empCode || 'Unassigned employee',
+          statementCategory: details.displayCategory || entry.category || 'Uncategorised'
         }
       })
       .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')) || Number(right.createdAt?.seconds || 0) - Number(left.createdAt?.seconds || 0))
@@ -2713,7 +3259,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const advanceRows = periodRows.filter((entry) => entry.accountingType === 'Advance')
     const categoryMap = new Map()
     expenseRows.forEach((entry) => {
-      const category = entry.category || 'Uncategorised'
+      const category = entry.statementCategory || entry.category || 'Uncategorised'
       const current = categoryMap.get(category) || { category, count: 0, amount: 0, paid: 0, outstanding: 0 }
       current.count += 1
       current.amount += entry.statementAmount
@@ -2774,12 +3320,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           x: 'category',
           y: 'amount',
           fill: '#e11d48',
-          radius: 8,
+          radius: 6,
         }),
       ],
       scales: {
         x: {
-          scale: () => scaleBand().padding(0.18),
+          scale: () => scaleBand().padding(0.55),
           axis: {
             line: false,
             ticks: {
@@ -3427,9 +3973,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         .no-arrow::-webkit-calendar-picker-indicator { display: none !important; }
       `}</style>
       
-      <datalist id="edit-categories-list">
-        {(getAccountingEntryType(editForm) === 'Advance' ? advanceCategoriesOnly : expenseCategoriesOnly).map(c => <option key={c} value={c} />)}
-      </datalist>
 
       {/* Transferred To Micro-Modal */}
       {transferModalRowId && (
@@ -3578,24 +4121,257 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <label className="mb-1 block text-[11px] font-bold text-gray-700">Date</label>
                 <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-bold text-gray-700">Employee</label>
-                <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900">
-                  {sortedEmployees.map(e => (
-                    <option key={e.id} value={e.id}>
-                      {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
               <div>
                 <label className="mb-1 block text-[11px] font-bold text-gray-700">Category ({getAccountingEntryType(editForm) === 'Advance' ? 'Advance' : 'Expense'})</label>
-                <input list="edit-categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                <select
+                  value={editForm.category || ''}
+                  onChange={e => {
+                    const newCat = e.target.value
+                    setEditForm(f => {
+                      const next = { ...f, category: newCat }
+                      const newType = isPetrolCategory(newCat)
+                        ? 'Expense'
+                        : resolveAccountingEntryType(next, advanceCategoriesList, expenseCategoriesList)
+                      next.type = newType
+                      const isTransfer = newCat.toLowerCase().includes('given to others') || newCat.toLowerCase().includes('cash advance')
+                      if (isTransfer) {
+                        if (!next.paymentSource) next.paymentSource = 'company_account'
+                        if (!next.companyAccount) next.companyAccount = sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'
+                        if (!next.paidTo) next.paidTo = next.employeeId || ''
+                      }
+                      return next
+                    })
+                  }}
+                  className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900 font-medium"
+                >
+                  <optgroup label="Advance Categories">
+                    {editCategories.advance.map(c => (
+                      <option key={`adv-${c}`} value={c}>{c}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Expense Categories">
+                    {editCategories.expense.map(c => (
+                      <option key={`exp-${c}`} value={c}>{c}</option>
+                    ))}
+                  </optgroup>
+                </select>
               </div>
+
               <div>
-                <label className="mb-1 block text-[11px] font-bold text-gray-700">Amount</label>
-                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Amount (₹)</label>
+                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 font-semibold focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
+
+              {!isEditTransfer && (
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-gray-700">Employee</label>
+                  <select
+                    value={editForm.employeeId}
+                    onChange={e => {
+                      const empId = e.target.value
+                      const emp = sortedEmployees.find(em => em.id === empId)
+                      setEditForm(f => ({ ...f, employeeId: empId, employeeName: emp?.name || f.employeeName }))
+                    }}
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  >
+                    {sortedEmployees.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Payment Flow & Names Assignment Card for Transfers / Given to Others / Cash Advances */}
+              {isEditTransfer && (
+                <div className="sm:col-span-2 rounded-xl border border-indigo-200/80 bg-slate-50/60 p-4 space-y-3.5 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-indigo-100/80 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white shadow-xs">⇄</span>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 font-heading">Payment Flow & Names Assignment</h4>
+                        <p className="text-[11px] text-slate-500 font-body">Assign who provided the funds and which employee receives this advance.</p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                      editForm.paymentSource === 'company_account'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    }`}>
+                      {editForm.paymentSource === 'company_account' ? '🏦 Bank Advance' : '👤 Employee Transfer'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* 1. Paid From (Source) */}
+                    <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">1. Paid From (Source)</label>
+                      </div>
+
+                      {/* Source Toggle */}
+                      <div className="flex rounded-md bg-slate-100 p-0.5 text-xs font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(f => ({
+                            ...f,
+                            paymentSource: 'company_account',
+                            companyAccount: f.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account',
+                            paidFromAccount: f.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account',
+                            givenByEmployeeId: null,
+                            givenByEmployeeName: f.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'
+                          }))}
+                          className={`flex-1 py-1 px-2 rounded text-center transition-all cursor-pointer ${
+                            editForm.paymentSource === 'company_account'
+                              ? 'bg-white text-blue-700 font-bold shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          🏦 Company Bank A/c
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(f => {
+                            const defaultPayerId = f.givenByEmployeeId || (f.employeeId !== f.paidTo ? f.employeeId : '')
+                            const defaultPayer = sortedEmployees.find(e => e.id === defaultPayerId)
+                            return {
+                              ...f,
+                              paymentSource: 'employee',
+                              companyAccount: null,
+                              paidFromAccount: null,
+                              givenByEmployeeId: defaultPayerId,
+                              givenByEmployeeName: defaultPayer?.name || ''
+                            }
+                          })}
+                          className={`flex-1 py-1 px-2 rounded text-center transition-all cursor-pointer ${
+                            editForm.paymentSource === 'employee'
+                              ? 'bg-white text-blue-700 font-bold shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          👤 Employee (Giver)
+                        </button>
+                      </div>
+
+                      {editForm.paymentSource === 'company_account' ? (
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[11px] font-medium text-slate-600">Company Bank Account</label>
+                          <select
+                            value={editForm.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'}
+                            onChange={e => setEditForm(f => ({
+                              ...f,
+                              companyAccount: e.target.value,
+                              paidFromAccount: e.target.value,
+                              givenByEmployeeName: e.target.value
+                            }))}
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            {(companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS).map(acc => (
+                              <option key={acc} value={acc}>{acc}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-emerald-700 font-medium flex items-center gap-1 pt-0.5">
+                            <span className="font-bold">✓</span> Zero company expense • Recorded directly as Advance
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[11px] font-medium text-slate-600">Payer Employee (Who gave the money?)</label>
+                          <select
+                            value={editForm.givenByEmployeeId || ''}
+                            onChange={e => {
+                              const payerId = e.target.value
+                              const payerEmp = sortedEmployees.find(emp => emp.id === payerId)
+                              setEditForm(f => ({
+                                ...f,
+                                givenByEmployeeId: payerId,
+                                givenByEmployeeName: payerEmp?.name || ''
+                              }))
+                            }}
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            <option value="">-- Select Payer Employee --</option>
+                            {sortedEmployees.map(emp => (
+                              <option key={emp.id} value={emp.id} disabled={emp.id === editForm.paidTo}>
+                                {emp.name} {!isEmployeeActiveStatus(emp.status) ? '(Inactive)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-slate-400">
+                            Employee who provided funds out of pocket or previous advance.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Received By (Recipient / Advance Holder) */}
+                    <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">2. Received By (Recipient)</label>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(f => ({
+                            ...f,
+                            paidToType: f.paidToType === 'custom' ? 'employee' : 'custom'
+                          }))}
+                          className="text-[10.5px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                        >
+                          {editForm.paidToType === 'custom' ? '← Choose Employee' : '+ External Recipient'}
+                        </button>
+                      </div>
+
+                      {editForm.paidToType === 'custom' ? (
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[11px] font-medium text-slate-600">External Recipient Name</label>
+                          <input
+                            type="text"
+                            value={editForm.paidToCustomName || ''}
+                            onChange={e => setEditForm(f => ({
+                              ...f,
+                              paidToCustomName: e.target.value,
+                              paidToName: e.target.value
+                            }))}
+                            placeholder="Enter recipient name..."
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[11px] font-medium text-slate-600">Beneficiary Employee (Advance Debited)</label>
+                          <select
+                            value={editForm.paidTo || editForm.employeeId || ''}
+                            onChange={e => {
+                              const recId = e.target.value
+                              const recEmp = sortedEmployees.find(emp => emp.id === recId)
+                              setEditForm(f => ({
+                                ...f,
+                                paidTo: recId,
+                                paidToName: recEmp?.name || '',
+                                transferredToName: recEmp?.name || '',
+                                employeeId: recId,
+                                employeeName: recEmp?.name || f.employeeName
+                              }))
+                            }}
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            <option value="">-- Select Recipient Employee --</option>
+                            {sortedEmployees.map(emp => (
+                              <option key={emp.id} value={emp.id} disabled={editForm.paymentSource === 'employee' && emp.id === editForm.givenByEmployeeId}>
+                                {emp.name} {!isEmployeeActiveStatus(emp.status) ? '(Inactive)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-slate-500">
+                            This employee receives the advance and holds the repayment balance.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="mb-1 block text-[11px] font-bold text-gray-700">Request type</label>
                 <select value={editForm.requestType} onChange={e => setEditForm(f => ({ ...f, requestType: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900">
@@ -3962,8 +4738,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         }
 
         const modeSubTabs = [
-          { id: 'self', label: `Self ${entryLabel}`, icon: <User size={15} /> },
-          { id: 'employee', label: `Employee ${entryLabel}`, icon: <Users size={15} /> }
+          { id: 'self', label: `Self ${entryLabel}`, icon: <User size={13} /> },
+          { id: 'employee', label: `Employee ${entryLabel}`, icon: <Users size={13} /> }
         ]
 
         const handleModeTabChange = (tab) => {
@@ -3975,20 +4751,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         }
 
         return (
-          <div className="space-y-3 pb-64 sm:pb-80">
-            {/* 1. Nested Subtabs Navigation: Self vs Employee mode (inspired by Settings subtabs) */}
+          <div className="space-y-2.5 pb-64 sm:pb-80">
+            {/* 1. Subtabs Navigation: Self vs Employee mode (matching Settings pill buttons) */}
             {!portalMode && (
-              <div className="rounded-xl border border-slate-200/90 bg-[#F4FAFD] shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between px-3 sm:px-4 border-b border-[#E0E0E0] pt-1.5">
-                  <FleetSecondaryTabs
-                    tabs={modeSubTabs}
-                    activeTabId={expenseMode}
-                    onTabChange={handleModeTabChange}
-                    ariaLabel={`${entryLabel} entry mode`}
-                    className="border-b-0 bg-transparent p-0 min-h-[44px]"
-                  />
-                  <div className="hidden sm:flex items-center gap-2 pb-2 text-xs font-medium text-slate-500">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 border border-slate-200/80 shadow-xs">
+              <div className="rounded-xl border border-slate-200/90 bg-[#F4FAFD] shadow-xs px-3 py-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={`${entryLabel} entry mode`}>
+                    {modeSubTabs.map((tab) => {
+                      const isActive = expenseMode === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          role="tab"
+                          data-tab-id={tab.id}
+                          aria-selected={isActive}
+                          className={`fleet-two-row-pill ${isActive ? 'fleet-two-row-pill-active' : ''}`}
+                          onClick={() => handleModeTabChange(tab)}
+                        >
+                          {tab.icon && <span className="fleet-secondary-tab-icon" aria-hidden="true">{tab.icon}</span>}
+                          {tab.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200/80 shadow-2xs">
                       <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
                       {expenseMode === 'self' ? `Personal ${entryLabel}` : `Staff & Team ${entryLabel}`}
                     </span>
@@ -4155,7 +4943,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 4. Expenses Table Header & Controls Bar */}
                 <div className="bg-white rounded-[12px] border border-slate-200/90 overflow-hidden shadow-sm">
-                <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40">
+                <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40 relative z-20">
                   <div className="flex items-center gap-4">
                     <h2 className="text-base font-bold text-slate-900">
                       {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} <span className="text-slate-500 font-medium text-sm">({addRows.length} rows)</span>
@@ -4164,11 +4952,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                   <div className="flex items-center gap-3 w-auto">
                     {/* Show Advance fields Dropdown with Checkboxes & Click Outside Close */}
-                    <div className="relative" ref={advanceFieldsDropdownRef}>
+                    <div className="relative">
                       <button
+                        ref={advanceFieldsButtonRef}
                         type="button"
-                        onClick={() => setShowAdvanceFieldsDropdown(!showAdvanceFieldsDropdown)}
-                        className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        onClick={toggleAdvanceFieldsDropdown}
+                        className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
                           showAdvanceFields || showProjectColumn || (!portalMode && (!showSessionEmployee || !showSessionAccount || !showSessionPayout))
                             ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -4181,8 +4970,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <span className="sr-only">Columns and options</span>
                       </button>
 
-                      {showAdvanceFieldsDropdown && (
-                        <div className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-30 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
+                      {showAdvanceFieldsDropdown && createPortal(
+                        <div
+                          ref={advanceFieldsDropdownRef}
+                          style={{
+                            position: 'fixed',
+                            top: `${advanceFieldsDropdownPos.top}px`,
+                            left: `${advanceFieldsDropdownPos.left}px`,
+                            zIndex: 99999,
+                          }}
+                          className="w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100 font-body"
+                        >
                           <div className="font-bold text-slate-800 border-b border-slate-100 pb-1 text-[11px] uppercase tracking-wider">
                             Toggle visible fields
                           </div>
@@ -4231,7 +5029,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               <span className="text-[10px] text-slate-400 font-normal">Show project selector column</span>
                             </div>
                           </label>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </div>
                   </div>
@@ -4472,7 +5271,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       position: 'fixed',
                                       top: `${sitePopoverPos.top}px`,
                                       left: `${sitePopoverPos.left}px`,
-                                      zIndex: 9999
+                                      zIndex: 9999,
+                                      maxHeight: `min(460px, calc(100vh - ${sitePopoverPos.top}px - 16px))`,
+                                      overflowY: 'auto'
                                     }}
                                     className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150 font-body"
                                   >
@@ -4592,7 +5393,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       position: 'fixed',
                                       top: `${vehiclePopoverPos.top}px`,
                                       left: `${vehiclePopoverPos.left}px`,
-                                      zIndex: 9999
+                                      zIndex: 9999,
+                                      maxHeight: `min(460px, calc(100vh - ${vehiclePopoverPos.top}px - 16px))`,
+                                      overflowY: 'auto'
                                     }}
                                     className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150 font-body"
                                   >
@@ -4736,31 +5539,50 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   document.body
                                 )}
 
-                                {/* Sub-badge: [1st Column Employee] → [Chosen Recipient] with -2px spacing */}
+                                {/* Sub-badge: [Source] → [Chosen Recipient] with -2px spacing */}
                                 {isCategoryPayableToOthers(row.category) && (
                                   <div
                                     onClick={(e) => openPaidToPopover(activePaidToRowId === row.id ? null : row.id, e.currentTarget)}
                                     className="mt-[-2px] flex items-center justify-between gap-1.5 text-[10px] font-bold text-blue-900 bg-blue-50/90 hover:bg-blue-100/90 px-2 py-0.5 rounded-md border border-blue-200/80 shadow-2xs cursor-pointer transition-all group/badge"
-                                    title="Click to change recipient"
+                                    title="Click to configure source & recipient"
                                   >
                                     <div className="flex items-center gap-1.5 overflow-hidden">
-                                      <span className="text-slate-700 font-semibold truncate max-w-[85px]">
-                                        {(() => {
-                                          const mainEmp = employees.find((employee) => employee.id === row.employeeId);
-                                          return mainEmp ? mainEmp.name : (row.employeeId || 'Employee');
-                                        })()}
-                                      </span>
-                                      <span className="text-blue-600 font-extrabold">→</span>
-                                      <span className="text-blue-900 font-bold truncate max-w-[95px]">
-                                        {(() => {
+                                      {(() => {
+                                        const isCompany = row.paymentSource === 'company_account' || (!row.paymentSource && activeModule === 'Add Advance');
+                                        const sourceName = isCompany
+                                          ? (row.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Bank A/c')
+                                          : (() => {
+                                              const giverId = row.fromEmployeeId || row.employeeId;
+                                              const mainEmp = employees.find((employee) => employee.id === giverId);
+                                              return mainEmp ? mainEmp.name : (giverId || 'Employee');
+                                            })();
+                                        const recipientName = (() => {
                                           if (row.paidToType === 'custom' && row.paidToCustomName) return row.paidToCustomName;
                                           if (row.paidTo) {
                                             const emp = employees.find(e => e.id === row.paidTo || e.name === row.paidTo);
                                             return emp ? emp.name : row.paidTo;
                                           }
+                                          if (isCompany && row.employeeId) {
+                                            const emp = employees.find(e => e.id === row.employeeId);
+                                            return emp ? emp.name : row.employeeId;
+                                          }
                                           return 'Select recipient...';
-                                        })()}
-                                      </span>
+                                        })();
+
+                                        return (
+                                          <>
+                                            <span className="text-slate-700 font-semibold truncate max-w-[85px] flex items-center gap-1" title={`Source: ${sourceName}`}>
+                                              <span className="text-[10px] shrink-0">{isCompany ? '🏦' : '👤'}</span>
+                                              <span className="truncate">{sourceName}</span>
+                                            </span>
+                                            <span className="text-blue-600 font-extrabold shrink-0">→</span>
+                                            <span className="text-blue-900 font-bold truncate max-w-[95px] flex items-center gap-1" title={`Recipient: ${recipientName}`}>
+                                              <span className="text-[10px] shrink-0">👤</span>
+                                              <span className="truncate">{recipientName}</span>
+                                            </span>
+                                          </>
+                                        );
+                                      })()}
                                     </div>
                                     <span className="text-[9px] text-blue-600 opacity-70 group-hover/badge:opacity-100 font-bold underline shrink-0">
                                       {row.paidTo || row.paidToCustomName ? 'Change' : 'Choose'}
@@ -4768,7 +5590,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   </div>
                                 )}
 
-                                {/* 2-Column Searchable Recipient Employee Popup - Excludes 1st Column Employee */}
+                                {/* Config Popover: Source (Company Account vs Employee) & Recipient */}
                                 {activePaidToRowId === row.id && createPortal(
                                   <div
                                     ref={paidToPopoverRef}
@@ -4776,95 +5598,207 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       position: 'fixed',
                                       top: `${paidToPopoverPos.top}px`,
                                       left: `${paidToPopoverPos.left}px`,
-                                      zIndex: 9999
+                                      zIndex: 9999,
+                                      maxHeight: `min(460px, calc(100vh - ${paidToPopoverPos.top}px - 16px))`,
+                                      overflowY: 'auto'
                                     }}
-                                    className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150"
+                                    className="w-88 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-150 font-body"
                                   >
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
-                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                        Select Recipient / Payee
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
-                                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100"
-                                      >
-                                        <X size={13} />
-                                      </button>
-                                    </div>
+                                    {(() => {
+                                      const isCompany = row.paymentSource === 'company_account' || (!row.paymentSource && activeModule === 'Add Advance');
+                                      return (
+                                        <>
+                                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[11px] font-bold text-slate-800 font-heading">
+                                                Payment Flow & Recipient
+                                              </span>
+                                              {isCompany && (
+                                                <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-heading">
+                                                  Pure Advance
+                                                </span>
+                                              )}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
+                                              className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100 cursor-pointer"
+                                            >
+                                              <X size={13} />
+                                            </button>
+                                          </div>
 
-                                    {/* Search by type input */}
-                                    <div className="relative">
-                                      <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
-                                      <input
-                                        type="text"
-                                        value={paidToSearchTerm}
-                                        onChange={(e) => setPaidToSearchTerm(e.target.value)}
-                                        placeholder="Type to search employee..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white"
-                                        autoFocus
-                                      />
-                                    </div>
+                                          {/* Step 1: Paid From (Source of Funds) */}
+                                          <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                              1. Paid From (Source of Funds)
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  handleRowChange(row.id, 'paymentSource', 'company_account');
+                                                  if (!row.companyAccount) {
+                                                    handleRowChange(row.id, 'companyAccount', sessionAccount || companyAccountsList?.[0] || 'Main Bank Account');
+                                                  }
+                                                }}
+                                                className={`py-1 px-2 rounded-md text-center transition-all flex items-center justify-center gap-1.5 text-[11px] cursor-pointer ${
+                                                  isCompany
+                                                    ? 'bg-white text-blue-700 font-bold shadow-xs'
+                                                    : 'text-slate-600 hover:text-slate-900'
+                                                }`}
+                                              >
+                                                <span>🏦</span>
+                                                <span>Company Bank A/c</span>
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  handleRowChange(row.id, 'paymentSource', 'employee');
+                                                  if (!row.fromEmployeeId && row.employeeId) {
+                                                    handleRowChange(row.id, 'fromEmployeeId', row.employeeId);
+                                                  }
+                                                }}
+                                                className={`py-1 px-2 rounded-md text-center transition-all flex items-center justify-center gap-1.5 text-[11px] cursor-pointer ${
+                                                  !isCompany
+                                                    ? 'bg-white text-blue-700 font-bold shadow-xs'
+                                                    : 'text-slate-600 hover:text-slate-900'
+                                                }`}
+                                              >
+                                                <span>👤</span>
+                                                <span>Employee</span>
+                                              </button>
+                                            </div>
 
-                                    {/* 2-Column Grid Layout of Active Employees (Excludes Column 1 Employee) */}
-                                    <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-1 slim-scrollbar">
-                                      {employees
-                                        .filter(e => {
-                                          const isActive = (e.status || 'Active').toLowerCase() === 'active';
-                                          const selfExpenseEmployeeId = activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : '';
-                                          const notCol1Emp = e.id !== row.employeeId && e.name !== row.employeeId;
-                                          const notSelfExpenseEmployee = !selfExpenseEmployeeId || e.id !== selfExpenseEmployeeId;
-                                          const matchesSearch = e.name.toLowerCase().includes((paidToSearchTerm || '').toLowerCase());
-                                          return isActive && notCol1Emp && notSelfExpenseEmployee && matchesSearch;
-                                        })
-                                        .map(e => (
-                                          <button
-                                            key={e.id}
-                                            type="button"
-                                            onClick={() => {
-                                              setAddRows(addRows.map(r => r.id === row.id ? { ...r, paidTo: e.id, paidToType: 'employee', paidToCustomName: '' } : r));
-                                              setActivePaidToRowId(null);
-                                              setPaidToSearchTerm('');
-                                            }}
-                                            className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold ${
-                                              row.paidTo === e.id
-                                                ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
-                                                : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
-                                            }`}
-                                          >
-                                            <span className="truncate">{e.name}</span>
-                                            {row.paidTo === e.id && <Check size={12} className="text-blue-600 shrink-0" />}
-                                          </button>
-                                        ))}
-                                    </div>
+                                            {/* If Company Bank A/c: Accounts Grid / Selector */}
+                                            {isCompany ? (
+                                              <div className="mt-1.5 space-y-1">
+                                                <div className="flex items-center justify-between text-[10px]">
+                                                  <span className="text-slate-500 font-medium">Select Company Bank Account:</span>
+                                                  <span className="text-[9.5px] text-emerald-600 font-semibold">✓ Zero Company Expense</span>
+                                                </div>
+                                                <select
+                                                  value={row.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'}
+                                                  onChange={(e) => handleRowChange(row.id, 'companyAccount', e.target.value)}
+                                                  className="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                                >
+                                                  {(companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS).map(acc => (
+                                                    <option key={acc} value={acc}>{acc}</option>
+                                                  ))}
+                                                </select>
+                                              </div>
+                                            ) : (
+                                              /* If Employee: Giver Employee Selector */
+                                              <div className="mt-1.5 space-y-1">
+                                                <span className="text-[10px] text-slate-500 font-medium block">
+                                                  Given by (Payer Employee):
+                                                </span>
+                                                <select
+                                                  value={row.fromEmployeeId || row.employeeId || ''}
+                                                  onChange={(e) => handleRowChange(row.id, 'fromEmployeeId', e.target.value)}
+                                                  className="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                                >
+                                                  <option value="">Select Payer Employee...</option>
+                                                  {sortedEmployees.map(e => (
+                                                    <option key={e.id} value={e.id}>
+                                                      {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                              </div>
+                                            )}
+                                          </div>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRowChange(row.id, 'paidToType', 'custom')}
-                                      className="w-full text-left px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold border-t border-slate-100 pt-1.5"
-                                    >
-                                      + Add Other Name...
-                                    </button>
+                                          {/* Step 2: Recipient / Beneficiary Employee */}
+                                          <div className="border-t border-slate-100 pt-2">
+                                            <div className="flex items-center justify-between mb-1">
+                                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                                2. Received By (Recipient Employee)
+                                              </label>
+                                              {row.paidTo && (
+                                                <span className="text-[10px] font-bold text-blue-600">
+                                                  Selected: {employees.find(e => e.id === row.paidTo)?.name || row.paidTo}
+                                                </span>
+                                              )}
+                                            </div>
 
-                                    {row.paidToType === 'custom' && (
-                                      <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
-                                        <input
-                                          type="text"
-                                          value={row.paidToCustomName || ''}
-                                          onChange={(e) => handleRowChange(row.id, 'paidToCustomName', e.target.value)}
-                                          placeholder="Enter recipient name..."
-                                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500"
-                                          autoFocus
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
-                                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] shrink-0"
-                                        >
-                                          Save
-                                        </button>
-                                      </div>
-                                    )}
+                                            {/* Search Input */}
+                                            <div className="relative mb-1.5">
+                                              <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
+                                              <input
+                                                type="text"
+                                                value={paidToSearchTerm}
+                                                onChange={(e) => setPaidToSearchTerm(e.target.value)}
+                                                placeholder="Type to search employee..."
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                                                autoFocus
+                                              />
+                                            </div>
+
+                                            {/* 2-Column Grid Layout of Active Employees */}
+                                            <div className="max-h-36 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-1 slim-scrollbar">
+                                              {employees
+                                                .filter(e => {
+                                                  const isActive = (e.status || 'Active').toLowerCase() === 'active';
+                                                  const selfExpenseEmployeeId = activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : '';
+                                                  const payerId = !isCompany ? (row.fromEmployeeId || row.employeeId) : null;
+                                                  const notPayerEmp = !payerId || (e.id !== payerId && e.name !== payerId);
+                                                  const notSelfExpenseEmployee = !selfExpenseEmployeeId || e.id !== selfExpenseEmployeeId;
+                                                  const matchesSearch = e.name.toLowerCase().includes((paidToSearchTerm || '').toLowerCase());
+                                                  return isActive && notPayerEmp && notSelfExpenseEmployee && matchesSearch;
+                                                })
+                                                .map(e => (
+                                                  <button
+                                                    key={e.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setAddRows(addRows.map(r => r.id === row.id ? { ...r, paidTo: e.id, paidToType: 'employee', paidToCustomName: '' } : r));
+                                                      setActivePaidToRowId(null);
+                                                      setPaidToSearchTerm('');
+                                                    }}
+                                                    className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold cursor-pointer ${
+                                                      row.paidTo === e.id
+                                                        ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
+                                                        : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                                    }`}
+                                                  >
+                                                    <span className="truncate">{e.name}</span>
+                                                    {row.paidTo === e.id && <Check size={12} className="text-blue-600 shrink-0" />}
+                                                  </button>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => handleRowChange(row.id, 'paidToType', 'custom')}
+                                              className="w-full text-left px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold border-t border-slate-100 pt-1.5 cursor-pointer"
+                                            >
+                                              + Add Other Name...
+                                            </button>
+
+                                            {row.paidToType === 'custom' && (
+                                              <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                                                <input
+                                                  type="text"
+                                                  value={row.paidToCustomName || ''}
+                                                  onChange={(e) => handleRowChange(row.id, 'paidToCustomName', e.target.value)}
+                                                  placeholder="Enter recipient name..."
+                                                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500"
+                                                  autoFocus
+                                                />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
+                                                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] shrink-0 cursor-pointer font-heading"
+                                                >
+                                                  Save
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
                                   </div>,
                                   document.body
                                 )}
@@ -5089,13 +6023,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   ) : (
                     <div className="max-h-[500px] overflow-y-auto pr-1 space-y-1.5 slim-scrollbar" style={{ scrollbarWidth: 'thin' }}>
                       {sidePanelData.groups.map((group) => {
-                        const isCollapsed = !expandedRecentExpenseDates.includes(group.dateStr)
+                        const isCollapsed = collapsedRecentDates.includes(group.dateStr)
                         return (
                           <div key={group.dateStr} className="space-y-1">
                             {/* Clickable date separator */}
                             <button
                               type="button"
-                              onClick={() => setExpandedRecentExpenseDates((current) => (
+                              onClick={() => setCollapsedRecentDates((current) => (
                                 current.includes(group.dateStr)
                                   ? current.filter((date) => date !== group.dateStr)
                                   : [...current, group.dateStr]
@@ -5111,84 +6045,90 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             {!isCollapsed && (
                               <div className="ml-1 space-y-0.5 border-l border-slate-200/80 py-0.5 pl-1.5">
                                 {group.items.map((item, iIdx) => {
-                                  const recipientName = item.paidToName || item.paidToCustomName || item.transferredToName || (item.paidTo ? (employees.find(e => e.id === item.paidTo || e.name === item.paidTo)?.name || item.paidTo) : null);
-                                  const catLower = (item.category || '').toLowerCase();
-                                  const showRecipient = (catLower.includes('given to others') || catLower.includes('salary to others') || recipientName) && recipientName;
+                                  const details = resolveReportEntryDetails(item, employees, entries)
+                                  const empName = details.displayEmployeeName || item.employeeName || (item.employeeId ? (employees.find(e => e.id === item.employeeId)?.name || 'Unknown') : 'Unknown')
+                                  const catName = details.displayCategory || item.category || (activeModule === 'Add Advance' ? 'Advance' : 'General')
+                                  const recipientName = details.recipientName || item.paidToName || item.paidToCustomName || item.transferredToName || (item.paidTo ? (employees.find(e => e.id === item.paidTo || e.name === item.paidTo)?.name || item.paidTo) : null)
+                                  const catLower = (item.category || '').toLowerCase()
+                                  const showRecipient = (catLower.includes('given to others') || catLower.includes('salary to others') || recipientName) && recipientName && recipientName.toLowerCase().trim() !== empName.toLowerCase().trim()
+                                  const effAmt = (item.status === 'Partial' && item.partialAmount != null && item.partialAmount !== '')
+                                    ? Number(item.partialAmount)
+                                    : (parseFloat(item.amount) || 0)
+                                  const myCurrentEmpId = getMyEmpId()
+                                  const canManageItem = isAdmin || isAccountant || item.createdBy === user?.name || item.createdBy === user?.email || item.submittedByUid === user?.uid || (myCurrentEmpId && (item.employeeId === myCurrentEmpId || item.givenByEmployeeId === myCurrentEmpId || details.effectiveEmployeeId === myCurrentEmpId))
 
                                   return (
                                     <div
                                       key={item.id || iIdx}
-                                      className="relative group grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_auto] items-center gap-1.5 border-b border-slate-100/70 py-1.5 px-1 font-body text-xs last:border-0 hover:bg-slate-50/80 rounded transition-colors"
+                                      className="relative group grid grid-cols-[minmax(0,1.25fr)_minmax(0,1.15fr)_auto] items-center gap-1.5 border-b border-slate-100/70 py-1.5 px-1 font-body text-xs last:border-0 hover:bg-slate-50/80 rounded transition-colors"
                                     >
-                                      {/* Left Column: Category & Site Name */}
-                                      {isSelfEntry ? (
-                                        <div className="min-w-0 flex flex-col justify-center leading-tight">
-                                          <span className="truncate font-semibold text-slate-800 text-[11px]" title={item.category || 'General'}>
-                                            {item.category || 'General'}
+                                      {/* Left Column: Employee Name, Category & Site/Vehicle */}
+                                      <div className="min-w-0 flex flex-col justify-center leading-tight">
+                                        <span className="truncate font-semibold text-slate-800 text-[11px]" title={empName}>
+                                          {empName}
+                                        </span>
+                                        {catName && catName !== empName && (
+                                          <span className="truncate text-[10px] text-slate-500 font-medium" title={catName}>
+                                            {catName}
                                           </span>
-                                          {item.siteName && (
-                                            <span className="truncate text-[9px] font-medium text-emerald-600 flex items-center gap-0.5" title={`Site: ${item.siteName}`}>
-                                              <span className="shrink-0 text-[8px]">📍</span>
-                                              <span className="truncate">{item.siteName}</span>
-                                            </span>
-                                          )}
-                                          {(item.vehicleNo || item.vehicleNumber) && (
-                                            <span className="truncate text-[9px] font-medium text-blue-600 flex items-center gap-0.5" title={`Vehicle: ${item.vehicleLabel || item.vehicleNo}`}>
-                                              <span className="shrink-0 text-[8px]">🚗</span>
-                                              <span className="truncate font-mono">{item.vehicleName ? `${item.vehicleName} - ${item.vehicleNo}` : (item.vehicleNo || item.vehicleNumber)}</span>
-                                            </span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="min-w-0 flex flex-col justify-center leading-tight">
-                                          <span className="truncate font-semibold text-slate-800 text-[11px]" title={item.employeeName || 'Unknown'}>
-                                            {item.employeeName || 'Unknown'}
-                                          </span>
-                                          <span className="truncate text-[10px] text-slate-500 font-medium" title={item.category || 'General'}>
-                                            {item.category || 'General'}
-                                          </span>
-                                          {item.siteName && (
-                                            <span className="truncate text-[9px] font-medium text-emerald-600 flex items-center gap-0.5" title={`Site: ${item.siteName}`}>
-                                              <span className="shrink-0 text-[8px]">📍</span>
-                                              <span className="truncate">{item.siteName}</span>
-                                            </span>
-                                          )}
-                                          {(item.vehicleNo || item.vehicleNumber) && (
-                                            <span className="truncate text-[9px] font-medium text-blue-600 flex items-center gap-0.5" title={`Vehicle: ${item.vehicleLabel || item.vehicleNo}`}>
-                                              <span className="shrink-0 text-[8px]">🚗</span>
-                                              <span className="truncate font-mono">{item.vehicleName ? `${item.vehicleName} - ${item.vehicleNo}` : (item.vehicleNo || item.vehicleNumber)}</span>
-                                            </span>
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {/* Center Column: Remarks */}
-                                      <div className="min-w-0 px-1 text-center">
-                                        {item.reason ? (
-                                          <span className="block truncate text-[11px] font-normal text-slate-600" title={item.reason}>
-                                            {item.reason}
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] text-slate-300 select-none">—</span>
                                         )}
-                                        {showRecipient && (
+                                        {item.siteName && (
+                                          <span className="truncate text-[9px] font-medium text-emerald-600 flex items-center gap-0.5" title={`Site: ${item.siteName}`}>
+                                            <span className="shrink-0 text-[8px]">📍</span>
+                                            <span className="truncate">{item.siteName}</span>
+                                          </span>
+                                        )}
+                                        {(() => {
+                                          const rawNo = item.vehicleNo || item.vehicleNumber || ''
+                                          const cleanNo = String(rawNo).trim().replace(/\s+/g, '').toUpperCase()
+                                          const cleanName = String(item.vehicleName || '').trim().replace(/\s+/g, ' ')
+                                          const vehicleText = cleanNo ? (cleanName ? `${cleanName} - ${cleanNo}` : cleanNo) : (item.vehicleLabel ? String(item.vehicleLabel).trim().replace(/\s+/g, ' ') : '')
+                                          if (!vehicleText) return null
+
+                                          return (
+                                            <span className="truncate text-[9px] font-medium text-blue-600 flex items-center gap-0.5 font-body" title={`Vehicle: ${item.vehicleLabel || vehicleText}`}>
+                                              <span className="shrink-0 text-[8px]">🚗</span>
+                                              <span className="truncate font-body">{vehicleText}</span>
+                                            </span>
+                                          )
+                                        })()}
+                                      </div>
+
+                                      {/* Center Column: Remarks & Recipient */}
+                                      <div className="min-w-0 px-1 text-left">
+                                        {activeModule !== 'Add Advance' && (
+                                          (item.reason || item.remarks) ? (
+                                            <span className="block truncate text-[11px] font-normal text-slate-600" title={item.reason || item.remarks}>
+                                              {item.reason || item.remarks}
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] text-slate-300 select-none">—</span>
+                                          )
+                                        )}
+                                        {showRecipient ? (
                                           <span className="block truncate text-[9px] font-medium text-blue-600" title={`Recipient: ${recipientName}`}>
                                             → {recipientName}
                                           </span>
-                                        )}
+                                        ) : (details.displayGivenBy && details.displayGivenBy.toLowerCase().trim() !== empName.toLowerCase().trim()) ? (
+                                          <span className="block truncate text-[9px] font-medium text-amber-600" title={`Given by: ${details.displayGivenBy}`}>
+                                            ← {details.displayGivenBy}
+                                          </span>
+                                        ) : null}
                                       </div>
 
                                       {/* Right Column: Amount */}
-                                      <div className="shrink-0 text-right font-semibold tabular-nums text-slate-900 text-[11px] whitespace-nowrap pl-1">
-                                        {formatINR(item.amount)}
+                                      <div className="shrink-0 text-right font-semibold tabular-nums text-slate-900 text-[11px] whitespace-nowrap pl-2">
+                                        {formatINR(effAmt)}
                                       </div>
 
                                       {/* Hover Actions: Edit | Delete */}
-                                      <span className="invisible group-hover:visible group-focus-within:visible absolute right-0 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2 py-0.5 flex items-center gap-1.5 shadow-sm border border-slate-200/80 rounded">
-                                        <button type="button" onClick={() => handleEdit(item)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline" aria-label={`Edit ${item.category || 'expense'}`}>Edit</button>
-                                        <span className="text-slate-200">|</span>
-                                        <button type="button" onClick={() => confirmDelete(item)} className="text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline" aria-label={`Delete ${item.category || 'expense'}`}>Delete</button>
-                                      </span>
+                                      {canManageItem && (
+                                        <span className="invisible group-hover:visible group-focus-within:visible absolute right-0 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2 py-0.5 flex items-center gap-1.5 shadow-sm border border-slate-200/80 rounded">
+                                          <button type="button" onClick={() => handleEdit(item)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline" aria-label={`Edit ${catName || 'entry'}`}>Edit</button>
+                                          <span className="text-slate-200">|</span>
+                                          <button type="button" onClick={() => confirmDelete(item)} className="text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline" aria-label={`Delete ${catName || 'entry'}`}>Delete</button>
+                                        </span>
+                                      )}
                                     </div>
                                   )
                                 })}
@@ -6085,7 +7025,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           ) : (
             <>
               <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4 bg-slate-50/70 px-5 py-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance & Expense Register</p>
                     <h2 className="mt-1 text-lg font-semibold text-slate-900 font-heading">Cash Summary</h2>
@@ -6096,90 +7036,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     <input type="month" value={summaryMonth} onChange={(event) => setSummaryMonth(event.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 md:w-[180px]" />
                   </label>
                 </div>
-
-                <div className="grid grid-cols-2 border-b border-slate-200 lg:grid-cols-4">
-                  {[
-                    { label: 'Expense total', value: monthlyStatement.expenseTotal, caption: `${monthlyStatement.expenseRows.length} expense vouchers`, tone: 'text-rose-700' },
-                    { label: 'Advance total', value: monthlyStatement.advanceTotal, caption: `${monthlyStatement.advanceRows.length} advance vouchers`, tone: 'text-emerald-700' },
-                    { label: 'Paid amount', value: monthlyStatement.paidTotal, caption: 'Settled in the selected month', tone: 'text-slate-900' },
-                    { label: 'Expense pending', value: monthlyStatement.outstandingTotal, caption: 'Not marked as paid', tone: 'text-amber-700' },
-                  ].map((metric, index) => (
-                    <div key={metric.label} className={`px-5 py-4 ${index < 3 ? 'border-b border-slate-200 lg:border-b-0 lg:border-r' : ''} ${index === 1 ? 'border-r border-slate-200 lg:border-r' : ''}`}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{metric.label}</p>
-                      <p className={`mt-2 text-xl font-semibold tabular-nums ${metric.tone}`}>{formatINR(metric.value)}</p>
-                      <p className="mt-1 text-[11px] font-normal text-slate-500">{metric.caption}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
 
-              {/* 2-Column Grid: Left (Expense Analysis) + Right (Employee Summary) */}
+              {/* 2-Column Grid: Left (Employee Summary) + Right (Expense Analysis) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-                {/* Left Side: Expense Analysis Breakdown */}
-                <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
-                  <div className="border-b border-slate-100 px-5 py-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Expense analysis</p>
-                    <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">Category breakdown</h3>
-                  </div>
-                  <div className="border-b border-slate-100 px-5 py-4">
-                    {monthlyStatement.categoryRows.length === 0 ? (
-                      <div className="flex min-h-[220px] items-center justify-center text-center">
-                        <p className="text-sm font-normal text-slate-400 font-body">No category expenses are available to chart for this month.</p>
-                      </div>
-                    ) : (
-                      <Chart
-                        definition={expenseCategoryChart}
-                        height={240}
-                        initialWidth={520}
-                        ariaLabel={`Expense amount by category for ${format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}`}
-                        ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement month."
-                        className="w-full"
-                        renderTooltipBody={({ points, defaultBody }) => {
-                          const category = points[0]?.datum
-                          if (!category) return defaultBody
-                          return (
-                            <div className="min-w-[176px] rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg font-body">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense category</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">{category.category}</p>
-                              <div className="mt-2 flex items-end justify-between gap-4 border-t border-slate-100 pt-2">
-                                <span className="text-[11px] font-normal text-slate-500">{category.vouchers} voucher{category.vouchers === 1 ? '' : 's'}</span>
-                                <span className="text-sm font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</span>
-                              </div>
-                            </div>
-                          )
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div className="max-h-[360px] overflow-y-auto overflow-x-auto slim-scrollbar">
-                    <table className="w-full border-collapse text-left text-xs font-body">
-                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-2xs">
-                        <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          <th className="px-4 py-2.5">Category</th>
-                          <th className="px-3 py-2.5 text-right">Vouchers</th>
-                          <th className="px-4 py-2.5 text-right">Expense</th>
-                          <th className="px-3 py-2.5 text-right">Paid</th>
-                          <th className="px-3 py-2.5 text-right">Pending</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs">
-                        {monthlyStatement.categoryRows.length === 0 ? (
-                          <tr><td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">No expense vouchers for this month.</td></tr>
-                        ) : monthlyStatement.categoryRows.map((category) => (
-                          <tr key={category.category} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="px-4 py-2.5 font-medium text-slate-800">{category.category}</td>
-                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-600">{category.count}</td>
-                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</td>
-                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td>
-                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Right Side: Employee Monthly Summary */}
+                {/* Left Side: Employee Monthly Summary */}
                 <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-4">
                     <div>
@@ -6297,6 +7158,70 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       <span className="inline-block w-2 h-2 rounded-full bg-rose-500" />
                       Red: More expense than advance
                     </span>
+                  </div>
+                </div>
+
+                {/* Right Side: Expense Analysis Breakdown */}
+                <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Expense analysis</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">Category breakdown</h3>
+                  </div>
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    {monthlyStatement.categoryRows.length === 0 ? (
+                      <div className="flex min-h-[220px] items-center justify-center text-center">
+                        <p className="text-sm font-normal text-slate-400 font-body">No category expenses are available to chart for this month.</p>
+                      </div>
+                    ) : (
+                      <Chart
+                        definition={expenseCategoryChart}
+                        height={240}
+                        initialWidth={520}
+                        ariaLabel={`Expense amount by category for ${format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}`}
+                        ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement month."
+                        className="w-full"
+                        renderTooltipBody={({ points, defaultBody }) => {
+                          const category = points[0]?.datum
+                          if (!category) return defaultBody
+                          return (
+                            <div className="min-w-[176px] rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg font-body">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense category</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">{category.category}</p>
+                              <div className="mt-2 flex items-end justify-between gap-4 border-t border-slate-100 pt-2">
+                                <span className="text-[11px] font-normal text-slate-500">{category.vouchers} voucher{category.vouchers === 1 ? '' : 's'}</span>
+                                <span className="text-sm font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</span>
+                              </div>
+                            </div>
+                          )
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="max-h-[360px] overflow-y-auto overflow-x-auto slim-scrollbar">
+                    <table className="w-full border-collapse text-left text-xs font-body">
+                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-2xs">
+                        <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          <th className="px-4 py-2.5">Category</th>
+                          <th className="px-3 py-2.5 text-right">Vouchers</th>
+                          <th className="px-4 py-2.5 text-right">Expense</th>
+                          <th className="px-3 py-2.5 text-right">Paid</th>
+                          <th className="px-3 py-2.5 text-right">Pending</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {monthlyStatement.categoryRows.length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">No expense vouchers for this month.</td></tr>
+                        ) : monthlyStatement.categoryRows.map((category) => (
+                          <tr key={category.category} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="px-4 py-2.5 font-medium text-slate-800">{category.category}</td>
+                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-600">{category.count}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</td>
+                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td>
+                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
