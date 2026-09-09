@@ -4,12 +4,27 @@ import { db } from '../../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import { Wallet, Download } from 'lucide-react'
-import { Document, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, Font, pdf } from '@react-pdf/renderer'
+import currencyFontUrl from '../../lib/pdf-assets/hrflow-currency.ttf?url'
+
+try {
+  Font.register({
+    family: 'HRFlowCurrency',
+    fonts: [
+      { src: currencyFontUrl, fontWeight: 'normal' },
+      { src: currencyFontUrl, fontWeight: 'bold' },
+      { src: currencyFontUrl, fontStyle: 'italic' },
+      { src: currencyFontUrl, fontWeight: 'bold', fontStyle: 'italic' }
+    ]
+  })
+} catch (e) {
+  console.warn('HRFlowCurrency font registration notice:', e)
+}
 
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val)
 
 const pdfStyles = StyleSheet.create({
-  page: { padding: 28, fontSize: 10, fontFamily: 'Helvetica', color: '#0f172a' },
+  page: { padding: 28, fontSize: 10, fontFamily: 'HRFlowCurrency', color: '#0f172a' },
   header: { borderBottomWidth: 2, borderBottomColor: '#0f172a', paddingBottom: 14, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between' },
   title: { fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase' },
   subhead: { fontSize: 8, color: '#4f46e5', marginTop: 4, letterSpacing: 1.2 },
@@ -74,16 +89,16 @@ const EmployeeSlipPDF = ({ slipData, orgName }) => (
 
       <View style={{flexDirection:'row', justifyContent:'center', marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
         <View style={{alignItems:'center', marginHorizontal:20}}>
-          <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>BASIC</Text>
-          <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.basic || 0)}</Text>
+          <Text style={{fontSize:8, color:'#64748b', fontWeight:'bold', marginBottom:2}}>BASIC</Text>
+          <Text style={{fontSize:11, color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.basic || 0)}</Text>
         </View>
         <View style={{alignItems:'center', marginHorizontal:20}}>
-          <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>HRA</Text>
-          <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.hra || 0)}</Text>
+          <Text style={{fontSize:8, color:'#64748b', fontWeight:'bold', marginBottom:2}}>HRA</Text>
+          <Text style={{fontSize:11, color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.hra || 0)}</Text>
         </View>
         <View style={{alignItems:'center', marginHorizontal:20}}>
-          <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>SALARY</Text>
-          <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR((slipData.basic || 0) + (slipData.hra || 0))}</Text>
+          <Text style={{fontSize:8, color:'#64748b', fontWeight:'bold', marginBottom:2}}>SALARY</Text>
+          <Text style={{fontSize:11, color:'#0f172a', fontWeight:'bold'}}>{formatINR((slipData.basic || 0) + (slipData.hra || 0))}</Text>
         </View>
       </View>
 

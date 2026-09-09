@@ -726,7 +726,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
   const [selectedDeletedEntryIds, setSelectedDeletedEntryIds] = useState([])
-  const [collapsedRecentDates, setCollapsedRecentDates] = useState([])
+  const [expandedRecentDates, setExpandedRecentDates] = useState([])
+
+  useEffect(() => {
+    setExpandedRecentDates([])
+  }, [activeModule, expenseMode])
+
   const [summaryEmployeeSearch, setSummaryEmployeeSearch] = useState('')
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
   const [portalEditForm, setPortalEditForm] = useState(null)
@@ -6012,8 +6017,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 2. Recent Entries Section (Date-wise, Recent to Oldest) */}
                 <div>
-                  <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Recent {isSelfEntry || portalMode ? 'Personal ' : 'Staff '}{activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Recent {isSelfEntry || portalMode ? 'Personal ' : 'Staff '}{activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
+                    </div>
+                    {sidePanelData.groups.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (expandedRecentDates.length === sidePanelData.groups.length) {
+                            setExpandedRecentDates([])
+                          } else {
+                            setExpandedRecentDates(sidePanelData.groups.map((g) => g.dateStr))
+                          }
+                        }}
+                        className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                      >
+                        {expandedRecentDates.length === sidePanelData.groups.length ? 'Collapse all' : 'Expand all'}
+                      </button>
+                    )}
                   </div>
 
                   {sidePanelData.groups.length === 0 ? (
@@ -6023,26 +6045,26 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   ) : (
                     <div className="max-h-[500px] overflow-y-auto pr-1 space-y-1.5 slim-scrollbar" style={{ scrollbarWidth: 'thin' }}>
                       {sidePanelData.groups.map((group) => {
-                        const isCollapsed = collapsedRecentDates.includes(group.dateStr)
+                        const isExpanded = expandedRecentDates.includes(group.dateStr)
                         return (
                           <div key={group.dateStr} className="space-y-1">
                             {/* Clickable date separator */}
                             <button
                               type="button"
-                              onClick={() => setCollapsedRecentDates((current) => (
+                              onClick={() => setExpandedRecentDates((current) => (
                                 current.includes(group.dateStr)
                                   ? current.filter((date) => date !== group.dateStr)
                                   : [...current, group.dateStr]
                               ))}
                               className="flex w-full items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-left text-xs font-medium text-slate-800 transition-colors hover:bg-slate-100"
-                              aria-expanded={!isCollapsed}
+                              aria-expanded={isExpanded}
                             >
-                              <ChevronDown size={13} className={`shrink-0 text-slate-500 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                              <ChevronDown size={13} className={`shrink-0 text-slate-500 transition-transform ${!isExpanded ? '-rotate-90' : ''}`} />
                               <span className="font-semibold text-slate-700">{formatDateTitle(group.dateStr)}</span>
                               <span className="ml-auto text-right font-semibold tabular-nums text-slate-800 text-xs">{formatINR(group.total)}</span>
                             </button>
 
-                            {!isCollapsed && (
+                            {isExpanded && (
                               <div className="ml-1 space-y-0.5 border-l border-slate-200/80 py-0.5 pl-1.5">
                                 {group.items.map((item, iIdx) => {
                                   const details = resolveReportEntryDetails(item, employees, entries)

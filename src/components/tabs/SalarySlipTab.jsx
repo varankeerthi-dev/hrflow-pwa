@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 // Monthly Summary reference system: scoped Payroll and Attendance compact staff-performance presentation; calculations remain unchanged.
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import { format, parseISO } from 'date-fns'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useSalarySlab } from '../../hooks/useSalarySlab'
@@ -7,7 +10,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table, RotateCcw, Mail } from 'lucide-react'
+import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, Check, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table, RotateCcw, Mail, BarChart3, Receipt } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import SummaryTab from './SummaryTab'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -17,12 +20,47 @@ import JSZip from 'jszip'
 import { usePayrollRuns } from '../../hooks/usePayrollRuns'
 import { isPeriodLocked } from '../../lib/payrollLock'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
-import { SubTabsNav } from '../ui/SubTabsNav'
+import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs'
 import { Table as ReusableTable } from '../table/Table'
 import { leaveCoverageCol } from '../../lib/firestore'
 import { resolveDailyClassification } from '../../lib/leaveLifecycle'
+import currencyFontUrl from '../../lib/pdf-assets/hrflow-currency.ttf?url'
+
+try {
+  Font.register({
+    family: 'HRFlowCurrency',
+    fonts: [
+      { src: currencyFontUrl, fontWeight: 'normal' },
+      { src: currencyFontUrl, fontWeight: 'bold' },
+      { src: currencyFontUrl, fontStyle: 'italic' },
+      { src: currencyFontUrl, fontWeight: 'bold', fontStyle: 'italic' }
+    ]
+  })
+} catch (fontErr) {
+  console.warn('HRFlowCurrency font registration notice:', fontErr)
+}
+
+const PAYROLL_SUB_TABS = [
+  { id: 'salary-summary', label: 'Summary', icon: <BarChart3 size={15} /> },
+  { id: 'salary-slip', label: 'Payslips', icon: <Receipt size={15} /> },
+  { id: 'loan', label: 'Loans', icon: <Wallet size={15} /> },
+  { id: 'full-summary', label: 'Full Summary', icon: <Table size={15} /> }
+]
 
 // --- HELPERS ---
+const MonthPickerCustomButton = React.forwardRef(({ value, onClick }, ref) => (
+  <button
+    type="button"
+    ref={ref}
+    onClick={onClick}
+    className="h-6 px-2.5 bg-transparent text-xs font-normal text-slate-800 hover:text-indigo-600 transition-colors cursor-pointer outline-none whitespace-nowrap select-none flex items-center justify-center"
+    title="Click to choose month"
+  >
+    {value}
+  </button>
+))
+MonthPickerCustomButton.displayName = 'MonthPickerCustomButton'
+
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
@@ -256,101 +294,198 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
   )
 }
 
-const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
-  <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' }}>
-    <View style={{ border: '2pt solid #0f172a', padding: 20, flex: 1 }}>
-      <View style={{ borderBottomWidth: 2, borderBottomColor: '#3b82f6', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <View style={{flexDirection:'row', alignItems:'center'}}>
-          {orgLogo && <Image src={orgLogo} style={{width:40,height:40,marginRight:10}}/>}
-          <View><Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#3b82f6', fontFamily: 'Helvetica' }}>{orgName}</Text><Text style={{fontSize:7, color:'#64748b', fontWeight: 'bold', marginTop:2}}>PAYROLL STATEMENT</Text></View>
-        </View>
-        <View style={{textAlign:'right'}}><Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text><Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{formatMonthDisplay(data.month)}</Text></View>
-      </View>
-      <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:12}}>
-        <View style={{flex: 1}}>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Staff Name : {data.employee?.name}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Employee ID : {data.employee?.empCode}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Designation : {data.employee?.designation || '-'}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>DOJ : {formatDateDDMMYYYY(data.employee?.joinedDate)}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total days : {data.totalMonthDays}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Net Payout : {formatINR(data.netPay)}</Text></View>
-        </View>
-        <View style={{flex: 1, marginLeft: 20}}>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total worked days : {data.workedDaysCount}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Leave : {data.lopDays || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>No. of Holidays : {data.holidayCount || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Sunday Worked : {data.sundayWorkedCount || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Holiday Worked : {data.holidayWorkedCount || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total Pay days : {data.paidDays}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>OT hours : {Number(data.otHoursTotal || 0).toFixed(2)}</Text></View>
-        </View>
-      </View>
-      <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:4, overflow:'hidden'}}>
-        <View style={{flexDirection:'row'}}>
-          <View style={{flex:5, backgroundColor:'#dcfce7', color:'#166534', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>EARNINGS (CREDIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
-          <View style={{flex:4, backgroundColor:'#fee2e2', color:'#991b1b', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>DEDUCTIONS (DEBIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
-          <View style={{flex:3, backgroundColor:'#f0f9ff', color:'#0369a1', paddingVertical:6, paddingHorizontal:8, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>ADVANCE/EXPENSE</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
-        </View>
-        <View style={{flexDirection:'row'}}>
-          <View style={{flex:5, borderRightWidth:1, borderColor:'#e2e8f0'}}>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>HRA</Text><Text>{formatINR(data.hra)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>OT Pay</Text><Text>{formatINR(data.otPay)}</Text></View>
-            {data.food > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Food Allowance</Text><Text>{formatINR(data.food)}</Text></View>}
-            {data.convenience > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Convenience</Text><Text>{formatINR(data.convenience)}</Text></View>}
-            {data.bonus > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Bonus</Text><Text>{formatINR(data.bonus)}</Text></View>}
-          </View>
-          <View style={{flex:4, borderRightWidth:1, borderColor:'#e2e8f0'}}>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>PF</Text><Text>{dashIfZero(data.pf)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>ESI</Text><Text>{dashIfZero(data.esi || 0)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Loan Recovery</Text><Text>{dashIfZero(data.loanEMI)}</Text></View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Fine / Penalties</Text><Text>{dashIfZero(data.fineAmount)}</Text></View>
-          </View>
-          <View style={{flex:3, backgroundColor:'#fafafa'}}>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:3, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#e2e8f0'}}>
-              <Text style={{fontSize:7, fontWeight:'bold', color:'#065f46'}}>Expense</Text>
-              <Text style={{fontSize:7, fontWeight:'bold', color:'#065f46'}}>{formatINR(data.expenseReimbursement)}</Text>
+const formatPdfINR = (amount) => {
+  if (amount === undefined || amount === null || isNaN(amount)) return '₹ 0.00';
+  return '₹ ' + new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
+
+const dashIfZeroPdf = (val) => (!val || val === 0 || val === '0') ? '-' : formatPdfINR(val);
+
+const SalarySlipPDF = ({ data, orgName, orgLogo }) => {
+  const totalStatutoryDeductions = (data.pf || 0) + (data.esi || 0) + (data.loanEMI || 0) + (data.fineAmount || 0);
+  const totalEarningsGross = (data.basic || 0) + (data.hra || 0) + (data.sundayPay || 0) + (data.holidayPay || 0) + (data.otPay || 0) + (data.food || 0) + (data.convenience || 0) + (data.bonus || 0);
+  const netAdjustment = (data.expenseReimbursement || 0) - (data.advanceDeduction || 0);
+
+  return (
+    <Document>
+      <Page size="A4" style={{ padding: 24, fontSize: 8.5, fontFamily: 'HRFlowCurrency', color: '#0f172a' }}>
+        <View style={{ border: '1.5pt solid #0f172a', padding: 18, borderRadius: 4, flex: 1, flexDirection: 'column' }}>
+          
+          {/* Header */}
+          <View style={{ borderBottomWidth: 2, borderBottomColor: '#3b82f6', paddingBottom: 12, marginBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {orgLogo && <Image src={orgLogo} style={{ width: 38, height: 38, objectFit: 'contain', marginRight: 10 }} />}
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: 'uppercase', color: '#2563eb', letterSpacing: 0.5 }}>{orgName || 'ORGANISATION'}</Text>
+                <Text style={{ fontSize: 7, color: '#64748b', fontWeight: 'bold', marginTop: 3, letterSpacing: 1 }}>PAYROLL STATEMENT</Text>
+              </View>
             </View>
-            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:3, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#e2e8f0'}}>
-              <Text style={{fontSize:7, fontWeight:'bold', color:'#991b1b'}}>Advance</Text>
-              <Text style={{fontSize:7, fontWeight:'bold', color:'#991b1b'}}>{formatINR(data.advanceDeduction)}</Text>
+            <View style={{ textAlign: 'right' }}>
+              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#0f172a', letterSpacing: 1 }}>PAYSLIP</Text>
+              <Text style={{ fontSize: 8, color: '#64748b', marginTop: 2 }}>{formatMonthDisplay(data.month)}</Text>
             </View>
           </View>
+
+          {/* Staff Info & Attendance Grid */}
+          <View style={{ flexDirection: 'row', gap: 14, marginBottom: 14 }}>
+            {/* Left box: Employee Details */}
+            <View style={{ flex: 1, backgroundColor: '#f8fafc', borderWidth: 0.5, borderColor: '#e2e8f0', borderRadius: 4, padding: 8 }}>
+              {[
+                { label: 'Staff Name', value: data.employee?.name },
+                { label: 'Employee ID', value: data.employee?.empCode },
+                { label: 'Designation', value: data.employee?.designation || '-' },
+                { label: 'DOJ', value: formatDateDDMMYYYY(data.employee?.joinedDate) },
+                { label: 'Total Days', value: data.totalMonthDays },
+                { label: 'Net Payout', value: formatPdfINR(data.netPay) }
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2.5, borderBottomWidth: idx === 5 ? 0 : 0.5, borderBottomColor: '#e2e8f0' }}>
+                  <Text style={{ width: 80, fontSize: 7.5, color: '#475569', fontWeight: 'bold' }}>{item.label}</Text>
+                  <Text style={{ width: 10, fontSize: 7.5, color: '#94a3b8', textAlign: 'center' }}>:</Text>
+                  <Text style={{ flex: 1, fontSize: 8, color: '#0f172a', fontWeight: 'bold' }}>{String(item.value || '-')}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Right box: Attendance Details */}
+            <View style={{ flex: 1, backgroundColor: '#f8fafc', borderWidth: 0.5, borderColor: '#e2e8f0', borderRadius: 4, padding: 8 }}>
+              {[
+                { label: 'Total Worked Days', value: data.workedDaysCount },
+                { label: 'Leave (LOP)', value: data.lopDays || 0 },
+                { label: 'No. of Holidays', value: data.holidayCount || 0 },
+                { label: 'Sunday Worked', value: data.sundayWorkedCount || 0 },
+                { label: 'Holiday Worked', value: data.holidayWorkedCount || 0 },
+                { label: 'Total Pay Days', value: data.paidDays },
+                { label: 'OT Hours', value: Number(data.otHoursTotal || 0).toFixed(2) }
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2, borderBottomWidth: idx === 6 ? 0 : 0.5, borderBottomColor: '#e2e8f0' }}>
+                  <Text style={{ width: 95, fontSize: 7.5, color: '#475569', fontWeight: 'bold' }}>{item.label}</Text>
+                  <Text style={{ width: 10, fontSize: 7.5, color: '#94a3b8', textAlign: 'center' }}>:</Text>
+                  <Text style={{ flex: 1, fontSize: 8, color: '#0f172a', fontWeight: 'bold' }}>{String(item.value)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Table */}
+          <View style={{ borderWidth: 1, borderColor: '#0f172a', borderRadius: 4, overflow: 'hidden' }}>
+            {/* Header Row */}
+            <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#0f172a' }}>
+              <View style={{ flex: 4.5, backgroundColor: '#dcfce7', paddingVertical: 5, paddingHorizontal: 8, borderRightWidth: 1, borderColor: '#0f172a', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#166534' }}>EARNINGS (CREDIT)</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#166534' }}>AMOUNT</Text>
+              </View>
+              <View style={{ flex: 3.8, backgroundColor: '#fee2e2', paddingVertical: 5, paddingHorizontal: 8, borderRightWidth: 1, borderColor: '#0f172a', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#991b1b' }}>DEDUCTIONS (DEBIT)</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#991b1b' }}>AMOUNT</Text>
+              </View>
+              <View style={{ flex: 3.7, backgroundColor: '#f0f9ff', paddingVertical: 5, paddingHorizontal: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#0369a1' }}>ADJUSTMENTS</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#0369a1' }}>AMOUNT</Text>
+              </View>
+            </View>
+
+            {/* Body Rows */}
+            <View style={{ flexDirection: 'row' }}>
+              {/* Col 1 Earnings */}
+              <View style={{ flex: 4.5, borderRightWidth: 1, borderColor: '#0f172a' }}>
+                {[
+                  { label: 'Basic Salary', val: formatPdfINR(data.basic) },
+                  { label: 'HRA', val: formatPdfINR(data.hra) },
+                  { label: 'Sunday Worked', val: formatPdfINR(data.sundayPay) },
+                  { label: 'Holiday Pay', val: formatPdfINR(data.holidayPay) },
+                  { label: 'OT Pay', val: formatPdfINR(data.otPay) },
+                  ...(data.food > 0 ? [{ label: 'Food Allowance', val: formatPdfINR(data.food) }] : []),
+                  ...(data.convenience > 0 ? [{ label: 'Convenience', val: formatPdfINR(data.convenience) }] : []),
+                  ...(data.bonus > 0 ? [{ label: 'Bonus', val: formatPdfINR(data.bonus) }] : [])
+                ].map((r, i) => (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3.5, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' }}>
+                    <Text style={{ fontSize: 7.5, color: '#334155' }}>{r.label}</Text>
+                    <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#0f172a' }}>{r.val}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Col 2 Deductions */}
+              <View style={{ flex: 3.8, borderRightWidth: 1, borderColor: '#0f172a' }}>
+                {[
+                  { label: 'PF Contribution', val: dashIfZeroPdf(data.pf) },
+                  { label: 'ESI Contribution', val: dashIfZeroPdf(data.esi) },
+                  { label: 'Loan Recovery', val: dashIfZeroPdf(data.loanEMI) },
+                  { label: 'Fine / Penalties', val: dashIfZeroPdf(data.fineAmount) }
+                ].map((r, i) => (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3.5, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' }}>
+                    <Text style={{ fontSize: 7.5, color: '#334155' }}>{r.label}</Text>
+                    <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#0f172a' }}>{r.val}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Col 3 Adjustments */}
+              <View style={{ flex: 3.7, backgroundColor: '#fafafa' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3.5, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' }}>
+                  <Text style={{ fontSize: 7.5, color: '#065f46', fontWeight: 'bold' }}>Expense (+)</Text>
+                  <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#065f46' }}>{formatPdfINR(data.expenseReimbursement)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3.5, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' }}>
+                  <Text style={{ fontSize: 7.5, color: '#991b1b', fontWeight: 'bold' }}>Advance (-)</Text>
+                  <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#991b1b' }}>{formatPdfINR(data.advanceDeduction)}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Total Summary Row */}
+            <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: '#0f172a' }}>
+              <View style={{ flex: 4.5, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, paddingHorizontal: 8, borderRightWidth: 1, borderColor: '#0f172a', backgroundColor: '#f0fdf4' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#166534' }}>TOTAL EARNINGS</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#166534' }}>{formatPdfINR(totalEarningsGross)}</Text>
+              </View>
+              <View style={{ flex: 3.8, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, paddingHorizontal: 8, borderRightWidth: 1, borderColor: '#0f172a', backgroundColor: '#fef2f2' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#991b1b' }}>TOTAL DEDUCTIONS</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#991b1b' }}>{formatPdfINR(totalStatutoryDeductions)}</Text>
+              </View>
+              <View style={{ flex: 3.7, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, paddingHorizontal: 8, backgroundColor: '#f1f5f9' }}>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#475569' }}>NET ADJUSTMENT</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: '#475569' }}>{formatPdfINR(netAdjustment)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Net Salary Payable Card */}
+          <View style={{ marginTop: 14, padding: 10, borderRadius: 4, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 7.5, color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.8 }}>NET SALARY PAYABLE</Text>
+              <Text style={{ fontSize: 7.5, color: '#334155', marginTop: 3, fontStyle: 'italic' }}>Indian Rupees {numberToWords(data.netPay)} Only</Text>
+            </View>
+            <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 4, paddingVertical: 5, paddingHorizontal: 12 }}>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0f172a' }}>{formatPdfINR(data.netPay)}</Text>
+            </View>
+          </View>
+
+          {/* Signature Blocks */}
+          <View style={{ marginTop: 24, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24 }}>
+            <View style={{ alignItems: 'center', width: 130 }}>
+              <View style={{ width: 110, borderBottomWidth: 0.8, borderBottomColor: '#94a3b8', marginBottom: 4 }} />
+              <Text style={{ fontSize: 7.5, color: '#64748b', fontWeight: 'bold' }}>Employee Signature</Text>
+            </View>
+            <View style={{ alignItems: 'center', width: 130 }}>
+              <View style={{ width: 110, borderBottomWidth: 0.8, borderBottomColor: '#94a3b8', marginBottom: 4 }} />
+              <Text style={{ fontSize: 7.5, color: '#64748b', fontWeight: 'bold' }}>Authorized Signatory</Text>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={{ marginTop: 'auto', paddingTop: 8, borderTopWidth: 0.5, borderTopColor: '#e2e8f0', flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 6.5, color: '#94a3b8' }}>HRFlow PWA • Confidential Payroll Document</Text>
+            <Text style={{ fontSize: 6.5, color: '#94a3b8' }}>Page 1 of 1</Text>
+          </View>
         </View>
-        <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
-          <View style={{flex:5, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#e2e8f0', backgroundColor:'#f0fdf4'}}>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>TOTAL EARNINGS</Text>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>{formatINR((data.basic || 0) + (data.hra || 0) + (data.sundayPay || 0) + (data.holidayPay || 0) + (data.otPay || 0) + (data.food || 0) + (data.convenience || 0) + (data.bonus || 0))}</Text>
-          </View>
-          <View style={{flex:4, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#e2e8f0', backgroundColor:'#fef2f2'}}>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#991b1b'}}>TOTAL DEDUCTIONS</Text>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#991b1b'}}>{formatINR((data.pf || 0) + (data.esi || 0) + (data.loanEMI || 0) + (data.fineAmount || 0))}</Text>
-          </View>
-          <View style={{flex:3, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, backgroundColor:'#f3f4f6'}}>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#475569'}}>NET</Text>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#475569'}}>{formatINR((data.advanceDeduction || 0) - (data.expenseReimbursement || 0))}</Text>
-          </View>
-        </View>
-        <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
-          <View style={{flex:5, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a', backgroundColor:'#f0fdf4'}}>
-            <Text style={{fontWeight:'bold', color:'#166534'}}>GROSS PAY</Text>
-            <Text style={{fontWeight:'bold', color:'#166534'}}>{formatINR(data.grossEarnings)}</Text>
-          </View>
-          <View style={{flex:7, flexDirection:'row', justifyContent:'space-between', padding:8, backgroundColor:'#fef2f2'}}>
-            <Text style={{fontWeight:'bold', color:'#991b1b'}}>TOTAL DED.</Text>
-            <Text style={{fontWeight:'bold', color:'#991b1b'}}>{formatINR(data.totalDeductions)}</Text>
-          </View>
-        </View>
-      </View>
-      <View style={{textAlign:'center', marginTop:20, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed', paddingTop:10}}>
-        <Text style={{fontSize:16, fontWeight:'bold'}}>{formatINR(data.netPay)}</Text>
-        <Text style={{fontSize:8, color:'#64748b', marginTop:4, textTransform:'uppercase', fontStyle:'italic'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
-      </View>
-    </View>
-  </Page></Document>
-)
+      </Page>
+    </Document>
+  );
+};
 
 // --- MODALS ---
 
@@ -659,6 +794,26 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
   const [holidayCalendarRevision, setHolidayCalendarRevision] = useState(0)
+
+  const safeSummaryDate = useMemo(() => {
+    if (!summaryMonth) return new Date()
+    try {
+      const d = parseISO(`${summaryMonth}-01`)
+      return isNaN(d.getTime()) ? new Date() : d
+    } catch {
+      return new Date()
+    }
+  }, [summaryMonth])
+
+  const safeSelectedDate = useMemo(() => {
+    if (!selectedMonth) return new Date()
+    try {
+      const d = parseISO(`${selectedMonth}-01`)
+      return isNaN(d.getTime()) ? new Date() : d
+    } catch {
+      return new Date()
+    }
+  }, [selectedMonth])
 
   useEffect(() => {
     if (!user?.orgId) return undefined
@@ -2397,7 +2552,20 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         <div className="kinetic-attendance-monthly-toolbar monthly-summary-controlbar flex shrink-0 items-center justify-end px-6 py-3">
           <div className="flex items-center rounded-md border border-gray-200 bg-gray-100 p-1">
             <button type="button" onClick={() => { const [year, month] = summaryMonth.split('-').map(Number); const date = new Date(year, month - 2, 1); setSummaryMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`) }} className="rounded p-1 text-gray-600 transition-all hover:bg-white hover:shadow-sm" aria-label="Previous month"><ChevronLeft size={14} /></button>
-            <input type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="h-6 w-28 cursor-pointer border-0 bg-transparent text-center text-[10px] font-black uppercase outline-none focus:ring-0" aria-label="Monthly Summary month" />
+            <DatePicker
+              selected={safeSummaryDate}
+              onChange={(date) => {
+                if (date) {
+                  setSummaryMonth(format(date, 'yyyy-MM'))
+                }
+              }}
+              dateFormat="MMMM yyyy"
+              showMonthYearPicker
+              showFullMonthName
+              popperClassName="z-[99999]"
+              popperPlacement="bottom-start"
+              customInput={<MonthPickerCustomButton />}
+            />
             <button type="button" onClick={() => { const [year, month] = summaryMonth.split('-').map(Number); const date = new Date(year, month, 1); setSummaryMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`) }} className="rounded p-1 text-gray-600 transition-all hover:bg-white hover:shadow-sm" aria-label="Next month"><ChevronRight size={14} /></button>
           </div>
         </div>
@@ -2429,19 +2597,13 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   return (
     <div className="flex h-full bg-white text-gray-900 overflow-hidden flex-col">
-      <div className="bg-white px-6 pt-3 shrink-0">
-        <SubTabsNav
-          tabs={[
-            { id: 'salary-summary', label: 'Summary' },
-            { id: 'salary-slip', label: 'Payslips' },
-            { id: 'loan', label: 'Loans' },
-            { id: 'full-summary', label: 'Full Summary' }
-          ]}
-          activeTabId={activeTab}
-          onTabChange={(tab) => setActiveTab(tab.id)}
-        />
-      </div>
-      <div className="flex-1 px-6 pb-6 pt-2 overflow-hidden flex flex-col">
+      <FleetSecondaryTabs
+        tabs={PAYROLL_SUB_TABS}
+        activeTabId={activeTab}
+        onTabChange={(tab) => setActiveTab(tab.id)}
+        ariaLabel="Payroll sections"
+      />
+      <div className="flex-1 px-6 pb-6 pt-3 overflow-hidden flex flex-col">
         {activeTab === 'full-summary' && (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
@@ -2464,7 +2626,27 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 </button>
               </div>
               <div>
-                <input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-blue-600 outline-none bg-transparent"/>
+                <DatePicker
+                  selected={safeSelectedDate}
+                  onChange={(date) => {
+                    if (date) {
+                      setSelectedMonth(format(date, 'yyyy-MM'))
+                    }
+                  }}
+                  dateFormat="MMMM yyyy"
+                  showMonthYearPicker
+                  showFullMonthName
+                  popperClassName="z-[99999]"
+                  popperPlacement="bottom-start"
+                  customInput={
+                    <button
+                      type="button"
+                      className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-blue-600 outline-none bg-transparent text-left cursor-pointer hover:text-indigo-600 transition-colors"
+                    >
+                      {selectedMonth ? format(safeSelectedDate, 'MMMM yyyy') : 'Select month'}
+                    </button>
+                  }
+                />
                 <button onClick={() => {
                   const now = new Date()
                   setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
@@ -2625,66 +2807,146 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             <div className="kinetic-payroll-summary-toolbar monthly-summary-controlbar flex justify-between items-center shrink-0 z-[80] px-6 py-3">
               <div className="flex gap-4 items-center">
                 <div className="flex items-center gap-0.5">
-                  <button 
-                    onClick={() => {
-                      setPayrollSubTab('current');
-                      setSelectedPastRunId(null);
-                    }}
-                    className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
-                      payrollSubTab === 'current' ? 'text-indigo-600 bg-indigo-50/50 font-bold' : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
-                    }`}
-                  >
-                    Active Run
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setPayrollSubTab('history');
-                      setSelectedPastRunId(null);
-                    }}
-                    className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
-                      payrollSubTab === 'history' ? 'text-indigo-600 bg-indigo-50/50 font-bold' : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
-                    }`}
-                  >
-                    History
-                  </button>
+                  {[
+                    { id: 'overview', l: 'Monthly summary' },
+                    { id: 'detailed', l: 'Detailed Summary' }
+                  ].map((t) => {
+                    const isActive = payrollSubTab === 'current' && summarySubTab === t.id
+                    return (
+                      <button 
+                        key={t.id} 
+                        onClick={() => {
+                          setPayrollSubTab('current')
+                          setSelectedPastRunId(null)
+                          setSummarySubTab(t.id)
+                        }} 
+                        className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
+                          isActive
+                            ? 'text-indigo-600 bg-indigo-50/50 font-bold'
+                            : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
+                        }`}
+                      >
+                        {t.l}
+                      </button>
+                    )
+                  })}
+                  
+                  <div className="relative group">
+                    <button 
+                      type="button"
+                      className={`px-3 py-1.5 flex items-center gap-1 text-[13px] rounded-md transition-colors outline-none cursor-pointer ${
+                        payrollSubTab === 'history' || ['variable', 'sandwich'].includes(summarySubTab)
+                          ? 'text-indigo-600 bg-indigo-50/50 font-bold'
+                          : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
+                      }`}
+                    >
+                      <span>
+                        {payrollSubTab === 'history'
+                          ? 'History'
+                          : summarySubTab === 'variable'
+                          ? 'Vouchers'
+                          : summarySubTab === 'sandwich'
+                          ? 'Sandwich Rule'
+                          : 'More'}
+                      </span>
+                      <ChevronDown size={14} className="opacity-50" />
+                    </button>
+                    <div className="absolute left-0 top-full mt-1 w-44 bg-white border border-zinc-200/70 rounded-lg shadow-lg hidden group-hover:block z-[100] py-1">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setPayrollSubTab('current')
+                          setSelectedPastRunId(null)
+                          setSummarySubTab('overview')
+                        }} 
+                        className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
+                          payrollSubTab === 'current' && !['variable', 'sandwich'].includes(summarySubTab)
+                            ? 'font-bold text-indigo-600 bg-indigo-50/50'
+                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                        }`}
+                      >
+                        <span>Active Run</span>
+                        {payrollSubTab === 'current' && !['variable', 'sandwich'].includes(summarySubTab) && (
+                          <Check size={13} className="text-indigo-600" />
+                        )}
+                      </button>
 
-                  {payrollSubTab === 'current' && (
-                    <>
-                      <div className="h-4 w-px bg-zinc-200 mx-2"></div>
-                      {[
-                        {id:'overview',l:'Monthly summary'},
-                        {id:'detailed',l:'Detailed Summary'}
-                      ].map(t=>(
-                        <button 
-                          key={t.id} 
-                          onClick={()=>setSummarySubTab(t.id)} 
-                          className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
-                            summarySubTab===t.id
-                              ? 'text-indigo-600 bg-indigo-50/50 font-bold'
-                              : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
-                          }`}
-                        >
-                          {t.l}
-                        </button>
-                      ))}
-                      
-                      <div className="relative group">
-                        <button className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors outline-none cursor-pointer ${['variable','sandwich'].includes(summarySubTab) ? 'text-indigo-600 bg-indigo-50/50 font-bold' : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'}`}>
-                          More <ChevronDown size={14} className="ml-1 opacity-50" />
-                        </button>
-                        <div className="absolute left-0 top-full mt-1 w-40 bg-white border border-zinc-200/70 rounded-lg shadow-lg hidden group-hover:block z-[100] py-1">
-                          <button onClick={() => setSummarySubTab('variable')} className="w-full text-left px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors">Vouchers</button>
-                          <button onClick={() => setSummarySubTab('sandwich')} className="w-full text-left px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors">Sandwich Rule</button>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setPayrollSubTab('history')
+                          setSelectedPastRunId(null)
+                        }} 
+                        className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
+                          payrollSubTab === 'history'
+                            ? 'font-bold text-indigo-600 bg-indigo-50/50'
+                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                        }`}
+                      >
+                        <span>History</span>
+                        {payrollSubTab === 'history' && (
+                          <Check size={13} className="text-indigo-600" />
+                        )}
+                      </button>
+
+                      <div className="border-t border-zinc-100 my-1"></div>
+
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setPayrollSubTab('current')
+                          setSummarySubTab('variable')
+                        }} 
+                        className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
+                          payrollSubTab === 'current' && summarySubTab === 'variable'
+                            ? 'font-bold text-indigo-600 bg-indigo-50/50'
+                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                        }`}
+                      >
+                        <span>Vouchers</span>
+                        {payrollSubTab === 'current' && summarySubTab === 'variable' && (
+                          <Check size={13} className="text-indigo-600" />
+                        )}
+                      </button>
+
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setPayrollSubTab('current')
+                          setSummarySubTab('sandwich')
+                        }} 
+                        className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
+                          payrollSubTab === 'current' && summarySubTab === 'sandwich'
+                            ? 'font-bold text-indigo-600 bg-indigo-50/50'
+                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                        }`}
+                      >
+                        <span>Sandwich Rule</span>
+                        {payrollSubTab === 'current' && summarySubTab === 'sandwich' && (
+                          <Check size={13} className="text-indigo-600" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {payrollSubTab === 'current' && (
                   <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
                     <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
-                    <input type="month" value={summaryMonth} onChange={e=>setSummaryMonth(e.target.value)} className="h-6 bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-24 text-center cursor-pointer"/>
+                    <DatePicker
+                      selected={safeSummaryDate}
+                      onChange={(date) => {
+                        if (date) {
+                          setSummaryMonth(format(date, 'yyyy-MM'))
+                        }
+                      }}
+                      dateFormat="MMMM yyyy"
+                      showMonthYearPicker
+                      showFullMonthName
+                      popperClassName="z-[99999]"
+                      popperPlacement="bottom-start"
+                      customInput={<MonthPickerCustomButton />}
+                    />
                     <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button>
                   </div>
                 )}
