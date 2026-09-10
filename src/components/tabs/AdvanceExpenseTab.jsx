@@ -72,6 +72,27 @@ function formatDeletedRecordDate(dateValue) {
   }
 }
 
+function formatReportDate(dateValue) {
+  if (!dateValue) return '—'
+  try {
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+      const [y, m, d] = dateValue.slice(0, 10).split('-')
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+      const month = months[parseInt(m, 10) - 1]
+      return `${d}-${month}-${y.slice(-2)}`
+    }
+    const d = dateValue?.toDate ? dateValue.toDate() : new Date(dateValue)
+    if (Number.isNaN(d.getTime())) return String(dateValue)
+    const day = String(d.getDate()).padStart(2, '0')
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+    const month = months[d.getMonth()]
+    const year = String(d.getFullYear()).slice(-2)
+    return `${day}-${month}-${year}`
+  } catch {
+    return String(dateValue)
+  }
+}
+
 
 function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions, vehicleOptions = [], handleSelectVehicle }) {
   const categoryRequiresPaidTo = isCategoryPayableToOthers
@@ -6811,29 +6832,29 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           )}
           
           {/* Reports Container for Screenshot */}
-          <div ref={reportsContainerRef} className="space-y-4">
-            <div className="w-fit max-w-full overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 gap-4">
+          <div ref={reportsContainerRef} className="space-y-4 font-['Inter',sans-serif]">
+            <div className="w-full max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2 gap-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-800">Advance & Expense Register</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-800">Advance & Expense Register</h3>
                   {reportApplied && (
-                    <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                    <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
                       Filtered
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
+                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                     {reportUnifiedRows.length} Records
                   </span>
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-fit table-fixed border-collapse">
+                <table className="w-full border-collapse text-left border-t border-slate-200">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-slate-50">
+                    <tr className="border-b border-slate-300 bg-slate-100/90 h-7 select-none">
                       {canSelectAll && (
-                        <th className="w-10 border-r border-gray-100 px-2 py-2.5 text-center">
+                        <th className="w-8 border-r border-slate-200 px-2 py-1 text-center whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectableReportEntries.length > 0 && selectableReportEntries.every((entry) => reportSelectedEntryIds.includes(entry.id))}
@@ -6843,19 +6864,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           />
                         </th>
                       )}
-                      <th className="w-[80px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Date</th>
-                      <th className="w-[130px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Name</th>
-                      <th className="w-[160px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Category Type</th>
-                      <th className="w-[180px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Remarks</th>
-                      <th className="w-[100px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-widest text-emerald-600">Advance</th>
-                      <th className="w-[100px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-widest text-rose-600">Expense</th>
-                      <th className="w-[70px] px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Actions</th>
+                      <th className="w-[85px] border-r border-slate-200 px-2 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Date</th>
+                      {reportSelectedEmployees.length === 0 && (
+                        <th className="min-w-[130px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Employee</th>
+                      )}
+                      <th className="min-w-[170px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Category</th>
+                      <th className="min-w-[190px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Remarks</th>
+                      <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-emerald-700 whitespace-nowrap">Advance</th>
+                      <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-rose-700 whitespace-nowrap">Expense</th>
+                      <th className="w-[65px] px-2 py-1 text-center text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {reportUnifiedRows.length === 0 ? (
                       <tr>
-                        <td colSpan={canSelectAll ? 8 : 7} className="py-10 text-center text-[11px] font-semibold text-slate-400">
+                        <td colSpan={canSelectAll ? (reportSelectedEmployees.length > 0 ? 7 : 8) : (reportSelectedEmployees.length > 0 ? 6 : 7)} className="py-6 text-center text-[10px] font-medium text-slate-400 whitespace-nowrap">
                           No records found for this criteria
                         </td>
                       </tr>
@@ -6869,12 +6892,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         return (
                           <tr
                             key={entry.id}
-                            className={`border-b border-gray-100 text-slate-700 transition-colors ${
-                              isAdvance ? 'hover:bg-emerald-50/20' : 'hover:bg-rose-50/20'
-                            }`}
+                            className={`border-b border-slate-200 text-slate-700 transition-colors h-7 ${
+                              isAdvance ? 'hover:bg-emerald-50/30' : 'hover:bg-rose-50/30'
+                            } odd:bg-white even:bg-slate-50/40`}
                           >
                             {canSelectAll && (
-                              <td className="border-r border-gray-100 px-2 py-2.5 text-center">
+                              <td className="border-r border-slate-200 px-2 py-1 text-center whitespace-nowrap">
                                 {entry.isTransferredAdvance ? (
                                   <span className="text-[10px] text-slate-300">—</span>
                                 ) : (
@@ -6888,24 +6911,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 )}
                               </td>
                             )}
-                            <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                              {entry.date ? new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                            <td className="border-r border-slate-200 px-2 py-1 text-[10px] text-slate-600 whitespace-nowrap">
+                              {formatReportDate(entry.date)}
                             </td>
-                            <td className="border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">
-                              {displayEmployeeName}
-                            </td>
-                            <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="font-semibold text-slate-700">{displayCategory}</span>
+                            {reportSelectedEmployees.length === 0 && (
+                              <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-800 whitespace-nowrap" title={displayEmployeeName}>
+                                {displayEmployeeName}
+                              </td>
+                            )}
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] text-slate-600 whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="font-semibold text-slate-800">{displayCategory}</span>
                                 {isAdvance ? (
                                   <>
                                     {displayGivenBy && (
-                                      <span className="text-[9.5px] text-blue-700 font-semibold leading-tight tracking-[0.5px]">
-                                        Given by {displayGivenBy}
+                                      <span className="text-[10px] text-blue-700 font-medium whitespace-nowrap">
+                                        (Given by {displayGivenBy})
                                       </span>
-                                    )}
-                                    {entry.requestType && (
-                                      <span className="text-[9.5px] text-gray-500 font-semibold tracking-[0.5px]">{entry.requestType}</span>
                                     )}
                                   </>
                                 ) : (
@@ -6913,49 +6935,46 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     {(entry.paidToName || entry.paidToCustomName) &&
                                       ((entry.category && entry.category.toLowerCase().includes('given to others')) ||
                                         (entry.paidToName || entry.paidToCustomName) !== entry.employeeName) && (
-                                        <span className="text-[9.5px] text-blue-700 font-semibold leading-tight tracking-[0.5px]">
-                                          {entry.employeeName} &rarr; {entry.paidToName || entry.paidToCustomName}
+                                        <span className="text-[10px] text-blue-700 font-medium whitespace-nowrap">
+                                          ({entry.employeeName} &rarr; {entry.paidToName || entry.paidToCustomName})
                                         </span>
                                       )}
                                     {entry.siteName && (
-                                      <span className="text-[9.5px] text-emerald-700 font-semibold leading-tight tracking-[0.5px]">
-                                        Site: {entry.siteName}
+                                      <span className="text-[10px] text-emerald-700 font-medium whitespace-nowrap">
+                                        [Site: {entry.siteName}]
                                       </span>
                                     )}
                                     {(entry.vehicleNo || entry.vehicleNumber) && (
-                                      <span className="text-[9.5px] text-blue-700 font-semibold leading-tight tracking-[0.5px] font-mono">
-                                        Vehicle: {entry.vehicleName ? `${entry.vehicleName} - ${entry.vehicleNo}` : (entry.vehicleNo || entry.vehicleNumber)}
+                                      <span className="text-[10px] text-blue-700 font-medium whitespace-nowrap">
+                                        [Veh: {entry.vehicleName ? `${entry.vehicleName} - ${entry.vehicleNo}` : (entry.vehicleNo || entry.vehicleNumber)}]
                                       </span>
-                                    )}
-                                    {entry.requestType && (
-                                      <span className="text-[9.5px] text-gray-500 font-semibold tracking-[0.5px]">{entry.requestType}</span>
                                     )}
                                   </>
                                 )}
                               </div>
                             </td>
-                            <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-semibold leading-relaxed text-slate-700 whitespace-normal break-words">
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-700 whitespace-nowrap max-w-[260px] truncate" title={reportDetails.displayRemarks || entry.remarks || entry.reason || ''}>
                               {reportDetails.displayRemarks || entry.remarks || entry.reason || '—'}
                             </td>
-                            <td className="border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-semibold tabular-nums">
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums whitespace-nowrap">
                               {isAdvance ? (
-                                <div className="flex flex-col items-end">
+                                <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                  {(displayGivenBy || (entry.paidByName && entry.paidByName.toLowerCase().trim() !== String(entry.employeeName || '').toLowerCase().trim())) && (
+                                    <span className="text-[9px] text-slate-400 font-normal">
+                                      ({displayGivenBy ? `by ${displayGivenBy}` : entry.paidByName})
+                                    </span>
+                                  )}
                                   <span className="text-emerald-700 font-semibold">
                                     {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                                       entry.amount
                                     )}
                                   </span>
-                                  {(displayGivenBy || (entry.paidByName && entry.paidByName.toLowerCase().trim() !== String(entry.employeeName || '').toLowerCase().trim())) && (
-                                    <span className="text-[8.5px] text-gray-500 mt-0.5 tracking-[0.5px] font-semibold">
-                                      {displayGivenBy ? `Paid by ${displayGivenBy}` : entry.paidByName}
-                                    </span>
-                                  )}
                                 </div>
                               ) : (
                                 <span className="text-slate-300 font-normal">—</span>
                               )}
                             </td>
-                            <td className="border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-semibold tabular-nums">
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums whitespace-nowrap">
                               {!isAdvance ? (
                                 <span className="text-rose-700 font-semibold">
                                   {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
@@ -6966,8 +6985,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <span className="text-slate-300 font-normal">—</span>
                               )}
                             </td>
-                            <td className="px-2 py-1.5 text-center">
-                              <div className="flex items-center justify-center gap-1">
+                            <td className="px-1.5 py-1 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                                 {entry.requestType === 'Pre-Approval' && entry.mdApproval === 'Approved' && (
                                   <button
                                     type="button"
@@ -6975,10 +6994,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       setFinalizingId(entry.id)
                                       setFinalizeAmount(entry.amount)
                                     }}
-                                    className="text-emerald-600 hover:bg-emerald-50 p-1 rounded transition-colors"
+                                    className="text-emerald-600 hover:bg-emerald-50 p-0.5 rounded transition-colors"
                                     title="Submit Bill"
                                   >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                       <polyline points="14 2 14 8 20 8" />
                                       <path d="M9 15l2 2 4-4" />
@@ -6988,18 +7007,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <button
                                   type="button"
                                   onClick={() => handleEdit(entry)}
-                                  className="text-amber-600 hover:bg-amber-50 p-1 rounded transition-colors"
+                                  className="text-amber-600 hover:bg-amber-50 p-0.5 rounded transition-colors"
                                   title="Edit & Revoke"
                                 >
-                                  <Edit2 size={12} />
+                                  <Edit2 size={11} />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDelete(entry.id)}
-                                  className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
+                                  className="text-red-600 hover:bg-red-50 p-0.5 rounded transition-colors"
                                   title="Delete Transaction"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={11} />
                                 </button>
                               </div>
                             </td>
@@ -7009,24 +7028,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     )}
                   </tbody>
                   {reportUnifiedRows.length > 0 && (
-                    <tfoot className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
-                      <tr>
-                        {canSelectAll && <td className="border-r border-gray-200 px-2 py-2.5 text-center"></td>}
-                        <td className="border-r border-gray-200 px-3 py-2.5 text-[11px] font-semibold text-slate-700 uppercase tracking-wider" colSpan={3}>
+                    <tfoot className="border-t-2 border-slate-300 bg-slate-100/90 font-bold text-[10px]">
+                      <tr className="h-7">
+                        {canSelectAll && <td className="border-r border-slate-200 px-2 py-1 text-center whitespace-nowrap"></td>}
+                        <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" colSpan={reportSelectedEmployees.length > 0 ? 2 : 3}>
                           Total ({reportUnifiedRows.length} {reportUnifiedRows.length === 1 ? 'record' : 'records'})
                         </td>
-                        <td className="border-r border-gray-200 px-3 py-2.5"></td>
-                        <td className="border-r border-gray-200 px-3 py-2.5 text-right text-[12px] tabular-nums font-semibold text-emerald-700">
+                        <td className="border-r border-slate-200 px-2.5 py-1 whitespace-nowrap"></td>
+                        <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums font-bold text-emerald-700 whitespace-nowrap">
                           ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                             reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Advance').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                           )}
                         </td>
-                        <td className="border-r border-gray-200 px-3 py-2.5 text-right text-[12px] tabular-nums font-semibold text-rose-700">
+                        <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums font-bold text-rose-700 whitespace-nowrap">
                           ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                             reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Expense').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                           )}
                         </td>
-                        <td className="px-2 py-1.5 text-center"></td>
+                        <td className="px-1.5 py-1 text-center whitespace-nowrap"></td>
                       </tr>
                     </tfoot>
                   )}
