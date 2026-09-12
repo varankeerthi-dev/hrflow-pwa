@@ -24,6 +24,16 @@ import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs'
 import { Table as ReusableTable } from '../table/Table'
 import { leaveCoverageCol } from '../../lib/firestore'
 import { resolveDailyClassification } from '../../lib/leaveLifecycle'
+import {
+  isAdvanceDeductibleInPayrollMonth,
+  isAdvanceCandidateForPayroll,
+  isNextMonthPreDisbursementAdvance,
+  getDefaultAdvanceDeductionMonth,
+  getAdvanceDeductionMonth,
+  getNextMonth,
+  getPreviousMonth,
+  formatMonthLabel
+} from '../../lib/advanceSalaryUtils'
 import currencyFontUrl from '../../lib/pdf-assets/hrflow-currency.ttf?url'
 
 try {
@@ -774,6 +784,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   const { user } = useAuth(); const { employees: allEmployees } = useEmployees(user?.orgId, false); const { slabs, increments } = useSalarySlab(user?.orgId);
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const userRole = (user?.role || '').toLowerCase()
+  const canManageDeductions = isAdmin || userRole === 'accountant' || userRole === 'hr' || user?.isAccountant === true || user?.permissions?.['SalarySlip']?.edit === true || user?.permissions?.['AdvanceExpense']?.edit === true
+  const [orgSettings, setOrgSettings] = useState(null)
+  const salaryDate = Number(orgSettings?.salaryDate) || 10
   const [activeTab, setActiveTab] = useState(defaultActiveTab)
   
   useEffect(() => {
@@ -817,7 +831,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   useEffect(() => {
     if (!user?.orgId) return undefined
-    return onSnapshot(doc(db, 'organisations', user.orgId), () => {
+    return onSnapshot(doc(db, 'organisations', user.orgId), (snap) => {
+      if (snap.exists()) setOrgSettings(snap.data())
       setHolidayCalendarRevision(Date.now())
     })
   }, [user?.orgId])
@@ -1003,6 +1018,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   const [selectedLoan, setSelectedLoan] = useState(null)
   const [overrideForm, setOverrideForm] = useState({ month: new Date().toISOString().slice(0, 7), amount: '', skip: false })
 
+  // --- ADVANCE OVERRIDE & LOAN CONVERSION STATES ---
+  const [selectedAdvanceBreakdownEmp, setSelectedAdvanceBreakdownEmp] = useState(null)
+  const [convertingLoanAdvance, setConvertingLoanAdvance] = useState(null)
+  const [loanConvertForm, setLoanConvertForm] = useState({ emiAmount: '', remarks: '' })
+  const [loanConvertSubmitting, setLoanConvertSubmitting] = useState(false)
+
   // --- LOAN QUERIES ---
   const { data: loans = [], refetch: refetchLoans } = useQuery({
     queryKey: ['loans', user?.orgId],
@@ -1115,6 +1136,161 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       setSelectedLoan(null)
       setOverrideForm({ month: new Date().toISOString().slice(0, 7), amount: '', skip: false })
     } catch (e) { alert(e.message) }
+  }
+
+  const handleDeferAdvance = async (adv) => {
+    if (!adv?.id || !user?.orgId) return
+    const curMonth = getAdvanceDeductionMonth(adv)
+    const nextM = getNextMonth(curMonth)
+    if (!window.confirm(`Defer this advance of ₹${Number(adv.amount).toLocaleString('en-IN')} to ${formatMonthLabel(nextM)}?`)) return
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', adv.id), {
+        deductionMonth: nextM,
+        updatedAt: serverTimestamp()
+      })
+      await logActivity(user.orgId, user, {
+        module: 'Payroll',
+        action: 'Advance Deferral',
+        detail: `Deferred advance of ₹${adv.amount} for ${adv.employeeName || selectedAdvanceBreakdownEmp?.name} to ${formatMonthLabel(nextM)}`
+      })
+      queryClient.invalidateQueries(['attendanceSummary', user.orgId])
+      queryClient.invalidateQueries(['advances_expenses', user.orgId])
+      if (selectedAdvanceBreakdownEmp) {
+        setSelectedAdvanceBreakdownEmp(prev => {
+          if (!prev) return null
+          const nextList = (prev.advancesList || []).filter(a => a.id !== adv.id)
+          const nextTotal = nextList.reduce((sum, a) => sum + Number(a.amount || 0), 0)
+          return { ...prev, advancesList: nextList, advanceAmount: nextTotal }
+        })
+      }
+    } catch (e) {
+      alert(`Error deferring advance: ${e.message}`)
+    }
+  }
+
+  const handleSetAdvanceDeductionRule = async (adv, scenario) => {
+    if (!adv?.id || !user?.orgId) return
+    if (!canManageDeductions) {
+      alert('You do not have RBAC permission to modify advance deduction rules.')
+      return
+    }
+    const targetMonth = scenario === 'deduct_this_month' ? summaryMonth : getNextMonth(summaryMonth)
+    const actionLabel = scenario === 'deduct_this_month' 
+      ? `Deduct in ${formatMonthLabel(summaryMonth)}` 
+      : scenario === 'revert_to_natural'
+        ? `Reverted deduction to ${formatMonthLabel(targetMonth)}`
+        : `Postpone to ${formatMonthLabel(targetMonth)}`
+
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', adv.id), {
+        deductionMonth: scenario === 'revert_to_natural' ? null : targetMonth,
+        deductionRule: scenario === 'revert_to_natural' ? null : scenario,
+        deductionRuleSetBy: user?.name || user?.email || 'Admin',
+        deductionRuleSetAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      })
+      await logActivity(user.orgId, user, {
+        module: 'Payroll',
+        action: 'Set Advance Deduction Rule',
+        detail: `${actionLabel} for advance of ₹${adv.amount} (${adv.employeeName || selectedAdvanceBreakdownEmp?.name})`
+      })
+      queryClient.invalidateQueries(['attendanceSummary', user.orgId])
+      queryClient.invalidateQueries(['advances_expenses', user.orgId])
+
+      if (selectedAdvanceBreakdownEmp) {
+        setSelectedAdvanceBreakdownEmp(prev => {
+          if (!prev) return null
+          const baseList = (prev.candidateAdvancesList && prev.candidateAdvancesList.length > 0)
+            ? prev.candidateAdvancesList
+            : (prev.advancesList || [])
+          const updatedCandidateList = baseList.map(a => 
+            a.id === adv.id ? { 
+              ...a, 
+              deductionMonth: scenario === 'revert_to_natural' ? null : targetMonth, 
+              deductionRule: scenario === 'revert_to_natural' ? null : scenario, 
+              deductionRuleSetBy: user?.name || user?.email || 'Admin' 
+            } : a
+          )
+          const newDeductingList = updatedCandidateList.filter(a => isAdvanceDeductibleInPayrollMonth(a, summaryMonth, salaryDate))
+          const newTotal = newDeductingList.reduce((sum, a) => sum + Number(a.amount || 0), 0)
+          return {
+            ...prev,
+            candidateAdvancesList: updatedCandidateList,
+            advancesList: newDeductingList,
+            advanceAmount: newTotal,
+            hasPostponed: updatedCandidateList.some(a => a.deductionMonth && a.deductionMonth > summaryMonth)
+          }
+        })
+      }
+    } catch (e) {
+      alert(`Error setting deduction rule: ${e.message}`)
+    }
+  }
+
+  const handleConvertAdvanceToLoan = async () => {
+    if (!convertingLoanAdvance || !loanConvertForm.emiAmount || !user?.orgId) return
+    const emi = Number(loanConvertForm.emiAmount)
+    if (isNaN(emi) || emi <= 0) return alert('Please enter a valid monthly EMI')
+    setLoanConvertSubmitting(true)
+    try {
+      const empId = convertingLoanAdvance.employeeId || selectedAdvanceBreakdownEmp?.id
+      const empName = convertingLoanAdvance.employeeName || selectedAdvanceBreakdownEmp?.name
+      const totalAmt = Number(convertingLoanAdvance.amount)
+
+      const loanPayload = {
+        employeeId: empId,
+        employeeName: empName,
+        totalAmount: totalAmt,
+        emiAmount: emi,
+        remainingAmount: totalAmt,
+        remarks: loanConvertForm.remarks || `Advance converted to loan - Txn #${convertingLoanAdvance.transactionNo || convertingLoanAdvance.id}`,
+        status: 'Active',
+        sourceAdvanceId: convertingLoanAdvance.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+      const loanDoc = await addDoc(collection(db, 'organisations', user.orgId, 'loans'), loanPayload)
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', convertingLoanAdvance.id), {
+        recoveryType: 'loan',
+        deductFromPayroll: false,
+        linkedLoanId: loanDoc.id,
+        updatedAt: serverTimestamp()
+      })
+
+      await logActivity(user.orgId, user, {
+        module: 'Loan',
+        action: 'Created from Advance',
+        detail: `Converted ₹${totalAmt} advance to loan for ${empName} (EMI: ₹${emi})`
+      })
+
+      queryClient.invalidateQueries(['loans', user.orgId])
+      queryClient.invalidateQueries(['advances_expenses', user.orgId])
+      queryClient.invalidateQueries(['attendanceSummary', user.orgId])
+
+      if (selectedAdvanceBreakdownEmp) {
+        setSelectedAdvanceBreakdownEmp(prev => {
+          if (!prev) return null
+          const nextCandidates = (prev.candidateAdvancesList || []).filter(a => a.id !== convertingLoanAdvance.id)
+          const nextList = (prev.advancesList || []).filter(a => a.id !== convertingLoanAdvance.id)
+          const nextTotal = nextList.reduce((sum, a) => sum + Number(a.amount || 0), 0)
+          return {
+            ...prev,
+            candidateAdvancesList: nextCandidates,
+            advancesList: nextList,
+            advanceAmount: nextTotal,
+            hasPostponed: nextCandidates.some(a => a.deductionMonth && a.deductionMonth > summaryMonth)
+          }
+        })
+      }
+      setConvertingLoanAdvance(null)
+      setLoanConvertForm({ emiAmount: '', remarks: '' })
+      alert('Advance successfully converted to active loan schedule!')
+    } catch (e) {
+      alert(`Error converting to loan: ${e.message}`)
+    } finally {
+      setLoanConvertSubmitting(false)
+    }
   }
 
   const { data: orgData } = useQuery({
@@ -1384,7 +1560,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const recDate = a.date || a.inDate;
         const nd = normalizeDate(recDate);
         return nd && nd >= sd && nd <= ed;
-      }), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(fineIsPayableInMonth), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
+      }), allLoans = loanSnap.docs.map(d => d.data()),
+      rawAEDocs = aeSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      orgSalaryDate = Number(orgData?.salaryDate) || Number(orgSettings?.salaryDate) || 10,
+      allAdvancesInMonth = rawAEDocs.filter(a => isAdvanceDeductibleInPayrollMonth(a, summaryMonth, orgSalaryDate)),
+      allCandidateAdvancesInMonth = rawAEDocs.filter(a => isAdvanceCandidateForPayroll(a, summaryMonth, orgSalaryDate)),
+      allExpensesInMonth = rawAEDocs.filter(a => a.type === 'Expense' && a.date >= sd && a.date <= ed),
+      allFines = fineSnap.docs.map(d => d.data()).filter(fineIsPayableInMonth),
+      otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       const coverageByEmployeeDate = coverageSnap.docs.reduce((result, coverageDoc) => {
         const coverage = coverageDoc.data()
         if (coverage?.employeeId && coverage?.date) result.set(`${coverage.employeeId}:${coverage.date}`, coverage)
@@ -1514,12 +1697,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const empVar = allVariables[emp.id] || {};
         const foodP = Number(empVar.food || 0), convP = Number(empVar.convenience || 0), bonusP = Number(empVar.bonus || 0);
 
-        const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
+        const empAdvances = allAdvancesInMonth.filter(a => a.employeeId === emp.id);
+        const empCandidateAdvances = allCandidateAdvancesInMonth.filter(a => a.employeeId === emp.id);
+        const hasPreSalary = empCandidateAdvances.some(a => isNextMonthPreDisbursementAdvance(a.date, summaryMonth, orgSalaryDate) && a.deductionMonth !== summaryMonth);
+        const hasPostponed = empCandidateAdvances.some(a => a.deductionMonth && a.deductionMonth > summaryMonth);
+        const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = empAdvances.reduce((s, a) => s + Number(a.amount || 0), 0), reimb = allExpensesInMonth.filter(a => a.employeeId === emp.id && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount || 0), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount || 0), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, paidLeave, unpaidLeave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, paidLeave, unpaidLeave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt, advancesList: empAdvances, candidateAdvancesList: empCandidateAdvances, hasPreSalary, hasPostponed }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -1926,7 +2113,39 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       case 'esi': return dashIfZero(emp.esi);
       case 'loan': return dashIfZero(emp.loanE);
       case 'ded': return dashIfZero(emp.fine);
-      case 'advance': return dashIfZero(emp.advanceAmount);
+      case 'advance': {
+        const hasDeducted = emp.advanceAmount && emp.advanceAmount > 0;
+        const candidateList = emp.candidateAdvancesList || emp.advancesList || [];
+        const hasCandidates = candidateList.length > 0;
+
+        if (!hasDeducted && !hasCandidates) return '-';
+
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedAdvanceBreakdownEmp(emp);
+            }}
+            className="group inline-flex items-center justify-end gap-1 font-mono font-semibold text-slate-800 hover:text-blue-600 cursor-pointer"
+            title="Click to view advance breakdown, set deduction rules (deduct this month or postpone), or convert to loan"
+          >
+            {hasDeducted ? (
+              <span>{Math.round(emp.advanceAmount).toLocaleString('en-IN')}</span>
+            ) : (
+              <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-body font-bold">
+                Set Rule
+              </span>
+            )}
+            {emp.hasPostponed && (
+              <span className="text-[8px] text-blue-700 bg-blue-50 border border-blue-200 px-1 rounded font-body font-medium" title="Has postponed advances">
+                Postponed
+              </span>
+            )}
+            <span className="text-[10px] text-slate-400 group-hover:text-blue-600 transition-colors">⚙</span>
+          </button>
+        );
+      }
       case 'reimb': return dashIfZero(emp.expenseAmount);
       case 'netAdj': {
         const val = emp.netAdvanceExpense || 0;
@@ -2107,7 +2326,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         .filter(a => {
           const aEmpId = String(a.employeeId || '').trim();
           const matchesEmp = (targetEmpId && aEmpId === targetEmpId) || (empIdStr && aEmpId === empIdStr) || (empCodeStr && aEmpId === empCodeStr);
-          return matchesEmp && a.date >= sd && a.date <= ed;
+          if (!matchesEmp) return false;
+          if (a.type === 'Advance') {
+            return isAdvanceDeductibleInPayrollMonth(a, selectedMonth, salaryDate);
+          }
+          return a.date >= sd && a.date <= ed;
         });
       
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })));
@@ -3953,6 +4176,29 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       )}
                     </div>
                   </div>
+
+                  {/* Pre-Salary Advance Action Required Banner */}
+                  {displayData?.some(e => e.hasPreSalary) && (
+                    <div className="mx-4 my-2.5 p-3 bg-blue-50/90 border border-blue-200 rounded-xl flex items-center justify-between gap-3 text-xs font-body text-blue-900 shadow-xs shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-lg bg-blue-500/15 border border-blue-300 flex items-center justify-center text-base shrink-0">
+                          ℹ️
+                        </div>
+                        <div>
+                          <div className="font-bold font-heading text-blue-950 flex items-center gap-2">
+                            <span>Pre-Disbursement Advances Available</span>
+                            <span className="px-2 py-0.2 text-[10px] font-mono rounded-full bg-blue-200/70 text-blue-900 font-bold">
+                              {displayData.filter(e => e.hasPreSalary).length} staff member{displayData.filter(e => e.hasPreSalary).length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-blue-800/90 mt-0.5">
+                            Advances taken between the 1st and the <b>{salaryDate}th of {formatMonthLabel(getNextMonth(summaryMonth))}</b> (before {formatMonthLabel(summaryMonth)} salary payout) can optionally be deducted from {formatMonthLabel(summaryMonth)} Salary. Click an employee's <b>Advance (⚙)</b> cell in the table below to deduct now.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex-1 overflow-auto relative" ref={detailedTableScrollRef} onScroll={handleDetailedTableScroll}>
                     <table className="w-full text-[11px] border-collapse detailed-summary-table bg-white">
                     <thead className="sticky top-0 z-40 font-raleway">
@@ -4400,6 +4646,301 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 className="w-full px-4 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Advance Breakdown & Management Modal */}
+      {selectedAdvanceBreakdownEmp && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-5xl w-full flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 font-body tracking-tight">
+                  Advance Deductions: {selectedAdvanceBreakdownEmp.name}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-body">
+                  Payroll Month: <span className="font-semibold text-slate-700">{formatMonthLabel(summaryMonth)}</span> • Total Advance Deducted: <span className="font-semibold text-amber-700 font-mono">₹{Math.round(selectedAdvanceBreakdownEmp.advanceAmount || 0).toLocaleString('en-IN')}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAdvanceBreakdownEmp(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="flex items-start justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-body text-slate-700">
+                <div>
+                  <span className="font-semibold text-slate-900 font-body">Salary Cycle Policy:</span>{' '}
+                  Salary date is the <b>{salaryDate}th</b> of each month. Advances taken in {formatMonthLabel(summaryMonth)} auto-deduct by default. Early advances taken in {formatMonthLabel(getNextMonth(summaryMonth))} before the {salaryDate}th can optionally be deducted from {formatMonthLabel(summaryMonth)} Salary, or left to auto-deduct in {formatMonthLabel(getNextMonth(summaryMonth))}.
+                </div>
+                {!canManageDeductions && (
+                  <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-medium whitespace-nowrap">
+                    Read-Only View
+                  </span>
+                )}
+              </div>
+
+              {(() => {
+                const candidateList = (selectedAdvanceBreakdownEmp.candidateAdvancesList && selectedAdvanceBreakdownEmp.candidateAdvancesList.length > 0)
+                  ? selectedAdvanceBreakdownEmp.candidateAdvancesList
+                  : (selectedAdvanceBreakdownEmp.advancesList || [])
+
+                if (candidateList.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-sm text-slate-400 font-body">
+                      No advance records found for {selectedAdvanceBreakdownEmp.name} in {formatMonthLabel(summaryMonth)}.
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="rounded-xl border border-slate-200 overflow-x-auto shadow-xs">
+                    <table className="w-full min-w-[860px] text-left border-collapse font-body text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 h-9">
+                          <th className="px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-body whitespace-nowrap w-[130px]">Date</th>
+                          <th className="px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-body whitespace-nowrap min-w-[150px]">Category / Txn</th>
+                          <th className="px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-body min-w-[140px]">Remarks</th>
+                          <th className="px-3.5 py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-body whitespace-nowrap w-[100px]">Amount</th>
+                          <th className="px-3.5 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-body whitespace-nowrap min-w-[180px]">Deduction Status</th>
+                          <th className="px-3.5 py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 font-body whitespace-nowrap min-w-[270px]">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {candidateList.map((adv) => {
+                          const targetMonth = getAdvanceDeductionMonth(adv)
+                          const nextMonth = getNextMonth(summaryMonth)
+                          const isDeducting = isAdvanceDeductibleInPayrollMonth(adv, summaryMonth, salaryDate)
+                          const isNextMonthPre = isNextMonthPreDisbursementAdvance(adv.date, summaryMonth, salaryDate)
+                          const isPostponed = adv.deductionMonth && adv.deductionMonth > summaryMonth
+                          const isAlreadyDeductedInPast = adv.deductionMonth && adv.deductionMonth < summaryMonth
+
+                          return (
+                            <tr key={adv.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="px-3.5 py-2.5 text-xs text-slate-700 font-body whitespace-nowrap">
+                                <div className="font-semibold text-slate-800">{adv.date || '—'}</div>
+                                {isNextMonthPre && (
+                                  <span className="inline-block mt-1 text-[10px] font-medium text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-body whitespace-nowrap" title={`Advance taken in ${formatMonthLabel(nextMonth)} before salary payout`}>
+                                    Pre-Disbursement
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3.5 py-2.5 whitespace-nowrap min-w-[150px]">
+                                <span className="text-xs font-semibold text-slate-800 font-body block">{adv.category || 'Advance'}</span>
+                                {adv.transactionNo && (
+                                  <span className="block text-[11px] text-slate-400 font-mono mt-0.5">{adv.transactionNo}</span>
+                                )}
+                              </td>
+                              <td className="px-3.5 py-2.5 text-xs text-slate-500 font-body max-w-[200px] truncate" title={adv.reason || adv.remarks || ''}>
+                                {adv.reason || adv.remarks || '—'}
+                              </td>
+                              <td className="px-3.5 py-2.5 text-right text-xs font-bold text-slate-900 font-body whitespace-nowrap font-mono">
+                                ₹{Number(adv.amount || 0).toLocaleString('en-IN')}
+                              </td>
+                              <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
+                                {isDeducting ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 font-body">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    Deducting in {formatMonthLabel(summaryMonth)}
+                                    {isNextMonthPre && (
+                                      <span className="text-[10px] text-emerald-600 font-normal ml-0.5">(Added to {formatMonthLabel(summaryMonth)})</span>
+                                    )}
+                                    {adv.deductionMonth && adv.deductionMonth === summaryMonth && adv.date && adv.date.slice(0, 7) !== summaryMonth && !isNextMonthPre && (
+                                      <span className="text-[10px] text-emerald-600 font-normal ml-0.5">(Carried over)</span>
+                                    )}
+                                  </span>
+                                ) : isAlreadyDeductedInPast ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 font-body" title={`Already deducted in ${formatMonthLabel(adv.deductionMonth)} salary`}>
+                                    Deducted in {formatMonthLabel(adv.deductionMonth)}
+                                  </span>
+                                ) : isPostponed ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200 font-body">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                    Postponed to {formatMonthLabel(targetMonth)}
+                                  </span>
+                                ) : isNextMonthPre ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 font-body" title={`Will naturally deduct in ${formatMonthLabel(nextMonth)} salary unless added here`}>
+                                    Deducts in {formatMonthLabel(nextMonth)}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 font-body">
+                                    {formatMonthLabel(targetMonth)}
+                                  </span>
+                                )}
+                                {adv.deductionRuleSetBy && (
+                                  <span className="block text-[10px] text-slate-400 font-normal font-body mt-0.5">
+                                    Rule by {adv.deductionRuleSetBy}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3.5 py-2.5 text-right whitespace-nowrap min-w-[270px]">
+                                {canManageDeductions ? (
+                                  <div className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
+                                    {!isDeducting ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetAdvanceDeductionRule(adv, 'deduct_this_month')}
+                                        className="h-8 px-3 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold font-heading shadow-xs active:scale-[0.98] transition-all cursor-pointer"
+                                        title={`Deduct from ${formatMonthLabel(summaryMonth)} payroll`}
+                                      >
+                                        {isNextMonthPre ? `Deduct in ${formatMonthLabel(summaryMonth)} Salary` : 'Deduct This Month'}
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetAdvanceDeductionRule(adv, isNextMonthPre ? 'revert_to_natural' : 'postpone')}
+                                        className="h-8 px-3 whitespace-nowrap border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 text-slate-700 rounded-md text-xs font-medium font-body transition-colors cursor-pointer"
+                                        title={isNextMonthPre ? `Revert deduction to ${formatMonthLabel(nextMonth)}` : `Postpone deduction to ${formatMonthLabel(nextMonth)}`}
+                                      >
+                                        {isNextMonthPre ? `Revert to ${formatMonthLabel(nextMonth)}` : `Postpone to ${formatMonthLabel(nextMonth)}`}
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setConvertingLoanAdvance(adv)
+                                        setLoanConvertForm({
+                                          emiAmount: Math.round(Number(adv.amount || 0) / 3) || '',
+                                          remarks: `Advance converted to loan - Txn #${adv.transactionNo || adv.id}`
+                                        })
+                                      }}
+                                      className="h-8 px-3 whitespace-nowrap bg-purple-600 hover:bg-purple-700 text-white rounded-md text-xs font-bold font-heading shadow-xs active:scale-[0.98] transition-all cursor-pointer"
+                                      title="Convert advance to monthly installments via Loan Management"
+                                    >
+                                      Convert to Loan
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400 italic font-body">View-only</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-500 font-body">
+                Showing {((selectedAdvanceBreakdownEmp.candidateAdvancesList || selectedAdvanceBreakdownEmp.advancesList || []).length)} records
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedAdvanceBreakdownEmp(null)}
+                className="h-9 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Convert Advance to Loan Modal */}
+      {convertingLoanAdvance && (
+        <div className="fixed inset-0 z-[210] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 font-body tracking-tight">
+                  Convert Advance to Loan Schedule
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-body">
+                  Employee: <span className="font-semibold text-slate-800">{convertingLoanAdvance.employeeName || selectedAdvanceBreakdownEmp?.name}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConvertingLoanAdvance(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                title="Cancel"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="p-6 space-y-4">
+              <div className="rounded-lg bg-purple-50/60 border border-purple-100 p-3 text-xs text-purple-900 font-body">
+                Converting this advance removes it from lump-sum payroll deduction and sets up an active loan recovery schedule with the monthly EMI you choose below.
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Total Principal Advance (₹)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={`₹${Number(convertingLoanAdvance.amount || 0).toLocaleString('en-IN')}`}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-800 font-body"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Monthly EMI Deduction (₹) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 5000"
+                  value={loanConvertForm.emiAmount}
+                  onChange={(e) => setLoanConvertForm({ ...loanConvertForm, emiAmount: e.target.value })}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 font-body focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                />
+                {Number(loanConvertForm.emiAmount) > 0 && (
+                  <p className="mt-1 text-[11px] text-slate-500 font-body">
+                    Est. Installments: <span className="font-semibold text-slate-700">{Math.ceil(Number(convertingLoanAdvance.amount || 0) / Number(loanConvertForm.emiAmount))} months</span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Recovery Remarks
+                </label>
+                <input
+                  type="text"
+                  placeholder="Reason / Agreement details..."
+                  value={loanConvertForm.remarks}
+                  onChange={(e) => setLoanConvertForm({ ...loanConvertForm, remarks: e.target.value })}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 font-body focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConvertingLoanAdvance(null)}
+                className="h-9 px-4 border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 rounded-md text-xs font-medium font-body transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConvertAdvanceToLoan}
+                disabled={loanConvertSubmitting || !loanConvertForm.emiAmount}
+                className="h-9 px-6 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-xs font-semibold font-body shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+              >
+                {loanConvertSubmitting ? 'Converting...' : 'Confirm & Activate Loan'}
               </button>
             </div>
           </div>

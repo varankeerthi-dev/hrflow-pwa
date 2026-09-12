@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal, Wallet } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
 import Modal from '../ui/Modal'
@@ -37,6 +37,12 @@ import {
   getAccountingEntryType as resolveAccountingEntryType,
   resolveReportEntryDetails
 } from '../../lib/advanceExpenseCategories'
+import {
+  getDefaultAdvanceDeductionMonth,
+  getAdvanceDeductionMonth,
+  getNextMonth,
+  formatMonthLabel
+} from '../../lib/advanceSalaryUtils'
 
 function approvalStatusTextClass(status, lane) {
   const s = (status || 'Pending').toLowerCase()
@@ -140,6 +146,19 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
               popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
               customInput={<div className="flex h-10 w-full cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
             />
+          </div>
+        )}
+
+        {activeModule === 'Add Advance' && (
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payroll Month <span className="text-rose-500">*</span></label>
+            <input
+              type="month"
+              value={row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date)}
+              onChange={(e) => handleRowChange(row.id, 'deductionMonth', e.target.value)}
+              className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            />
+            <p className="mt-1 text-[9px] text-slate-400">Target payroll deduction month (customizable, or set rule in Payroll Detailed Summary).</p>
           </div>
         )}
 
@@ -489,7 +508,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const [addRows, setAddRows] = useState(() => {
     if (draft?.addRows?.length) return draft.addRows
-    return [{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }]
+    const todayDate = new Date().toISOString().split('T')[0]
+    return [{ id: Date.now(), date: todayDate, deductionMonth: getDefaultAdvanceDeductionMonth(todayDate), manualDeductionMonth: false, employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }]
   })
 
   // Sanitize rows ONLY when actually switching between Add Advance and Add Expense so categories don't leak,
@@ -774,6 +794,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [isEditCustomSite, setIsEditCustomSite] = useState(false)
   const [revokeAdvance, setRevokeAdvance] = useState(true)
 
+  // For converting advance to loan schedule
+  const [convertingLoanAdvance, setConvertingLoanAdvance] = useState(null)
+  const [loanConvertForm, setLoanConvertForm] = useState({ emiAmount: '', remarks: '' })
+  const [loanConvertSubmitting, setLoanConvertSubmitting] = useState(false)
+
   // Available categories grouped for the Edit Modal
   const editCategories = useMemo(() => {
     const isAdv = getAccountingEntryType(editForm) === 'Advance'
@@ -1023,6 +1048,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             payoutMethod: 'Immediate',
             amount: Number(row.amount),
             date: row.date,
+            deductionMonth: row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date),
+            recoveryType: 'payroll',
+            deductFromPayroll: true,
             reason: `Cash paid from ${emp?.name || user.name || user.email} - ${row.reason || row.category || ''}`,
             project: row.project || '',
             status: 'Approved',
@@ -1101,6 +1129,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           payoutMethod: row.payoutMethod || 'Immediate',
           amount: Number(row.amount),
           date: row.date,
+          deductionMonth: row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date),
+          recoveryType: row.recoveryType || 'payroll',
+          deductFromPayroll: row.deductFromPayroll !== false,
           reason: row.reason || (isCompanyAccount ? `Advance from Company Account (${selectedCompanyAccount})` : ''),
           project: row.project || '',
           status: initialStatus,
@@ -1144,7 +1175,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
       queryClient.invalidateQueries(['vehicle_expenses', user?.orgId])
       queryClient.invalidateQueries(['vehicle_history'])
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }])
+      const todayDate = new Date().toISOString().split('T')[0]
+      setAddRows([{ id: Date.now(), date: todayDate, deductionMonth: getDefaultAdvanceDeductionMonth(todayDate), manualDeductionMonth: false, employeeId: ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }])
       try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
       // Note: Drawer will open automatically showing submitted items
     }
@@ -2300,6 +2332,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             isCustomSite: false
           }
         }
+        // Handle date selection: auto-update deductionMonth if not manually overridden
+        if (field === 'date') {
+          const nextDeductionMonth = (!row.manualDeductionMonth || !row.deductionMonth)
+            ? getDefaultAdvanceDeductionMonth(value)
+            : row.deductionMonth
+          return {
+            ...row,
+            date: value,
+            deductionMonth: nextDeductionMonth
+          }
+        }
+        // Handle explicit deductionMonth selection
+        if (field === 'deductionMonth') {
+          return {
+            ...row,
+            deductionMonth: value,
+            manualDeductionMonth: true
+          }
+        }
         return { ...row, [field]: value }
       }
       return row
@@ -2336,6 +2387,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
     setEditForm({
       ...entry,
+      deductionMonth: entry.deductionMonth || getDefaultAdvanceDeductionMonth(entry.date),
+      recoveryType: entry.recoveryType || 'payroll',
       paymentSource: resolvedPaymentSource,
       companyAccount: resolvedCompanyAccount,
       paidTo: resolvedPaidTo,
@@ -2358,25 +2411,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         : resolveAccountingEntryType({ ...editForm, category }, advanceCategoriesList, expenseCategoriesList)
 
       const isExpense = type === 'Expense'
-      const isCompanyAccount = !isExpense && (
-        editForm.paymentSource === 'company_account' ||
-        editForm.isCompanyAccountAdvance ||
-        (!editForm.paymentSource && isEditTransfer)
-      )
+      const isEditTransfer = !isExpense && (editForm.category?.toLowerCase().includes('given to others') || editForm.category?.toLowerCase().includes('cash advance') || editForm.paymentSource === 'company_account')
+      const isCompanyAccount = isEditTransfer && editForm.paymentSource === 'company_account'
 
       const selectedCompanyAccount = editForm.companyAccount || sessionAccount || companyAccountsList?.[0] || 'Main Bank Account'
 
-      const payerEmp = editForm.givenByEmployeeId ? employees.find(e => e.id === editForm.givenByEmployeeId) : null
-      const recipientEmp = editForm.paidTo ? employees.find(e => e.id === editForm.paidTo) : (editForm.employeeId ? employees.find(e => e.id === editForm.employeeId) : null)
+      const recipientEmp = employees.find(e => e.id === editForm.paidTo)
+      const payerEmp = employees.find(e => e.id === editForm.givenByEmployeeId)
 
-      const finalEmployeeId = isExpense
-        ? (editForm.givenByEmployeeId || editForm.employeeId)
-        : (isCompanyAccount
-            ? (editForm.paidTo || editForm.employeeId)
-            : (isEditTransfer ? (editForm.paidTo || editForm.employeeId) : editForm.employeeId))
+      const finalEmployeeId = isCompanyAccount
+        ? (editForm.paidTo || editForm.employeeId)
+        : (isExpense ? (editForm.givenByEmployeeId || editForm.employeeId) : (isEditTransfer ? (editForm.paidTo || editForm.employeeId) : editForm.employeeId))
 
-      const primaryEmp = employees.find(e => e.id === finalEmployeeId) || {}
-      const finalEmployeeName = primaryEmp.name || editForm.paidToName || editForm.employeeName || 'Unknown'
+      const finalEmployeeName = isCompanyAccount
+        ? (recipientEmp?.name || editForm.paidToCustomName || 'Unknown')
+        : (isExpense ? (payerEmp?.name || editForm.employeeName || 'Unknown') : (isEditTransfer ? (recipientEmp?.name || editForm.employeeName || 'Unknown') : (editForm.employeeName || 'Unknown')))
 
       const finalPaidToName = editForm.paidToType === 'custom'
         ? editForm.paidToCustomName
@@ -2393,6 +2442,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         employeeId: finalEmployeeId,
         employeeName: finalEmployeeName,
         amount: Number(editForm.amount),
+        deductionMonth: editForm.deductionMonth || getDefaultAdvanceDeductionMonth(editForm.date),
+        recoveryType: editForm.recoveryType || 'payroll',
+        deductFromPayroll: editForm.recoveryType !== 'loan' && editForm.deductFromPayroll !== false,
         paymentSource: isEditTransfer ? (isCompanyAccount ? 'company_account' : 'employee') : (editForm.paymentSource || 'employee'),
         companyAccount: isCompanyAccount ? selectedCompanyAccount : null,
         paidFromAccount: isCompanyAccount ? selectedCompanyAccount : null,
@@ -3137,6 +3189,69 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (item) confirmDelete(item)
   }
 
+  const handleDeferAdvance = async (adv) => {
+    if (!adv?.id || !user?.orgId) return
+    const curMonth = getAdvanceDeductionMonth(adv)
+    const nextM = getNextMonth(curMonth)
+    if (!window.confirm(`Defer this advance of ₹${Number(adv.amount).toLocaleString('en-IN')} to ${formatMonthLabel(nextM)} payroll?`)) return
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', adv.id), {
+        deductionMonth: nextM,
+        updatedAt: serverTimestamp()
+      })
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      queryClient.invalidateQueries(['attendanceSummary', user?.orgId])
+      alert(`Advance deferred to ${formatMonthLabel(nextM)} payroll`)
+    } catch (e) {
+      alert(`Error deferring advance: ${e.message}`)
+    }
+  }
+
+  const handleConvertAdvanceToLoan = async () => {
+    if (!convertingLoanAdvance || !loanConvertForm.emiAmount || !user?.orgId) return
+    const emi = Number(loanConvertForm.emiAmount)
+    if (isNaN(emi) || emi <= 0) return alert('Please enter a valid monthly EMI')
+    setLoanConvertSubmitting(true)
+    try {
+      const empId = convertingLoanAdvance.employeeId
+      const empName = convertingLoanAdvance.employeeName
+      const totalAmt = Number(convertingLoanAdvance.amount)
+
+      const loanPayload = {
+        employeeId: empId,
+        employeeName: empName,
+        totalAmount: totalAmt,
+        emiAmount: emi,
+        remainingAmount: totalAmt,
+        remarks: loanConvertForm.remarks || `Advance converted to loan - Txn #${convertingLoanAdvance.transactionNo || convertingLoanAdvance.id}`,
+        status: 'Active',
+        sourceAdvanceId: convertingLoanAdvance.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+      const loanDoc = await addDoc(collection(db, 'organisations', user.orgId, 'loans'), loanPayload)
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', convertingLoanAdvance.id), {
+        recoveryType: 'loan',
+        deductFromPayroll: false,
+        linkedLoanId: loanDoc.id,
+        updatedAt: serverTimestamp()
+      })
+
+      queryClient.invalidateQueries(['loans', user?.orgId])
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      queryClient.invalidateQueries(['attendanceSummary', user?.orgId])
+
+      setConvertingLoanAdvance(null)
+      setLoanConvertForm({ emiAmount: '', remarks: '' })
+      alert('Advance successfully converted to active loan schedule!')
+    } catch (e) {
+      alert(`Error converting to loan: ${e.message}`)
+    } finally {
+      setLoanConvertSubmitting(false)
+    }
+  }
+
   const toggleReportEntrySelection = (id) => {
     setReportSelectedEntryIds((current) => current.includes(id) ? current.filter((entryId) => entryId !== id) : [...current, id])
   }
@@ -3310,11 +3425,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         name: empName,
         advance: 0,
         expense: 0,
-        count: 0
+        count: 0,
+        deductedInPrevMonth: 0,
+        deductedInPrevMonthTarget: null
       }
       if (entry.accountingType === 'Advance') {
         current.advance += entry.statementAmount
         current.count += 1
+        if (entry.deductionMonth && String(entry.deductionMonth).trim() < summaryMonth) {
+          current.deductedInPrevMonth = (current.deductedInPrevMonth || 0) + entry.statementAmount
+          current.deductedInPrevMonthTarget = String(entry.deductionMonth).trim()
+        }
       } else if (entry.accountingType === 'Expense') {
         current.expense += entry.statementAmount
         current.count += 1
@@ -3393,8 +3514,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const rows = monthlyStatement.employeeRows || []
     const totalAdvance = rows.reduce((acc, r) => acc + r.advance, 0)
     const totalExpense = rows.reduce((acc, r) => acc + r.expense, 0)
+    const totalDeductedInPrevMonth = rows.reduce((acc, r) => acc + (r.deductedInPrevMonth || 0), 0)
     const totalNet = totalAdvance - totalExpense
-    return { totalAdvance, totalExpense, totalNet }
+    return { totalAdvance, totalExpense, totalNet, totalDeductedInPrevMonth }
   }, [monthlyStatement.employeeRows])
 
   const handleMonthChange = (direction) => {
@@ -4189,6 +4311,19 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 font-semibold focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
 
+              {getAccountingEntryType(editForm) === 'Advance' && (
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-gray-700">Deduction Month (Payroll)</label>
+                  <input
+                    type="month"
+                    value={editForm.deductionMonth || getDefaultAdvanceDeductionMonth(editForm.date)}
+                    onChange={e => setEditForm(f => ({ ...f, deductionMonth: e.target.value }))}
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900 font-medium cursor-pointer"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">Target payroll deduction month (customizable, or set rule in Payroll Detailed Summary).</p>
+                </div>
+              )}
+
               {!isEditTransfer && (
                 <div>
                   <label className="mb-1 block text-[11px] font-bold text-gray-700">Employee</label>
@@ -4576,6 +4711,102 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Convert Advance to Loan Modal */}
+      {convertingLoanAdvance && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 font-heading tracking-tight">
+                  Convert Advance to Loan Schedule
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-body">
+                  Employee: <span className="font-semibold text-slate-800">{convertingLoanAdvance.employeeName || 'Unknown'}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConvertingLoanAdvance(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                title="Cancel"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="p-6 space-y-4">
+              <div className="rounded-lg bg-purple-50/60 border border-purple-100 p-3 text-xs text-purple-900 font-body">
+                Converting this advance removes it from lump-sum payroll deduction and sets up an active loan recovery schedule with the monthly EMI you choose below.
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Total Principal Advance (₹)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={`₹${Number(convertingLoanAdvance.amount || 0).toLocaleString('en-IN')}`}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-mono font-bold text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Monthly EMI Deduction (₹) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 5000"
+                  value={loanConvertForm.emiAmount}
+                  onChange={(e) => setLoanConvertForm({ ...loanConvertForm, emiAmount: e.target.value })}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-mono text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                />
+                {Number(loanConvertForm.emiAmount) > 0 && (
+                  <p className="mt-1 text-[11px] text-slate-500 font-body">
+                    Est. Installments: <span className="font-semibold text-slate-700">{Math.ceil(Number(convertingLoanAdvance.amount || 0) / Number(loanConvertForm.emiAmount))} months</span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Recovery Remarks
+                </label>
+                <input
+                  type="text"
+                  placeholder="Reason / Agreement details..."
+                  value={loanConvertForm.remarks}
+                  onChange={(e) => setLoanConvertForm({ ...loanConvertForm, remarks: e.target.value })}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConvertingLoanAdvance(null)}
+                className="h-9 px-4 border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 rounded-md text-sm font-medium font-body transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConvertAdvanceToLoan}
+                disabled={loanConvertSubmitting || !loanConvertForm.emiAmount}
+                className="h-9 px-6 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+              >
+                {loanConvertSubmitting ? 'Converting...' : 'Confirm & Activate Loan'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Recently Deleted Modal */}
@@ -5070,6 +5301,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <th className="py-2.5 px-1 w-7 text-center">#</th>
                         {!portalMode && !isSelfEntry && <th className="py-2.5 px-1.5 w-40">Employee <span className="text-rose-500">*</span></th>}
                         <th className="py-2.5 px-1 w-[100px] text-center">Date <span className="text-rose-500">*</span></th>
+                        {activeModule === 'Add Advance' && (
+                          <th className="py-2.5 px-1 w-[95px] text-center" title="Target payroll month for salary advance deduction">Payroll Month</th>
+                        )}
                         <th className="py-2.5 px-1.5 w-[195px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
                           <th className="py-2.5 px-1.5 w-36">Paid To <span className="text-rose-500">*</span></th>
@@ -5124,6 +5358,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   popperClassName="z-[99999]"
                                   popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
                                   customInput={<div className="flex h-9 w-full cursor-pointer items-center justify-center rounded-[4px] border border-slate-200 bg-white px-1 text-center text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select'}</div>}
+                                />
+                              </td>
+                            )}
+
+                            {activeModule === 'Add Advance' && (
+                              <td className="py-1 px-1 w-[95px] text-center">
+                                <input
+                                  type="month"
+                                  value={row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date)}
+                                  onChange={(e) => handleRowChange(row.id, 'deductionMonth', e.target.value)}
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-1 text-[11px] font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer text-center"
+                                  title="Target payroll deduction month"
                                 />
                               </td>
                             )}
@@ -6870,9 +7116,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       )}
                       <th className="min-w-[170px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Category</th>
                       <th className="min-w-[190px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Remarks</th>
-                      <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-emerald-700 whitespace-nowrap">Advance</th>
+                      <th className="min-w-[125px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-emerald-700 whitespace-nowrap">Advance</th>
                       <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-rose-700 whitespace-nowrap">Expense</th>
-                      <th className="w-[65px] px-2 py-1 text-center text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Actions</th>
+                      <th className="w-[85px] px-2 py-1 text-center text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -6959,6 +7205,15 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums whitespace-nowrap">
                               {isAdvance ? (
                                 <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
+                                  {entry.recoveryType === 'loan' ? (
+                                    <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200" title="Recovered via Monthly Loan EMI">
+                                      Loan EMI
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1 py-0.2 rounded" title={`Payroll deduction month: ${formatMonthLabel(getAdvanceDeductionMonth(entry))}`}>
+                                      {formatMonthLabel(getAdvanceDeductionMonth(entry))}
+                                    </span>
+                                  )}
                                   {(displayGivenBy || (entry.paidByName && entry.paidByName.toLowerCase().trim() !== String(entry.employeeName || '').toLowerCase().trim())) && (
                                     <span className="text-[9px] text-slate-400 font-normal">
                                       ({displayGivenBy ? `by ${displayGivenBy}` : entry.paidByName})
@@ -6987,6 +7242,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             </td>
                             <td className="px-1.5 py-1 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+                                {isAdvance && entry.recoveryType !== 'loan' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeferAdvance(entry)}
+                                      className="text-blue-600 hover:bg-blue-50 p-0.5 rounded transition-colors"
+                                      title={`Defer deduction to ${formatMonthLabel(getNextMonth(getAdvanceDeductionMonth(entry)))}`}
+                                    >
+                                      <Clock size={11} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setConvertingLoanAdvance(entry)
+                                        setLoanConvertForm({
+                                          emiAmount: Math.round(Number(entry.amount || 0) / 3) || '',
+                                          remarks: `Advance converted to loan - Txn #${entry.transactionNo || entry.id}`
+                                        })
+                                      }}
+                                      className="text-purple-600 hover:bg-purple-50 p-0.5 rounded transition-colors"
+                                      title="Convert to monthly loan installments"
+                                    >
+                                      <Wallet size={11} />
+                                    </button>
+                                  </>
+                                )}
                                 {entry.requestType === 'Pre-Approval' && entry.mdApproval === 'Approved' && (
                                   <button
                                     type="button"
@@ -7131,7 +7412,19 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   <span className="font-semibold text-slate-800 font-body">{emp.name}</span>
                                 </td>
                                 <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
-                                  {emp.advance > 0 ? formatINR(emp.advance) : '—'}
+                                  {emp.advance > 0 ? (
+                                    <div>
+                                      <div>{formatINR(emp.advance)}</div>
+                                      {emp.deductedInPrevMonth > 0 && (
+                                        <div
+                                          className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap"
+                                          title={`₹${Number(emp.deductedInPrevMonth || 0).toLocaleString('en-IN')} deducted in ${formatMonthLabel(emp.deductedInPrevMonthTarget)} salary`}
+                                        >
+                                          ({formatINR(emp.deductedInPrevMonth)} deducted in {formatMonthLabel(emp.deductedInPrevMonthTarget)})
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : '—'}
                                 </td>
                                 <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
                                   {emp.expense > 0 ? formatINR(emp.expense) : '—'}
@@ -7169,7 +7462,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <tfoot className="bg-slate-50/90 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10">
                           <tr>
                             <td className="px-4 py-2.5 text-slate-800">Total ({monthlyStatement.employeeRows.length})</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">{formatINR(employeeSummaryTotals.totalAdvance)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">
+                              <div>{formatINR(employeeSummaryTotals.totalAdvance)}</div>
+                              {employeeSummaryTotals.totalDeductedInPrevMonth > 0 && (
+                                <div className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap">
+                                  ({formatINR(employeeSummaryTotals.totalDeductedInPrevMonth)} in prev month)
+                                </div>
+                              )}
+                            </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">{formatINR(employeeSummaryTotals.totalExpense)}</td>
                             <td className="px-4 py-2.5 text-right">
                               {employeeSummaryTotals.totalAdvance > employeeSummaryTotals.totalExpense ? (
@@ -7276,7 +7576,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <table className="w-full min-w-[980px] border-collapse text-left">
                     <thead className="bg-slate-50"><tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400"><th className="px-4 py-3">Date</th><th className="px-4 py-3">Voucher no.</th><th className="px-4 py-3">Particulars</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Debit / expense</th><th className="px-4 py-3 text-right">Advance</th><th className="px-4 py-3">Status</th></tr></thead>
                     <tbody className="divide-y divide-slate-100 text-sm">
-                      {monthlyStatement.periodRows.length === 0 ? <tr><td colSpan={8} className="px-4 py-10 text-center text-sm font-normal text-slate-400">No advance or expense records for this month.</td></tr> : monthlyStatement.periodRows.map((entry) => <tr key={entry.id} className="hover:bg-slate-50/70"><td className="whitespace-nowrap px-4 py-3 font-normal text-slate-600">{formatDeletedRecordDate(entry.date)}</td><td className="px-4 py-3 font-mono text-xs text-slate-500">{entry.transactionNo || '—'}</td><td className="px-4 py-3"><p className="font-medium text-slate-800">{entry.category || 'Uncategorised'}</p>{entry.reason && <p className="mt-0.5 max-w-[260px] truncate text-[11px] font-normal text-slate-400">{entry.reason}</p>}</td><td className="px-4 py-3 font-normal text-slate-700">{entry.statementEmployeeName}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.accountingType === 'Expense' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>{entry.accountingType}</span></td><td className="px-4 py-3 text-right font-medium tabular-nums text-rose-700">{entry.accountingType === 'Expense' ? formatINR(entry.statementAmount) : '—'}</td><td className="px-4 py-3 text-right font-medium tabular-nums text-emerald-700">{entry.accountingType === 'Advance' ? formatINR(entry.statementAmount) : '—'}</td><td className="px-4 py-3 text-[11px] font-normal text-slate-600">{entry.status || 'Pending'} · {entry.paymentStatus || 'Unpaid'}</td></tr>)}
+                      {monthlyStatement.periodRows.length === 0 ? <tr><td colSpan={8} className="px-4 py-10 text-center text-sm font-normal text-slate-400">No advance or expense records for this month.</td></tr> : monthlyStatement.periodRows.map((entry) => <tr key={entry.id} className="hover:bg-slate-50/70"><td className="whitespace-nowrap px-4 py-3 font-normal text-slate-600">{formatDeletedRecordDate(entry.date)}</td><td className="px-4 py-3 font-mono text-xs text-slate-500">{entry.transactionNo || '—'}</td><td className="px-4 py-3"><p className="font-medium text-slate-800">{entry.category || 'Uncategorised'}</p>{entry.reason && <p className="mt-0.5 max-w-[260px] truncate text-[11px] font-normal text-slate-400">{entry.reason}</p>}</td><td className="px-4 py-3 font-normal text-slate-700">{entry.statementEmployeeName}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.accountingType === 'Expense' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>{entry.accountingType}</span></td><td className="px-4 py-3 text-right font-medium tabular-nums text-rose-700">{entry.accountingType === 'Expense' ? formatINR(entry.statementAmount) : '—'}</td><td className="px-4 py-3 text-right font-medium tabular-nums text-emerald-700">{entry.accountingType === 'Advance' ? (<div><div>{formatINR(entry.statementAmount)}</div>{entry.deductionMonth && String(entry.deductionMonth).trim() < summaryMonth && (<span className="inline-block mt-0.5 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-body whitespace-nowrap" title={`Deducted in ${formatMonthLabel(entry.deductionMonth)} salary`}>Deducted in {formatMonthLabel(entry.deductionMonth)}</span>)}</div>) : '—'}</td><td className="px-4 py-3 text-[11px] font-normal text-slate-600">{entry.status || 'Pending'} · {entry.paymentStatus || 'Unpaid'}</td></tr>)}
                     </tbody>
                   </table>
                 </div>

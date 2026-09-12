@@ -562,6 +562,7 @@ export default function SettingsTab({ initialSubTab }) {
   })
   const [orgSettings, setOrgSettings] = useState({
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: [], code: '', shiftStrategy: 'Day', logoURL: '',
+    salaryDate: 10,
     advanceCategories: DEFAULT_ADVANCE_CATEGORIES,
     expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
     companyAccounts: DEFAULT_COMPANY_ACCOUNTS,
@@ -1223,6 +1224,7 @@ export default function SettingsTab({ initialSubTab }) {
             remarksOptions: [...new Set([...finalRegular, ...finalRare])],
             siteConfig: { regular: finalRegular, rare: finalRare },
             holidays: data.holidays || prev.holidays,
+            salaryDate: data.salaryDate !== undefined ? Number(data.salaryDate) : (prev.salaryDate || 10),
             bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : [],
             attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
           }))
@@ -2374,6 +2376,7 @@ export default function SettingsTab({ initialSubTab }) {
       const allSites = [...new Set([...(orgSettings.siteConfig?.regular || []), ...(orgSettings.siteConfig?.rare || [])])]
       const payload = {
         ...orgSettings,
+        salaryDate: Number(orgSettings.salaryDate) || 10,
         remarksOptions: allSites
       }
       await setDoc(doc(db, 'organisations', user.orgId), payload, { merge: true })
@@ -2428,6 +2431,7 @@ export default function SettingsTab({ initialSubTab }) {
           remarksLabel: data.remarksLabel || 'Site',
           remarksOptions: [...new Set([...finalRegular, ...finalRare])],
           siteConfig: { regular: finalRegular, rare: finalRare },
+          salaryDate: data.salaryDate !== undefined ? Number(data.salaryDate) : (prev.salaryDate || 10),
           bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
         }))
       }
@@ -4485,6 +4489,28 @@ export default function SettingsTab({ initialSubTab }) {
                       rows={1.5}
                       className={settingsTextareaClassName}
                     />
+                  </div>
+
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center pt-1">
+                    <div>
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Salary Date</label>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-tight font-body">Monthly salary disbursement day (1–31). Advances taken before this date can be reviewed in Detailed Summary.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={orgSettings.salaryDate ?? 10}
+                        onChange={e => {
+                          const v = e.target.value === '' ? '' : Math.min(31, Math.max(1, parseInt(e.target.value, 10) || 1))
+                          setOrgSettings(s => ({ ...s, salaryDate: v }))
+                        }}
+                        className={`${settingsInputClassName} max-w-[90px] text-center font-bold font-mono`}
+                        placeholder="10"
+                      />
+                      <span className="text-xs font-semibold text-slate-700 whitespace-nowrap font-body">th of every month</span>
+                    </div>
                   </div>
                 </div>
 
