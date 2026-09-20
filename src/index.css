@@ -548,6 +548,40 @@ body {
 
 /* ─── Sidebar — Refactored Design System ──────────────────────── */
 
+/* Linear ultra-minimalist sidenav scrollbar (3.5px, subtle) */
+.linear-sidenav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+.linear-sidenav-scroll::-webkit-scrollbar {
+  width: 3.5px;
+  height: 3.5px;
+}
+.linear-sidenav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.linear-sidenav-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 9999px;
+}
+.linear-sidenav-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* Chronos Enterprise Matrix (Full Summary grid): JetBrains Mono numerals,
+   Sunday stripe wash, sticky-axis edge shade. Numbers stay monospace per AGENTS.md. */
+table.chronos-matrix td,
+table.chronos-matrix th {
+  font-variant-numeric: tabular-nums;
+}
+.chronos-sunday-stripe {
+  background-color: #f1f5f9;
+  background-image: repeating-linear-gradient(-45deg, rgba(226, 232, 240, 0.6) 0 8px, transparent 8px 16px);
+}
+.chronos-sticky-shadow {
+  box-shadow: 4px 0 6px -2px rgba(15, 23, 42, 0.07);
+}
+
 /* Org switcher row at top of sidebar */
 .sidebar-org {
   display: flex;

@@ -37,7 +37,6 @@ import {
   History,
   MessageSquare,
   Lock,
-  Sparkles,
   LifeBuoy
 } from 'lucide-react'
 import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
@@ -108,6 +107,10 @@ function getAvatarColor(id) {
   const h = hash % 360
   return `hsl(${h}, 70%, 50%)`
 }
+
+// Hidden from sidebar + URL but kept in codebase (ChatTab import, allTabs entry,
+// renderTabContent case all stay). Remove an id from this list to re-enable it.
+const hiddenTabs = ['chat']
 
 // ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
@@ -252,6 +255,21 @@ export default function Dashboard() {
   const [advanceExpenseDirty, setAdvanceExpenseDirty] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
+  // Linear sidebar (Desktop/sidemenu.txt): Core / Management / System sections with
+  // HR + Reports accordions, collapsed by default, auto-opened on active child.
+  const [expandedGroups, setExpandedGroups] = useState({ hr: false, reports: false })
+
+  // Linear reference: Cmd/Ctrl + B toggles the sidebar rail
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        toggleSidebar()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleSidebar])
   
   const [orgSettings, setOrgSettings] = useState({})
   const [logoError, setLogoError] = useState(false)
@@ -311,9 +329,7 @@ export default function Dashboard() {
   const userPermissions = user?.permissions || {}
   
   const visibleTabs = useMemo(() => {
-    if (isAdmin) return allTabs
-    
-    return allTabs.filter(tab => {
+    const tabs = isAdmin ? allTabs : allTabs.filter(tab => {
       // The dashboard and self-service portal are available after sign-in; all
       // operational reports require their explicit RBAC module permission.
       if (tab.id === 'home' || tab.id === 'portal') return true
@@ -329,6 +345,7 @@ export default function Dashboard() {
              modulePerms.delete === true ||
              modulePerms.approve === true
     })
+    return tabs.filter(tab => !hiddenTabs.includes(tab.id))
   }, [allTabs, isAdmin, userPermissions])
 
   const visibleTabIds = useMemo(() => visibleTabs.map(t => t.id), [visibleTabs])
@@ -383,10 +400,12 @@ export default function Dashboard() {
     }
   }, [tabSearchParams, visibleTabs])
 
-  const mainTabs = ['home', 'attendance-list', 'advance', 'vehicle']
-  
-  const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction']
-  const featuresTabs = ['fines', 'engage', 'chat']
+  // Linear nav sections (see Desktop/sidemenu.txt): Core / Management / System.
+  // Management holds the HR + Reports accordions alongside Operations/Finance items.
+  const coreTabs = ['home', 'attendance-list', 'advance', 'vehicle', 'tasks']
+  const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction', 'engage', 'fines']
+  const manageTabs = ['operations', 'accountant', 'salary-slip', 'approvals']
+  const systemTabs = ['settings', 'portal', 'help']
 
   const [hoveredTooltip, setHoveredTooltip] = useState(null)
   const [tooltipTop, setTooltipTop] = useState(0)
@@ -402,27 +421,25 @@ export default function Dashboard() {
     setHoveredTooltip(null);
   };
 
-  const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
+  // Linear row: h-7, 13px/500, 14px icons, monochrome. Active = neutral fill.
+  const renderMenuItem = (tab, isActive, onClick, small = false) => (
     <div key={tab.id} className="w-full">
       <button 
         onClick={onClick} 
         onMouseEnter={(e) => handleSidebarHover(e, tab.label)}
         onMouseLeave={handleSidebarLeave}
-        className={`${isActive ? 'sidebar-active' : 'sidebar-inactive'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
+        className={`group flex items-center gap-2 rounded px-2 text-[13px] font-medium tracking-[0.01em] transition-colors ${small ? 'h-6' : 'h-7'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'} ${isActive ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-black/[0.03] hover:text-neutral-900'}`}
       >
-        <span className={`shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
-          {tab.icon && React.cloneElement(tab.icon, { size: 17, strokeWidth: isActive ? 2 : 1.75 })}
+        <span className={`shrink-0 ${isActive ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-700'}`}>
+          {tab.icon && React.cloneElement(tab.icon, { size: 14, strokeWidth: isActive ? 2 : 1.75 })}
         </span>
         {!isCollapsed && (
-          <span 
-            className="truncate flex-1 text-left" 
-            style={{ fontSize }}
-          >
+          <span className={`truncate flex-1 text-left ${small ? 'text-[12px]' : ''}`}>
             {tab.label}
           </span>
         )}
-        {!isCollapsed && isActive && (
-          <ChevronRight size={15} className="ml-auto text-blue-600 shrink-0" />
+        {!isCollapsed && tab.badge && (
+          <span className="ml-auto rounded-full border border-neutral-200 bg-neutral-50 px-1.5 py-0 font-mono text-[10px] font-medium text-neutral-500 shrink-0">{tab.badge}</span>
         )}
       </button>
     </div>
@@ -433,19 +450,13 @@ export default function Dashboard() {
       id: 'hr',
       label: 'HR',
       icon: <Users size={18} strokeWidth={1.75} />,
-      children: ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction']
+      children: ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction', 'engage', 'fines']
     },
     reports: {
       id: 'reports',
       label: 'Reports',
       icon: <BarChart3 size={18} strokeWidth={1.75} />,
       children: ['attendance-reports', 'site-reports']
-    },
-    features: {
-      id: 'features',
-      label: 'Features',
-      icon: <Sparkles size={18} strokeWidth={1.75} />,
-      children: ['fines', 'engage', 'chat']
     }
   }
 
@@ -467,80 +478,102 @@ export default function Dashboard() {
     }
   }
 
+  const toggleGroup = (groupId) => {
+    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }))
+  }
+
   const renderMenu = () => {
-    const mainItems = visibleTabs.filter(t => mainTabs.includes(t.id))
-    const hrItems = visibleTabs.filter(t => hrTabs.includes(t.id))
-    const featuresItems = visibleTabs.filter(t => featuresTabs.includes(t.id))
-    const vehicleItem = visibleTabs.find(t => t.id === 'vehicle')
-    const operationsItem = visibleTabs.find(t => t.id === 'operations')
-    const portalItem = visibleTabs.find(t => t.id === 'portal')
-    const settingsItem = visibleTabs.find(t => t.id === 'settings')
-    const helpItem = visibleTabs.find(t => t.id === 'help')
-    const accountantItem = visibleTabs.find(t => t.id === 'accountant')
-    const salarySlipItem = visibleTabs.find(t => t.id === 'salary-slip')
-    const approvalsItem = visibleTabs.find(t => t.id === 'approvals')
+    const byOrder = (order) => (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
+
+    const coreItems = visibleTabs.filter(t => coreTabs.includes(t.id)).sort(byOrder(coreTabs))
+    const hrItems = visibleTabs.filter(t => hrTabs.includes(t.id)).sort(byOrder(hrTabs))
+    const manageItems = visibleTabs.filter(t => manageTabs.includes(t.id)).sort(byOrder(manageTabs))
+    const systemItems = visibleTabs.filter(t => systemTabs.includes(t.id)).sort(byOrder(systemTabs))
     const reportsChildren = visibleTabs.filter(t => ['attendance-reports', 'site-reports'].includes(t.id))
     const hrParent = hrItems.length > 0 ? menuGroups.hr : null
-    const featuresParent = featuresItems.length > 0 ? menuGroups.features : null
     const reportsParentGroup = reportsChildren.length > 0 ? menuGroups.reports : null
+    // Keep the active group open so the current child stays visible
+    const hrOpen = expandedGroups.hr || hrItems.some(t => t.id === activeTab)
+    const reportsOpen = expandedGroups.reports || reportsChildren.some(t => t.id === activeTab)
+
+    const go = (tab) => {
+      if (tab.id === 'vehicle' && isAdmin) {
+        setOperationsSubTab('vehicles')
+        if (navigateToTab('operations')) setIsMobileMenuOpen(false)
+        return
+      }
+      if (navigateToTab(tab.id)) setIsMobileMenuOpen(false)
+    }
+
+    const sectionLabel = (label) => (
+      !isCollapsed && (
+        <div className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{label}</div>
+      )
+    )
+
+    // Linear collapsible group: h-7 header + chevron, indented 11px children with guide rail
+    const accordionGroup = (parent, items, open, groupId) => (
+      <div>
+        {isCollapsed ? (
+          renderMenuItem({ ...parent, badge: undefined }, items.some(t => t.id === activeTab), () => { handleParentClick(groupId); setIsMobileMenuOpen(false) })
+        ) : (
+          <>
+            <button
+              onClick={() => toggleGroup(groupId)}
+              className="group flex h-7 w-full items-center justify-between rounded px-2 text-[13px] font-medium tracking-[0.01em] text-neutral-600 transition-colors hover:bg-black/[0.03] hover:text-neutral-900"
+            >
+              <span className="flex items-center gap-2 overflow-hidden">
+                <span className="shrink-0 text-neutral-400 group-hover:text-neutral-700">
+                  {React.cloneElement(parent.icon, { size: 14, strokeWidth: 1.75 })}
+                </span>
+                <span className="truncate">{parent.label}</span>
+              </span>
+              <ChevronDown size={12} className={`shrink-0 text-neutral-400 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
+            </button>
+            <div className={`overflow-hidden transition-all duration-200 ease-out ${open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="my-0.5 ml-3.5 space-y-0.5 border-l border-neutral-200 pl-4 pr-1">
+                {items.map(tab => renderMenuItem(tab, activeTab === tab.id, () => go(tab), true))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    )
 
     return (
       <>
-        {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => {
-          if (tab.id === 'vehicle' && isAdmin) {
-            setOperationsSubTab('vehicles')
-            if (navigateToTab('operations')) setIsMobileMenuOpen(false)
-            return
-          }
-          if (navigateToTab(tab.id)) setIsMobileMenuOpen(false)
-        }))}
-
-        {hrParent && (
-          <div className="mt-1">
-            {renderMenuItem({ id: hrParent.id, label: hrParent.label, icon: hrParent.icon }, hrItems.some(t => t.id === activeTab), () => { handleParentClick('hr'); setIsMobileMenuOpen(false) })}
-          </div>
-        )}
-
-        {operationsItem && (
-          <div className="mt-0.5">
-            {renderMenuItem(operationsItem, activeTab === 'operations', () => { if (navigateToTab('operations')) setIsMobileMenuOpen(false) })}
-          </div>
-        )}
-
-        {visibleTabs.find(t => t.id === 'tasks') && (
-          <div className="mt-0.5">
-            {renderMenuItem(visibleTabs.find(t => t.id === 'tasks'), activeTab === 'tasks', () => { if (navigateToTab('tasks')) setIsMobileMenuOpen(false) })}
-          </div>
-        )}
-
-        <div className="sidebar-divider mt-auto" />
-
-        <div className="pt-1 space-y-0.5">
-          {accountantItem && renderMenuItem(accountantItem, activeTab === 'accountant', () => { if (navigateToTab('accountant')) setIsMobileMenuOpen(false) })}
-          {salarySlipItem && renderMenuItem(salarySlipItem, activeTab === 'salary-slip', () => { if (navigateToTab('salary-slip')) setIsMobileMenuOpen(false) })}
-          
-          {reportsParentGroup && (
-            <div>
-              {renderMenuItem({ id: reportsParentGroup.id, label: reportsParentGroup.label, icon: reportsParentGroup.icon }, reportsChildren.some(t => t.id === activeTab), () => { handleParentClick('reports'); setIsMobileMenuOpen(false) })}
+        {coreItems.length > 0 && (
+          <div>
+            {sectionLabel('Core')}
+            <div className="space-y-0.5">
+              {coreItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => go(tab)))}
             </div>
-          )}
+          </div>
+        )}
 
-          {approvalsItem && renderMenuItem(approvalsItem, activeTab === 'approvals', () => { if (navigateToTab('approvals')) setIsMobileMenuOpen(false) })}
-          
-          {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
-
-          {featuresParent && (
-            <div className="mt-1">
-              {renderMenuItem({ id: featuresParent.id, label: featuresParent.label, icon: featuresParent.icon }, featuresItems.some(t => t.id === activeTab), () => { handleParentClick('features'); setIsMobileMenuOpen(false) })}
+        {(hrParent || manageItems.length > 0 || reportsParentGroup) && (
+          <div className="border-t border-[#f0f0f2] pt-1">
+            {sectionLabel('Management')}
+            <div className="space-y-0.5">
+              {hrParent && accordionGroup(hrParent, hrItems, hrOpen, 'hr')}
+              {manageItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => go(tab)))}
+              {reportsParentGroup && accordionGroup(reportsParentGroup, reportsChildren, reportsOpen, 'reports')}
             </div>
-          )}
+          </div>
+        )}
 
-          {portalItem && renderMenuItem(portalItem, activeTab === 'portal', () => { if (navigateToTab('portal')) setIsMobileMenuOpen(false) })}
-          {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { if (navigateToTab('help')) setIsMobileMenuOpen(false) })}
-        </div>
+        {systemItems.length > 0 && (
+          <div className="border-t border-[#f0f0f2] pt-1">
+            {sectionLabel('System')}
+            <div className="space-y-0.5">
+              {systemItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => go(tab)))}
+            </div>
+          </div>
+        )}
       </>
     )
   }
+
   const renderTabContent = () => {
     // RBAC: Check if user has permission to view this tab
     if (!isAdmin && activeTab !== 'home' && activeTab !== 'portal') {
@@ -749,11 +782,10 @@ export default function Dashboard() {
           />
         )}
         <aside 
-          className={`bg-[#ffffff] border-r border-slate-200 flex flex-col shrink-0 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-16' : 'md:w-56'} w-56`}
-          style={{ backgroundColor: '#ffffff' }}
+          className={`bg-white border-r border-[#f0f0f2] flex flex-col shrink-0 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 transition-all duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] select-none shadow-[1px_0_2px_rgba(0,0,0,0.01)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-16' : 'md:w-56'} w-56`}
         >
           {/* Mobile-only close button header */}
-          <div className="md:hidden p-4 flex items-center justify-end border-b border-slate-200 h-14 shrink-0 bg-[#ffffff]">
+          <div className="md:hidden p-4 flex items-center justify-end border-b border-[#f0f0f2] h-10 shrink-0 bg-white">
             <button 
               onClick={() => setIsMobileMenuOpen(false)} 
               className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
@@ -763,22 +795,21 @@ export default function Dashboard() {
           </div>
 
           {/* Nav Items */}
-          <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto no-scrollbar bg-[#ffffff]" style={{ backgroundColor: '#ffffff' }}>
+          <nav className="flex-1 space-y-2.5 overflow-y-auto px-1.5 py-1.5 bg-white linear-sidenav-scroll">
             {renderMenu()}
           </nav>
 
           {/* Collapse sidebar button */}
-          <div className="p-2 border-t border-slate-200 shrink-0 hidden md:block">
-            <button
-              onClick={() => toggleSidebar()}
-              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              className={`flex items-center gap-2 h-9 w-full rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition duration-150 cursor-pointer ${
-                isCollapsed ? 'justify-center px-0' : 'px-3'
-              }`}
-            >
-              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-              {!isCollapsed && <span className="text-xs font-semibold">Collapse Sidebar</span>}
-            </button>
+          <div className="border-t border-[#f0f0f2] bg-white px-2 py-1.5 shrink-0 hidden md:block">
+            <div className="flex items-center justify-end">
+              <button
+                onClick={() => toggleSidebar()}
+                title="Toggle Sidebar (⌘B)"
+                className="flex h-6 w-6 items-center justify-center rounded text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none"
+              >
+                {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+              </button>
+            </div>
           </div>
         </aside>
         <div className="flex-1 flex flex-col min-w-0 bg-white">

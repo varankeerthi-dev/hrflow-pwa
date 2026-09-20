@@ -289,12 +289,43 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     return colors[idx % colors.length]
   }
 
+  // Chronos matrix: initials avatar + per-employee month totals (header badges + sticky footer).
+  // Data logic unchanged — derived from the same attendanceMap + getStatusBadge.
+  const chronosInitials = (name) => {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return '??'
+    return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
+  }
+
+  const getChronosTotals = (emp) => {
+    const map = monthlyViewData.attendanceMap || {}
+    const holidays = monthlyViewData.holidays || []
+    const sandwichSet = monthlyViewData.sandwichSet || new Set()
+    const empMap = map[emp.id] || map[String(emp.id || '').trim()] || {}
+    let present = 0, absent = 0, sun = 0, hol = 0, otMins = 0
+    for (let day = 1; day <= (monthlyViewData.daysInMonth || 31); day++) {
+      const att = empMap[day]
+      const st = getStatusBadge(att, day, emp, holidays, sandwichSet)
+      if (!st) continue
+      if (st.type === 'sunworked') { present += 1; sun += 1 }
+      else if (st.type === 'holworked') { present += 1; hol += 1 }
+      else if (st.type === 'present' || st.type === 'halfday') present += 1
+      else if (st.type === 'absent' || st.type === 'sandwich') absent += 1
+      if (att?.otHours && att.otHours !== '00:00') {
+        const [h, m] = String(att.otHours).split(':').map(Number)
+        if (!isNaN(h) && !isNaN(m)) otMins += h * 60 + m
+      }
+    }
+    const h = Math.floor(otMins / 60), m = otMins % 60
+    return { present, absent, sun, hol, otLabel: m === 0 ? `${h}h` : `${h}h ${m}m` }
+  }
+
   const exportPDF = () => {
     const printContent = document.getElementById('monthly-pivot-table')
     if (!printContent) return
 
     // Calculate table width
-    const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
+    const colW = { inTime: 68, outTime: 76, workingTime: 48, ot: 64, remarks: 70 }, gapW = 2
     let blockW = 0
     if (columnSettings.inTime) blockW += colW.inTime
     if (columnSettings.outTime) blockW += colW.outTime
@@ -302,7 +333,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     if (columnSettings.ot) blockW += colW.ot
     if (columnSettings.remarks) blockW += colW.remarks
     if (blockW === 0) blockW = 56
-    const totalTableW = 65 + (monthlyViewData.employees?.length || 0) * (blockW + gapW)
+    const totalTableW = 72 + (monthlyViewData.employees?.length || 0) * (blockW + gapW)
 
     // Select dynamic page size based on table width to maintain readability
     let pageSize = 'A4'
@@ -578,7 +609,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
         <div className="space-y-4 flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
           <div className="kinetic-monthly-pivot-card monthly-summary-data-shell flex-1 flex flex-col min-h-0 overflow-hidden">
               {(() => {
-                const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
+                const colW = { inTime: 68, outTime: 76, workingTime: 48, ot: 64, remarks: 70 }, gapW = 2
                 let blockW = 0
                 if (columnSettings.inTime) blockW += colW.inTime
                 if (columnSettings.outTime) blockW += colW.outTime
@@ -586,7 +617,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                 if (columnSettings.ot) blockW += colW.ot
                 if (columnSettings.remarks) blockW += colW.remarks
                 if (blockW === 0) blockW = 56
-                const totalTableW = 65 + (monthlyViewData.employees?.length || 0) * (blockW + gapW)
+                const totalTableW = 72 + (monthlyViewData.employees?.length || 0) * (blockW + gapW)
                 return (
                   <>
                     <div 
@@ -602,9 +633,9 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       onScroll={handleTableScroll} 
                       className="kinetic-monthly-table-scroll overflow-x-auto flex-1 overflow-y-auto"
                     >
-                      <table id="monthly-pivot-table" className="kinetic-monthly-pivot-table monthly-summary-grid border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
+                      <table id="monthly-pivot-table" className="kinetic-monthly-pivot-table monthly-summary-grid chronos-matrix border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
                         <colgroup>
-                      <col style={{ width: '65px' }} />
+                      <col style={{ width: '72px' }} />
                       {monthlyViewData.employees?.map(emp => (
                         <React.Fragment key={emp.id}>
                           {columnSettings.inTime && <col style={{ width: `${colW.inTime}px` }} />}
@@ -621,20 +652,40 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                         <th className="px-2 py-1 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2}><div className="text-[9px] uppercase tracking-wider text-gray-500">Date</div></th>
                         {monthlyViewData.employees?.map((emp, idx) => {
                           const cs = getEmployeeHeaderColor(idx), visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
-                          return (<th key={emp.id} className={`px-1 py-1 text-center font-black text-white border-r-[8px] border-r-white border-b ${cs.border} ${cs.bg} text-[10px]`} colSpan={visibleCount}><div className="truncate leading-none tracking-wide font-extrabold">{formatTitleCase(emp.name)}</div></th>)
+                          const t = getChronosTotals(emp)
+                          const showAbsent = t.absent > 0
+                          return (
+                            <th key={emp.id} className="px-3 py-2 bg-slate-50/95 border-r-[1.5px] border-slate-300 border-b border-slate-200" colSpan={visibleCount}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className={`w-7 h-7 rounded flex items-center justify-center text-white text-xs font-bold shrink-0 ${cs.bg}`}>{chronosInitials(emp.name)}</div>
+                                  <div className="min-w-0 text-left">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-slate-900 text-[13px] leading-[16px] tracking-wide uppercase truncate">{formatTitleCase(emp.name)}</span>
+                                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${showAbsent ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                                    </div>
+                                    <div className="text-[11px] leading-[14px] text-slate-500 truncate">{emp.empCode || '—'} • {emp.role || emp.department || 'Staff'}</div>
+                                  </div>
+                                </div>
+                                {showAbsent && (
+                                  <span className="px-2 py-0.5 text-[9px] leading-[12px] font-bold rounded bg-rose-600 text-white shrink-0">{t.absent} Absent</span>
+                                )}
+                              </div>
+                            </th>
+                          )
                         })}
                       </tr>
-                      <tr className="bg-white">
+                      <tr className="bg-slate-100">
                         {monthlyViewData.employees?.map(emp => {
                           const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
                           return (
                             <React.Fragment key={emp.id}>
-                              {columnSettings.inTime && <th style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-l border-gray-200 text-center bg-white text-emerald-600/90 uppercase ${lastCol === 'inTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>IN</th>}
-                              {columnSettings.outTime && <th style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-rose-600/90 uppercase ${lastCol === 'outTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>OUT</th>}
-                              {columnSettings.workingTime && <th style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'workingTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>WT</th>}
-                              {columnSettings.ot && <th style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'ot' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>OT</th>}
-                              {columnSettings.remarks && <th style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 border-l text-center bg-white text-gray-400 uppercase truncate border-r-[8px] border-r-white`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
-                              {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[8px] border-r-white border-b border-gray-300 bg-white">-</th>}
+                              {columnSettings.inTime && <th style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[11px] font-semibold border-b border-l border-slate-200 text-center bg-slate-100 text-slate-600 uppercase tracking-wider ${lastCol === 'inTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-slate-200'}`}>IN</th>}
+                              {columnSettings.outTime && <th style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[11px] font-semibold border-b border-slate-200 text-center bg-slate-100 text-slate-600 uppercase tracking-wider ${lastCol === 'outTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-slate-200'}`}>OUT</th>}
+                              {columnSettings.workingTime && <th style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[11px] font-semibold border-b border-slate-200 text-center bg-slate-100 text-slate-600 uppercase tracking-wider ${lastCol === 'workingTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-slate-200'}`}>WT</th>}
+                              {columnSettings.ot && <th style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[11px] font-semibold border-b border-slate-200 text-center bg-slate-100 text-slate-600 uppercase tracking-wider ${lastCol === 'ot' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-slate-200'}`}>OT</th>}
+                              {columnSettings.remarks && <th style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className={`px-0 py-1 text-[11px] font-semibold border-b border-slate-200 border-l text-center bg-slate-100 text-slate-600 uppercase tracking-wider truncate border-r-[1.5px] border-slate-300`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
+                              {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[1.5px] border-slate-300 border-b border-gray-300 bg-white">-</th>}
                             </React.Fragment>
                           )
                         })}
@@ -645,7 +696,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                         Array.from({ length: monthlyViewData.daysInMonth || 30 }).map((_, dayIdx) => {
                           const day = dayIdx + 1
                           return (
-                            <tr key={`skeleton-row-${day}`} className="h-[32px]">
+                            <tr key={`skeleton-row-${day}`} className="h-[36px]">
                               <td className="px-2 py-0.5 border-r border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
                                 <div className="h-3.5 w-8 bg-zinc-200/80 rounded-sm animate-pulse mx-auto"></div>
                               </td>
@@ -656,32 +707,32 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                 return (
                                   <React.Fragment key={emp.id}>
                                     {columnSettings.inTime && (
-                                      <td style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'inTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                      <td style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'inTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                         <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
                                       </td>
                                     )}
                                     {columnSettings.outTime && (
-                                      <td style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'outTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                      <td style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'outTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                         <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
                                       </td>
                                     )}
                                     {columnSettings.workingTime && (
-                                      <td style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'workingTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                      <td style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'workingTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                         <div className="h-3 w-6 bg-zinc-100 rounded animate-pulse mx-auto"></div>
                                       </td>
                                     )}
                                     {columnSettings.ot && (
-                                      <td style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'ot' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                      <td style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'ot' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                         <div className="h-3 w-4 bg-zinc-100 rounded animate-pulse mx-auto"></div>
                                       </td>
                                     )}
                                     {columnSettings.remarks && (
-                                      <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-1 py-0.5 border-b border-gray-200 border-r-[8px] border-r-white">
+                                      <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-1 py-0.5 border-b border-gray-200 border-r-[1.5px] border-slate-300">
                                         <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
                                       </td>
                                     )}
                                     {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && (
-                                      <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-1 py-0.5 border-b border-gray-200 border-r-[8px] border-r-white">
+                                      <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-1 py-0.5 border-b border-gray-200 border-r-[1.5px] border-slate-300">
                                         <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
                                       </td>
                                     )}
@@ -694,10 +745,10 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       ) : Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
                         const [y, m] = selectedMonth.split('-').map(Number), cD = new Date(y, m - 1, day), ds = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                         const isSunday = cD.getDay() === 0, isHoliday = (monthlyViewData.holidays || []).some(h => h.date === ds)
-                        const dateCls = isSunday ? 'bg-red-50 text-red-700' : (isHoliday ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-900')
+                        const dateCls = isSunday ? 'bg-[#f1f5f9] text-rose-600' : (isHoliday ? 'bg-violet-50 text-violet-700' : 'bg-white text-slate-900')
                         return (
-                          <tr key={day} className="hover:bg-gray-50 transition-colors h-[32px]">
-                            <td className={`px-2 py-0.5 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateCls}`}><div className="flex items-baseline justify-center gap-1"><span className="text-[11px]">{String(day).padStart(2, '0')}</span><span className="text-[8px] text-gray-400 uppercase">{cD.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></td>
+                          <tr key={day} className={`${isSunday ? 'chronos-sunday-stripe' : ''} hover:bg-sky-50/40 transition-colors h-[36px]`}>
+                            <td className={`px-2 py-1.5 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 chronos-sticky-shadow ${dateCls}`}><div className="flex items-baseline justify-center gap-1"><span className="text-xs tabular-nums">{String(day).padStart(2, '0')}</span><span className="text-[10px] text-slate-500 uppercase">{cD.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></td>
                             {monthlyViewData.employees?.map(emp => {
                               const empIdStr = String(emp.id || '').trim();
                               const empCodeStr = String(emp.empCode || '').trim();
@@ -709,10 +760,18 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                               const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
                               return (
                                 <React.Fragment key={emp.id}>
-                                  {isOff ? (<td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-r-white ${st.bg}`}><span className={`${st.text === 'Holiday' ? 'text-amber-600' : st.color} ${st.type === 'sandwich' ? 'text-[7px] font-black' : 'text-[9px] font-black uppercase'}`}>{st.text}</span></td>) : (
+                                  {isOff ? (<td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[1.5px] border-slate-300 ${st.type === 'sunday' ? 'chronos-sunday-stripe' : st.type === 'holiday' ? 'bg-violet-50' : 'bg-rose-50/50'}`}>
+                                    {st.type === 'sunday' ? (
+                                      <span className="bg-slate-800 text-white text-[11px] leading-[14px] font-bold tracking-widest uppercase px-3 py-0.5 rounded-full inline-flex items-center gap-1.5 shadow-sm max-w-[130px] h-[22px]">☀ Sunday</span>
+                                    ) : st.type === 'holiday' ? (
+                                      <span className="bg-violet-100 text-violet-700 border border-violet-200 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-md inline-flex items-center">{st.text}</span>
+                                    ) : (
+                                      <span className="bg-rose-600 text-white text-[11px] leading-[14px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md shadow-sm inline-flex items-center justify-center gap-1.5 max-w-[140px] h-[22px]">✕ {st.type === 'sandwich' ? 'Absent (S)' : 'Absent'}</span>
+                                    )}
+                                  </td>) : (
                                     <>
                                       {columnSettings.inTime && (
-                                        <td style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-l border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <td style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-2 py-1.5 text-center border-b border-l border-gray-200 text-[12px] font-medium text-slate-800 bg-white whitespace-nowrap ${lastCol === 'inTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                           <div className="flex flex-col items-center leading-none">
                                             <span>{formatTimeTo12Hour(att?.inTime) || '—'}</span>
                                             {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
@@ -722,12 +781,12 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                         </td>
                                       )}
                                       {columnSettings.outTime && (
-                                        <td style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'outTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <td style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-2 py-1.5 text-center border-b border-gray-200 text-[12px] font-medium text-slate-800 bg-white whitespace-nowrap ${lastCol === 'outTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                           <div className="flex flex-col items-center leading-none">
                                             <span>{formatTimeTo12Hour(att?.outTime) || '—'}</span>
                                             {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
-                                              <div className="flex items-center gap-0.5 text-[7px] text-orange-600/80 font-black mt-0.5">
-                                                <ArrowRight size={6} />
+                                              <div className="flex items-center gap-0.5 text-[10px] text-[#ea580c] font-bold mt-0.5">
+                                                <ArrowRight size={8} />
                                                 <span>{new Date(att.outDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                                               </div>
                                             )}
@@ -735,13 +794,13 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                         </td>
                                       )}
                                       {columnSettings.workingTime && (
-                                        <td style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white ${lastCol === 'workingTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <td style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-2 py-1.5 text-center border-b border-gray-200 text-[10px] font-medium text-slate-600 bg-white whitespace-nowrap ${lastCol === 'workingTime' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>
                                           {calculateWorkingTime(att?.inTime, att?.outTime, att?.date, att?.outDate || att?.date)}
                                         </td>
                                       )}
-                                      {columnSettings.ot && <td style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-normal text-indigo-600 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>{formatOTHours(att?.otHours)}</td>}
-                                      {columnSettings.remarks && <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className={`px-1 py-0.5 text-center border-b text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-r-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
-                                      {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-r-white">—</td>}
+                                      {columnSettings.ot && <td style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-1.5 text-center border-b border-gray-200 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[1.5px] border-slate-300' : 'border-r border-gray-200'}`}>{(() => { const ot = formatOTHours(att?.otHours); return ot === '-' ? <span className="text-[12px] text-slate-300">-</span> : <span className="min-w-[42px] h-[22px] inline-flex items-center justify-center px-1 rounded bg-[#f0f9ff] text-[#0369a1] font-semibold border border-[#bae6fd] tabular-nums text-[11px] leading-[13px]">{ot}</span> })()}</td>}
+                                      {columnSettings.remarks && <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className={`px-2 py-1.5 border-b text-left text-[11px] font-normal text-slate-700 bg-white truncate border-r-[1.5px] border-slate-300`} title={att?.remarks}>{att?.remarks || '—'}</td>}
+                                      {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[1.5px] border-slate-300">—</td>}
                                     </>
                                   )}
                                 </React.Fragment>
@@ -751,6 +810,30 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                         )
                       })}
                     </tbody>
+                    <tfoot className="sticky bottom-0 z-30">
+                      <tr className="bg-slate-100/95 border-t-2 border-slate-300 shadow-inner">
+                        <td className="px-2 py-2 text-center uppercase font-bold text-[11px] text-slate-700 bg-slate-200/90 sticky left-0 z-40 border-r border-slate-300">Totals</td>
+                        {monthlyViewData.employees?.map(emp => {
+                          const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
+                          const t = getChronosTotals(emp)
+                          return (
+                            <td key={emp.id} colSpan={visibleCount} className="px-3 py-2 bg-slate-100/90 border-r-[1.5px] border-slate-300">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center justify-between gap-1 text-[11px]">
+                                  <span className="text-slate-600">Pres: <strong className="tabular-nums text-slate-900">{t.present}</strong></span>
+                                  <span className={t.absent > 0 ? 'text-rose-600 font-semibold' : 'text-slate-600'}>Abs: <strong className="tabular-nums">{t.absent}</strong></span>
+                                  <span className="tabular-nums font-semibold text-sky-600 bg-blue-100/70 border border-blue-200 px-1.5 rounded">OT: {t.otLabel}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                  <span>Sun worked: <strong className="tabular-nums text-slate-700">{t.sun}</strong></span>
+                                  <span>Holiday worked: <strong className="tabular-nums text-slate-700">{t.hol}</strong></span>
+                                </div>
+                              </div>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </tfoot>
                   </table>
                   </div>
                   </>
