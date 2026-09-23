@@ -176,6 +176,168 @@ export function resolveAccountingEntryType(entry, advanceCats = [], expenseCats 
   return getAccountingEntryType(entry, advanceCats, expenseCats)
 }
 
+/** Partial-aware amount: uses partialAmount when status is Partial. */
+export function effectiveAmount(entry) {
+  if (!entry) return 0
+  if (entry.status === 'Partial' && entry.partialAmount != null && entry.partialAmount !== '') {
+    return Number(entry.partialAmount) || 0
+  }
+  return Number(entry.amount || 0)
+}
+
+/**
+ * A→B "Given to Others" / "Salary to Others" giver expense that is one side of a
+ * transfer pair (linked Cash Advance for the recipient). Excluded from Cash Summary
+ * category ledger / expense KPI (Option B) but still shown on the employee and register.
+ */
+export function isTransferPairGtoExpense(entry, allEntries = []) {
+  if (!entry) return false
+  if (entry.paymentSource === 'company_account' || entry.isCompanyAccountAdvance || entry.paidFromAccount) {
+    return false
+  }
+  const clean = String(entry.category || '')
+    .replace(/\s*\[[^\]]*\]\s*$/, '')
+    .trim()
+    .toLowerCase()
+  if (!clean.includes('given to others') && !clean.includes('salary to others')) return false
+
+  // Current A→B pair writes these flags on the giver expense.
+  if (entry.linkedAdvanceId || entry.isCashAdvance) return true
+
+  // paidToType may be absent on older rows; treat bare paidTo as employee recipient.
+  if (entry.paidTo && entry.paidToType !== 'custom') return true
+  if (entry.paidToType === 'employee' && entry.paidTo) return true
+
+  // Reverse link: recipient advance points back at this expense.
+  if (entry.id && Array.isArray(allEntries) && allEntries.length > 0) {
+    if (allEntries.some((e) => e.linkedExpenseId === entry.id)) return true
+
+    // Legacy "yesterday" shape: employeeId saved as recipient (B), givenByEmployeeId as giver (A).
+    const hasDistinctGiver =
+      entry.givenByEmployeeId &&
+      (entry.givenByEmployeeId !== entry.employeeId ||
+        (entry.givenByEmployeeName &&
+          entry.employeeName &&
+          String(entry.givenByEmployeeName).toLowerCase().trim() !==
+            String(entry.employeeName).toLowerCase().trim()))
+
+    // No explicit ids: same date + amount advance for a different employee whose id/name
+    // matches paidTo / paidToName / transferredToName / category bracket [Name],
+    // or reverse-shaped rows that have a counterpart advance.
+    const bracket = String(entry.category || '').match(/\[(.*?)\]/)
+    const recipientName =
+      entry.paidToName ||
+      entry.paidToCustomName ||
+      entry.transferredToName ||
+      (bracket ? bracket[1].trim() : null)
+    const recipientId = entry.paidTo || null
+    const amt = effectiveAmount(entry)
+    const matchedAdvance = allEntries.find((e) => {
+      if (getAccountingEntryType(e) !== 'Advance') return false
+      if (e.id === entry.id) return false
+      if (e.linkedExpenseId && e.linkedExpenseId !== entry.id) return false
+      if (e.date !== entry.date) return false
+      if (Math.abs(effectiveAmount(e) - amt) >= 0.01) return false
+      // Same-employee advance without a link is not this transfer pair.
+      if (e.employeeId && entry.employeeId && e.employeeId === entry.employeeId) return false
+      if (recipientId && e.employeeId === recipientId) return true
+      if (
+        recipientName &&
+        e.employeeName &&
+        String(e.employeeName).toLowerCase().trim() === String(recipientName).toLowerCase().trim()
+      ) {
+        return true
+      }
+      if (hasDistinctGiver) return true
+      return false
+    })
+    if (matchedAdvance) return true
+  }
+
+  return false
+}
+
+function findLinkedSourceExpense(entry, allEntries) {
+  if (!entry || !Array.isArray(allEntries) || allEntries.length === 0) return null
+  if (entry.linkedExpenseId) {
+    const byId = allEntries.find((e) => e.id === entry.linkedExpenseId)
+    if (byId) return byId
+  }
+  if (entry.id) {
+    const byReverse = allEntries.find((e) => e.linkedAdvanceId === entry.id)
+    if (byReverse) return byReverse
+  }
+  const lower = String(entry.category || '').toLowerCase()
+  if (lower.includes('cash advance') || lower.includes('others') || lower.includes('given to others')) {
+    return (
+      allEntries.find((e) => {
+        if (getAccountingEntryType(e) !== 'Expense') return false
+        if (e.id === entry.id) return false
+        const isTransfer =
+          isGivenToOthersCategory(e.category) ||
+          (e.paidTo && e.paidTo === entry.employeeId) ||
+          (e.paidToName &&
+            String(e.paidToName).toLowerCase().trim() === String(entry.employeeName || '').toLowerCase().trim())
+        if (!isTransfer) return false
+        const sameAmount = Math.abs(effectiveAmount(e) - effectiveAmount(entry)) < 0.01
+        const sameDate = e.date === entry.date
+        return sameAmount && sameDate && e.employeeId !== entry.employeeId
+      }) || null
+    )
+  }
+  return null
+}
+
+/**
+ * Category strings an entry can match in Reports filters (raw, cleaned, display, linked source).
+ * Lets Type=Advance + Category "Given to Others" include B's Cash Advance (Paid) rows.
+ */
+export function categoryMatchKeys(entry, allEntries = [], employees = []) {
+  if (!entry) return []
+  const keys = new Set()
+  const add = (value) => {
+    if (value == null) return
+    const clean = String(value)
+      .replace(/\s*\[[^\]]*\]\s*$/, '')
+      .trim()
+      .toLowerCase()
+    if (clean) keys.add(clean)
+    const raw = String(value).trim().toLowerCase()
+    if (raw) keys.add(raw)
+  }
+
+  add(entry.category)
+  add(entry.type)
+
+  const details = resolveReportEntryDetails(entry, employees, allEntries)
+  add(details.displayCategory)
+
+  const source = findLinkedSourceExpense(entry, allEntries)
+  if (source) add(source.category)
+
+  const all = [...keys].join(' ')
+  if (all.includes('given to others') || all.includes('salary to others')) {
+    keys.add('given to others')
+    keys.add('salary to others')
+  }
+
+  return [...keys]
+}
+
+/** Multi-select category match: OR across selected categories (substring, same as single-filter). */
+export function matchesAnyCategory(entry, selectedCategories, allEntries = [], employees = []) {
+  if (!Array.isArray(selectedCategories) || selectedCategories.length === 0) return true
+  const keys = categoryMatchKeys(entry, allEntries, employees)
+  if (keys.length === 0) return false
+  return selectedCategories.some((selected) => {
+    const needle = String(selected || '')
+      .trim()
+      .toLowerCase()
+    if (!needle) return false
+    return keys.some((key) => key.includes(needle) || needle.includes(key))
+  })
+}
+
 export function resolveReportEntryDetails(entry, employees = [], allEntries = []) {
   if (!entry) {
     return {

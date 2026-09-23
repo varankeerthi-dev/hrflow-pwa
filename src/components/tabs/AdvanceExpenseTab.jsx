@@ -35,7 +35,10 @@ import {
   isAdvanceCategory,
   isExpenseCategory,
   getAccountingEntryType as resolveAccountingEntryType,
-  resolveReportEntryDetails
+  resolveReportEntryDetails,
+  effectiveAmount,
+  isTransferPairGtoExpense,
+  matchesAnyCategory
 } from '../../lib/advanceExpenseCategories'
 import {
   getDefaultAdvanceDeductionMonth,
@@ -668,27 +671,39 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [reportFromDate, setReportFromDate] = useState(firstDayOfMonth)
   const [reportToDate, setReportToDate] = useState(today)
   const [reportSelectedEmployees, setReportSelectedEmployees] = useState([]) // Multi-select
-  const [reportFilterCategory, setReportFilterCategory] = useState('')
+  const [reportFilterCategories, setReportFilterCategories] = useState([]) // Multi-select
   const [reportFilterRemarks, setReportFilterRemarks] = useState('')
   const [reportFilterTxn, setReportFilterTxn] = useState('')
   const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
   const [reportFilterProject, setReportFilterProject] = useState('')
 
-  // When reportFilterType changes, clear incompatible category selection
+  const toggleReportFilterCategory = (cat) => {
+    setReportFilterCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    )
+  }
+
+  // When reportFilterType changes, drop incompatible category selections
   useEffect(() => {
-    if (reportFilterCategory) {
+    if (!reportFilterCategories.length) return
+    const next = reportFilterCategories.filter((cat) => {
       if (reportFilterType === 'Advance') {
-        if (!advanceCategoriesOnly.some(c => c.toLowerCase() === reportFilterCategory.toLowerCase()) && isExpenseCategory(reportFilterCategory, expenseCategoriesList)) {
-          setReportFilterCategory('')
-        }
-      } else if (reportFilterType === 'Expense') {
-        if (!expenseCategoriesOnly.some(c => c.toLowerCase() === reportFilterCategory.toLowerCase()) && isAdvanceCategory(reportFilterCategory, advanceCategoriesList)) {
-          setReportFilterCategory('')
-        }
+        const inAdvance = advanceCategoriesOnly.some((c) => c.toLowerCase() === cat.toLowerCase())
+        const onlyExpense = !inAdvance && isExpenseCategory(cat, expenseCategoriesList)
+        return !onlyExpense
       }
+      if (reportFilterType === 'Expense') {
+        const inExpense = expenseCategoriesOnly.some((c) => c.toLowerCase() === cat.toLowerCase())
+        const onlyAdvance = !inExpense && isAdvanceCategory(cat, advanceCategoriesList)
+        return !onlyAdvance
+      }
+      return true
+    })
+    if (next.length !== reportFilterCategories.length) {
+      setReportFilterCategories(next)
     }
-  }, [reportFilterType, reportFilterCategory, advanceCategoriesOnly, expenseCategoriesOnly, advanceCategoriesList, expenseCategoriesList])
+  }, [reportFilterType, reportFilterCategories, advanceCategoriesOnly, expenseCategoriesOnly, advanceCategoriesList, expenseCategoriesList])
 
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
@@ -1657,9 +1672,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     filtered.forEach(item => {
       const dStr = item.date || (item.createdAt?.toDate ? format(item.createdAt.toDate(), 'yyyy-MM-dd') : '') || item.createdAt?.slice?.(0, 10) || ''
       if (!dStr && !item.createdAt) return
-      const amt = (item.status === 'Partial' && item.partialAmount != null && item.partialAmount !== '')
-        ? Number(item.partialAmount)
-        : (parseFloat(item.amount) || 0)
+      const amt = effectiveAmount(item)
 
       // Include all entries belonging to the current month in monthTotal
       if (isCurrentMonthItem(dStr, item)) {
@@ -2028,39 +2041,38 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const matchesEmployee = reportSelectedEmployees.length === 0 ||
           reportSelectedEmployees.includes(effectiveEmpId)
         
-        // Category filter
-        const matchesCategory = !reportFilterCategory || 
-          (e.category && e.category.toLowerCase().includes(reportFilterCategory.toLowerCase()))
-        
+        // Category multi-select: OR within categories, AND with other filters
+        const matchesCategory = matchesAnyCategory(e, reportFilterCategories, entries, employees)
+
         // Remarks search filter
-        const matchesRemarks = !reportFilterRemarks || 
+        const matchesRemarks = !reportFilterRemarks ||
           (e.remarks && e.remarks.toLowerCase().includes(reportFilterRemarks.toLowerCase()))
-        
+
         // Transaction number filter
-        const matchesTxn = !reportFilterTxn || 
+        const matchesTxn = !reportFilterTxn ||
           (e.transactionNo && e.transactionNo.toLowerCase().includes(reportFilterTxn.toLowerCase()))
-        
+
         // Type filter
         const matchesType = reportFilterType === 'All' || getAccountingEntryType(e) === reportFilterType
-        
+
         // Payout filter
         const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
-        
+
         // Project filter
-        const matchesProject = !reportFilterProject || 
+        const matchesProject = !reportFilterProject ||
           (e.project && e.project.toLowerCase().includes(reportFilterProject.toLowerCase()))
-        
+
         return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout && matchesProject
       })
-      
+
       setFilteredEntries(filtered)
       setReportApplied(true)
     }
-    
+
     if (entries.length > 0) {
       autoApplyFilters()
     }
-  }, [entries, employees, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategory, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth, reportFilterProject])
+  }, [entries, employees, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategories, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth, reportFilterProject])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -3322,12 +3334,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }
 
-  const effectiveAmount = (e) => {
-    if (e.status === 'Partial' && e.partialAmount != null && e.partialAmount !== '')
-      return Number(e.partialAmount)
-    return Number(e.amount || 0)
-  }
-
   const summary = useMemo(() => {
     const adv = entries.filter((e) => getAccountingEntryType(e) === 'Advance')
     const exp = entries.filter((e) => getAccountingEntryType(e) === 'Expense')
@@ -3338,29 +3344,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const k = statusKey(e)
         if (!map[k]) map[k] = { count: 0, sum: 0 }
         map[k].count += 1
-        map[k].sum += Number(e.amount || 0)
+        map[k].sum += effectiveAmount(e)
       }
       return map
     }
-    const advSum = adv.reduce((s, e) => s + Number(e.amount || 0), 0)
-    const expSum = exp.reduce((s, e) => s + Number(e.amount || 0), 0)
+    const advSum = adv.reduce((s, e) => s + effectiveAmount(e), 0)
+    const expSum = exp.reduce((s, e) => s + effectiveAmount(e), 0)
     const awaitingPay = entries.filter(
       (e) =>
         (e.mdApproval === 'Approved' || e.mdApproval === 'Partial') &&
         e.paymentStatus !== 'Paid'
     )
     const paid = entries.filter((e) => e.paymentStatus === 'Paid')
-    const eff = (e) => {
-      if (e.status === 'Partial' && e.partialAmount != null && e.partialAmount !== '')
-        return Number(e.partialAmount)
-      return Number(e.amount || 0)
-    }
 
     // PHASE 3: Accrued Salary Reimbursements (Approved but Unpaid 'With Salary' items)
     const accrued = entries.filter(
       (e) => e.payoutMethod === 'With Salary' && e.status === 'Approved' && e.paymentStatus !== 'Paid'
     )
-    const accruedSum = accrued.reduce((s, e) => s + eff(e), 0)
+    const accruedSum = accrued.reduce((s, e) => s + effectiveAmount(e), 0)
     const accruedCount = accrued.length
 
     return {
@@ -3369,9 +3370,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       advCount: adv.length,
       expCount: exp.length,
       byStatus: roll(entries),
-      awaitingPaymentSum: awaitingPay.reduce((s, e) => s + eff(e), 0),
+      awaitingPaymentSum: awaitingPay.reduce((s, e) => s + effectiveAmount(e), 0),
       awaitingPaymentCount: awaitingPay.length,
-      paidSum: paid.reduce((s, e) => s + eff(e), 0),
+      paidSum: paid.reduce((s, e) => s + effectiveAmount(e), 0),
       paidCount: paid.length,
       accruedSum,
       accruedCount
@@ -3396,7 +3397,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       })
       .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')) || Number(right.createdAt?.seconds || 0) - Number(left.createdAt?.seconds || 0))
 
-    const expenseRows = periodRows.filter((entry) => entry.accountingType === 'Expense')
+    const expenseRows = periodRows.filter(
+      (entry) => entry.accountingType === 'Expense' && !isTransferPairGtoExpense(entry, entries)
+    )
     const advanceRows = periodRows.filter((entry) => entry.accountingType === 'Advance')
     const categoryMap = new Map()
     expenseRows.forEach((entry) => {
@@ -3412,10 +3415,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const categoryRows = [...categoryMap.values()].sort((left, right) => right.amount - left.amount || left.category.localeCompare(right.category))
     const expenseTotal = expenseRows.reduce((sum, entry) => sum + entry.statementAmount, 0)
     const advanceTotal = advanceRows.reduce((sum, entry) => sum + entry.statementAmount, 0)
+    // Paid total includes transfer-pair GTO (cash left the books as settled vouchers)
     const paidTotal = periodRows.filter((entry) => entry.paymentStatus === 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
     const outstandingTotal = expenseRows.filter((entry) => entry.paymentStatus !== 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
 
-    // Employee Summary for the month
+    // Employee Summary for the month — includes transfer-pair GTO as Expense for the giver (Rahul)
     const employeeMap = new Map()
     periodRows.forEach((entry) => {
       const empId = entry.statementEmployeeId || entry.employeeId || entry.statementEmployeeName || 'unassigned'
@@ -3539,7 +3543,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     setReportFromDate(firstDayOfMonth)
     setReportToDate(today)
     setReportSelectedEmployees([])
-    setReportFilterCategory('')
+    setReportFilterCategories([])
     setReportFilterRemarks('')
     setReportFilterTxn('')
     setReportFilterType('All')
@@ -3766,7 +3770,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       const activeFilters = []
       if (reportSelectedEmployees.length > 0) activeFilters.push(`${reportSelectedEmployees.length} Employee(s)`)
-      if (reportFilterCategory) activeFilters.push(`Category: ${reportFilterCategory}`)
+      if (reportFilterCategories.length > 0) {
+        activeFilters.push(`Category: ${reportFilterCategories.join(', ')}`)
+      }
       if (reportFilterRemarks) activeFilters.push(`Remarks: "${reportFilterRemarks}"`)
       if (reportFilterType !== 'All') activeFilters.push(`Type: ${reportFilterType}`)
       if (reportFilterPayout !== 'All') activeFilters.push(`Payout: ${reportFilterPayout}`)
@@ -3789,8 +3795,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const dataToUseAdv = advForReport || []
       const dataToUseExp = expForReport || []
 
-      const totalAdvSum = dataToUseAdv.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
-      const totalExpSum = dataToUseExp.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+      const totalAdvSum = dataToUseAdv.reduce((sum, a) => sum + effectiveAmount(a), 0)
+      const totalExpSum = dataToUseExp.reduce((sum, e) => sum + effectiveAmount(e), 0)
       const cashInHand = totalAdvSum - totalExpSum
 
       const formatCurrency = (num) => `₹ ${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)}`
@@ -3870,7 +3876,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             details.displayEmployeeName || a.employeeName || '—',
             categoryDisplay,
             (details.displayRemarks || a.remarks || a.reason || '—').toString(),
-            formatCurrency(parseFloat(a.amount) || 0),
+            formatCurrency(effectiveAmount(a)),
             a.status || 'Approved'
           ]
         })
@@ -3927,19 +3933,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         startY += 3
 
         const expBody = dataToUseExp.map(e => {
-          let categoryDisplay = e.category || e.type || '—'
-          const recipientName = e.paidToName || e.paidToCustomName
-          const isGivenToOthers = (e.category && e.category.toLowerCase().includes('given to others')) || (recipientName && recipientName !== e.employeeName)
+          const details = resolveReportEntryDetails(e, employees, entries)
+          let categoryDisplay = details.displayCategory || e.category || e.type || '—'
+          const recipientName = e.paidToName || e.paidToCustomName || details.recipientName
+          const isGivenToOthers = (e.category && e.category.toLowerCase().includes('given to others')) || (recipientName && recipientName !== (details.displayEmployeeName || e.employeeName))
           if (isGivenToOthers && recipientName) {
-            categoryDisplay += `\n(${e.employeeName} -> ${recipientName})`
+            categoryDisplay += `\n(${details.displayEmployeeName || e.employeeName} -> ${recipientName})`
           }
 
           return [
             formatDateSafe(e.date),
-            e.employeeName || '—',
+            details.displayEmployeeName || e.employeeName || '—',
             categoryDisplay,
-            (e.remarks || e.reason || '—').toString(),
-            formatCurrency(parseFloat(e.amount) || 0),
+            (details.displayRemarks || e.remarks || e.reason || '—').toString(),
+            formatCurrency(effectiveAmount(e)),
             e.status || 'Approved'
           ]
         })
@@ -4060,7 +4067,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           a.requestType || '',
           a.payoutMethod || '',
           details.displayRemarks || a.remarks || a.reason || '',
-          formatAmount(a.amount),
+          formatAmount(effectiveAmount(a)),
           a.paidToName || a.paidToCustomName || '',
           a.project || '',
           a.status || '',
@@ -4072,16 +4079,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       })
 
       dataToUseExp.forEach(e => {
+        const details = resolveReportEntryDetails(e, employees, entries)
+        const catDisplay = details.displayCategory || e.category || ''
         rows.push([
           'Expense',
           formatDate(e.date),
-          e.employeeName || '',
-          e.category || '',
+          details.displayEmployeeName || e.employeeName || '',
+          catDisplay,
           e.requestType || '',
           e.payoutMethod || '',
-          e.remarks || e.reason || '',
-          formatAmount(e.amount),
-          e.paidToName || e.paidToCustomName || '',
+          details.displayRemarks || e.remarks || e.reason || '',
+          formatAmount(effectiveAmount(e)),
+          e.paidToName || e.paidToCustomName || details.recipientName || '',
           e.project || '',
           e.status || '',
           e.hrApproval || '',
@@ -6625,7 +6634,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <Calendar size={14} className="text-gray-500 flex-shrink-0" />
                   <span className="font-medium whitespace-nowrap">
                     {reportFromDate 
-                      ? `From: ${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                      ? new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
                       : 'From Date'
                     }
                   </span>
@@ -6704,7 +6713,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <Calendar size={14} className="text-gray-500 flex-shrink-0" />
                   <span className="font-medium whitespace-nowrap">
                     {reportToDate 
-                      ? `To: ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                      ? new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
                       : 'To Date'
                     }
                   </span>
@@ -6771,9 +6780,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 )}
               </div>
 
-              {/* Category Dropdown */}
+              {/* Category multi-select */}
               <div className="relative" ref={categoryDropdownRef}>
-                <button 
+                <button
                   onClick={() => {
                     closeAllDropdowns()
                     setCategoryDropdownOpen(true)
@@ -6781,67 +6790,89 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   className="flex items-center gap-2 px-3.5 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors h-[45px]"
                 >
                   <Filter size={14} className="text-gray-500 flex-shrink-0" />
-                  <span className="font-medium whitespace-nowrap">{reportFilterCategory || 'All Categories'}</span>
+                  <span className="font-medium whitespace-nowrap">
+                    {reportFilterCategories.length === 0
+                      ? 'All Categories'
+                      : reportFilterCategories.length === 1
+                        ? reportFilterCategories[0]
+                        : `${reportFilterCategories.length} categories`}
+                  </span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
-                
+
                 {categoryDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                    <button 
-                      onClick={() => { setReportFilterCategory(''); closeAllDropdowns(); }}
-                      className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${!reportFilterCategory ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                  <div className="absolute top-full left-0 mt-1 w-60 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => { setReportFilterCategories([]) }}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategories.length === 0 ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
                     >
                       All Categories
                     </button>
-                    {reportFilterType === 'Advance' && (
-                      advanceCategoriesOnly.map(cat => (
-                        <button 
-                          key={cat}
-                          onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
-                        >
-                          {cat}
-                        </button>
-                      ))
-                    )}
-                    {reportFilterType === 'Expense' && (
-                      expenseCategoriesOnly.map(cat => (
-                        <button 
-                          key={cat}
-                          onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
-                        >
-                          {cat}
-                        </button>
-                      ))
-                    )}
+                    {reportFilterType === 'Advance' && advanceCategoriesOnly.map(cat => (
+                      <label
+                        key={cat}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 cursor-pointer ${reportFilterCategories.includes(cat) ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={reportFilterCategories.includes(cat)}
+                          onChange={() => toggleReportFilterCategory(cat)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        {cat}
+                      </label>
+                    ))}
+                    {reportFilterType === 'Expense' && expenseCategoriesOnly.map(cat => (
+                      <label
+                        key={cat}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 cursor-pointer ${reportFilterCategories.includes(cat) ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={reportFilterCategories.includes(cat)}
+                          onChange={() => toggleReportFilterCategory(cat)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        {cat}
+                      </label>
+                    ))}
                     {reportFilterType === 'All' && (
                       <>
                         <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-y border-slate-100">
                           Advance Categories
                         </div>
                         {advanceCategoriesOnly.map(cat => (
-                          <button 
+                          <label
                             key={`adv-${cat}`}
-                            onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
-                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer ${reportFilterCategories.includes(cat) ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
                           >
+                            <input
+                              type="checkbox"
+                              checked={reportFilterCategories.includes(cat)}
+                              onChange={() => toggleReportFilterCategory(cat)}
+                              className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
                             {cat}
-                          </button>
+                          </label>
                         ))}
                         <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-y border-slate-100">
                           Expense Categories
                         </div>
                         {expenseCategoriesOnly.map(cat => (
-                          <button 
+                          <label
                             key={`exp-${cat}`}
-                            onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
-                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer ${reportFilterCategories.includes(cat) ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
                           >
+                            <input
+                              type="checkbox"
+                              checked={reportFilterCategories.includes(cat)}
+                              onChange={() => toggleReportFilterCategory(cat)}
+                              className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
                             {cat}
-                          </button>
+                          </label>
                         ))}
                       </>
                     )}
@@ -6987,7 +7018,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               </div>
 
               {/* Clear Filters */}
-              {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
+              {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategories.length > 0 || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
                 <button 
                   onClick={clearAllFilters}
                   className="flex items-center gap-1 px-3 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors h-[45px] font-medium"
@@ -7001,22 +7032,47 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               {/* Recently Deleted Button */}
               <button 
                 onClick={() => setShowDeletedModal(true)}
-                className="h-[45px] px-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-100 transition-all flex items-center gap-1.5 ml-auto shrink-0"
+                className="h-[45px] px-3 bg-slate-50 text-slate-500 border border-slate-200 rounded-lg text-[9px] font-medium hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center gap-1.5 ml-auto shrink-0"
               >
-                <History size={14} /> Recently Deleted
+                <History size={12} /> Recently Deleted
+              </button>
+
+              {/* Export actions — bordered icons only, lift on hover */}
+              <button 
+                onClick={handleScreenshot}
+                className="h-[45px] w-[45px] flex items-center justify-center bg-white text-blue-600 border border-blue-200 rounded hover:bg-blue-50 hover:shadow-md hover:-translate-y-0.5 transition-all shrink-0"
+                title="Take Screenshot"
+              >
+                <Camera size={16} />
+              </button>
+              <button 
+                onClick={exportPDF}
+                disabled={filteredEntries.length === 0}
+                className="h-[45px] w-[45px] flex items-center justify-center bg-white text-emerald-600 border border-emerald-200 rounded hover:bg-emerald-50 hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                title="Export to PDF"
+              >
+                <FileDown size={16} />
+              </button>
+              <button 
+                onClick={exportCSV}
+                disabled={filteredEntries.length === 0}
+                className="h-[45px] w-[45px] flex items-center justify-center bg-white text-orange-500 border border-orange-200 rounded hover:bg-orange-50 hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                title="Export to CSV"
+              >
+                <FileDown size={16} />
               </button>
             </div>
           </div>
           
           {/* Totals Summary Row - Compact Stat Cards */}
           {reportApplied && (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-2.5 mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-2.5 mb-4 flex flex-wrap items-center justify-center gap-3">
               <div className="flex items-center justify-center gap-x-2.5 gap-y-[5px] flex-wrap sm:mx-auto">
                 {/* Advance Card */}
                 <div className="bg-amber-50/70 border border-amber-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
                   <span className="text-[10px] font-medium text-slate-600">Advance</span>
                   <span className="text-xs font-semibold text-emerald-600">
-                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}
+                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + effectiveAmount(a), 0))}
                   </span>
                 </div>
 
@@ -7024,7 +7080,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <div className="bg-blue-50/70 border border-blue-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
                   <span className="text-[10px] font-medium text-slate-600">Expense</span>
                   <span className="text-xs font-semibold text-rose-600">
-                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}
+                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + effectiveAmount(e), 0))}
                   </span>
                 </div>
 
@@ -7033,40 +7089,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <span className="text-[10px] font-medium text-slate-600">Cash in hand</span>
                   <span className="text-xs font-semibold text-amber-600">
                     ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                      advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                      expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                      advForReport.reduce((sum, a) => sum + effectiveAmount(a), 0) -
+                      expForReport.reduce((sum, e) => sum + effectiveAmount(e), 0)
                     )}
                   </span>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleScreenshot}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[11px] font-medium rounded hover:bg-blue-700 transition-colors"
-                  title="Take Screenshot"
-                >
-                  <Camera size={14} />
-                  Screenshot
-                </button>
-                <button 
-                  onClick={exportPDF}
-                  disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Export to PDF"
-                >
-                  <FileDown size={14} />
-                  Export PDF
-                </button>
-                <button 
-                  onClick={exportCSV}
-                  disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white text-[11px] font-medium rounded hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Export to CSV"
-                >
-                  <FileDown size={14} />
-                  Export CSV
-                </button>
               </div>
             </div>
           )}
@@ -7078,9 +7105,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           )}
           
           {/* Reports Container for Screenshot */}
-          <div ref={reportsContainerRef} className="space-y-4 font-['Inter',sans-serif]">
+          <div ref={reportsContainerRef} className="space-y-4 font-['Inter',sans-serif] w-fit max-w-full">
             <div className="w-full max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
-              <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2 gap-4">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2 gap-4 w-full">
                 <div className="flex items-center gap-2">
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-800">Advance & Expense Register</h3>
                   {reportApplied && (
@@ -7112,13 +7139,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       )}
                       <th className="w-[85px] border-r border-slate-200 px-2 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Date</th>
                       {reportSelectedEmployees.length === 0 && (
-                        <th className="min-w-[130px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Employee</th>
+                        <th className="w-[130px] max-w-[130px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Employee</th>
                       )}
-                      <th className="min-w-[170px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Category</th>
-                      <th className="min-w-[190px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Remarks</th>
-                      <th className="min-w-[125px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-emerald-700 whitespace-nowrap">Advance</th>
-                      <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-right text-[10px] font-bold uppercase tracking-tight text-rose-700 whitespace-nowrap">Expense</th>
-                      <th className="w-[85px] px-2 py-1 text-center text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Actions</th>
+                        <th className="min-w-[140px] max-w-[170px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700">Category</th>
+                        <th className="min-w-[150px] max-w-[200px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700">Remarks</th>
+                      <th className="w-[90px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-emerald-700 whitespace-nowrap">Advance</th>
+                      <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-rose-700 whitespace-nowrap">Expense</th>
+                      <th className="w-[85px] border-r border-slate-200 px-2 py-1 text-center text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -7135,10 +7162,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         const displayEmployeeName = reportDetails.displayEmployeeName || entry.employeeName || '—'
                         const displayGivenBy = reportDetails.displayGivenBy || entry.givenByEmployeeName || null
                         const displayCategory = reportDetails.displayCategory || entry.category || entry.type || '—'
+                        const rawRemarks = String(reportDetails.displayRemarks || entry.remarks || entry.reason || '')
+                        const cashPaidMatch = rawRemarks.match(/^Cash paid from\s+.+?\s+-\s+(.*)$/i)
+                        const displayRemarks = cashPaidMatch ? cashPaidMatch[1] : (rawRemarks || '—')
                         return (
                           <tr
                             key={entry.id}
-                            className={`border-b border-slate-200 text-slate-700 transition-colors h-7 ${
+                            className={`border-b border-slate-200 text-slate-700 transition-colors h-7 group ${
                               isAdvance ? 'hover:bg-emerald-50/30' : 'hover:bg-rose-50/30'
                             } odd:bg-white even:bg-slate-50/40`}
                           >
@@ -7161,17 +7191,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               {formatReportDate(entry.date)}
                             </td>
                             {reportSelectedEmployees.length === 0 && (
-                              <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-800 whitespace-nowrap" title={displayEmployeeName}>
+                              <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-800 w-[130px] max-w-[130px] truncate" title={displayEmployeeName}>
                                 {displayEmployeeName}
                               </td>
                             )}
-                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] text-slate-600 whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span className="font-semibold text-slate-800">{displayCategory}</span>
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] text-slate-600 max-w-[170px] align-top" title={`${displayCategory}${displayGivenBy ? ` (Given by ${displayGivenBy})` : ''}`}>
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                <span className="font-semibold text-slate-800 break-words">{displayCategory}</span>
                                 {isAdvance ? (
                                   <>
                                     {displayGivenBy && (
-                                      <span className="text-[10px] text-blue-700 font-medium whitespace-nowrap">
+                                      <span className="text-[10px] text-blue-700 font-medium break-words">
                                         (Given by {displayGivenBy})
                                       </span>
                                     )}
@@ -7181,17 +7211,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     {(entry.paidToName || entry.paidToCustomName) &&
                                       ((entry.category && entry.category.toLowerCase().includes('given to others')) ||
                                         (entry.paidToName || entry.paidToCustomName) !== entry.employeeName) && (
-                                        <span className="text-[10px] text-blue-700 font-medium whitespace-nowrap">
+                                        <span className="text-[10px] text-blue-700 font-medium break-words">
                                           ({entry.employeeName} &rarr; {entry.paidToName || entry.paidToCustomName})
                                         </span>
                                       )}
                                     {entry.siteName && (
-                                      <span className="text-[10px] text-emerald-700 font-medium whitespace-nowrap">
+                                      <span className="text-[10px] text-emerald-700 font-medium break-words">
                                         [Site: {entry.siteName}]
                                       </span>
                                     )}
                                     {(entry.vehicleNo || entry.vehicleNumber) && (
-                                      <span className="text-[10px] text-blue-700 font-medium whitespace-nowrap">
+                                      <span className="text-[10px] text-blue-700 font-medium break-words">
                                         [Veh: {entry.vehicleName ? `${entry.vehicleName} - ${entry.vehicleNo}` : (entry.vehicleNo || entry.vehicleNumber)}]
                                       </span>
                                     )}
@@ -7199,49 +7229,45 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 )}
                               </div>
                             </td>
-                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-700 whitespace-nowrap max-w-[260px] truncate" title={reportDetails.displayRemarks || entry.remarks || entry.reason || ''}>
-                              {reportDetails.displayRemarks || entry.remarks || entry.reason || '—'}
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-700 max-w-[200px] align-top break-words" title={displayRemarks}>
+                              {displayRemarks}
                             </td>
-                            <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums whitespace-nowrap">
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] tabular-nums whitespace-nowrap text-left">
                               {isAdvance ? (
-                                <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                  {entry.recoveryType === 'loan' ? (
-                                    <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200" title="Recovered via Monthly Loan EMI">
-                                      Loan EMI
-                                    </span>
-                                  ) : (
-                                    <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1 py-0.2 rounded" title={`Payroll deduction month: ${formatMonthLabel(getAdvanceDeductionMonth(entry))}`}>
-                                      {formatMonthLabel(getAdvanceDeductionMonth(entry))}
-                                    </span>
-                                  )}
-                                  {(displayGivenBy || (entry.paidByName && entry.paidByName.toLowerCase().trim() !== String(entry.employeeName || '').toLowerCase().trim())) && (
-                                    <span className="text-[9px] text-slate-400 font-normal">
-                                      ({displayGivenBy ? `by ${displayGivenBy}` : entry.paidByName})
-                                    </span>
-                                  )}
+                                <div className="flex flex-col items-start gap-0.5">
                                   <span className="text-emerald-700 font-semibold">
                                     {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                                      entry.amount
+                                      effectiveAmount(entry)
                                     )}
                                   </span>
+                                  {(entry.recoveryType === 'loan' || displayGivenBy || (entry.paidByName && entry.paidByName.toLowerCase().trim() !== String(entry.employeeName || '').toLowerCase().trim())) && (
+                                    <span className="text-[9px] text-slate-400 font-normal leading-tight">
+                                      {entry.recoveryType === 'loan' && (
+                                        <span className="mr-1 font-semibold text-purple-700" title="Recovered via Monthly Loan EMI">Loan EMI</span>
+                                      )}
+                                      {(displayGivenBy || (entry.paidByName && entry.paidByName.toLowerCase().trim() !== String(entry.employeeName || '').toLowerCase().trim())) && (
+                                        <span>({displayGivenBy ? `by ${displayGivenBy}` : entry.paidByName})</span>
+                                      )}
+                                    </span>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-slate-300 font-normal">—</span>
                               )}
                             </td>
-                            <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums whitespace-nowrap">
+                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] tabular-nums whitespace-nowrap text-left">
                               {!isAdvance ? (
                                 <span className="text-rose-700 font-semibold">
                                   {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                                    entry.amount
+                                    effectiveAmount(entry)
                                   )}
                                 </span>
                               ) : (
                                 <span className="text-slate-300 font-normal">—</span>
                               )}
                             </td>
-                            <td className="px-1.5 py-1 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+                            <td className="border-r border-slate-200 px-1.5 py-1 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                                 {isAdvance && entry.recoveryType !== 'loan' && (
                                   <>
                                     <button
@@ -7316,17 +7342,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           Total ({reportUnifiedRows.length} {reportUnifiedRows.length === 1 ? 'record' : 'records'})
                         </td>
                         <td className="border-r border-slate-200 px-2.5 py-1 whitespace-nowrap"></td>
-                        <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums font-bold text-emerald-700 whitespace-nowrap">
+                        <td className="border-r border-slate-200 px-2.5 py-1 text-left text-[10px] tabular-nums font-bold text-emerald-700 whitespace-nowrap">
                           ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                            reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Advance').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+                            reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Advance').reduce((sum, r) => sum + effectiveAmount(r), 0)
                           )}
                         </td>
-                        <td className="border-r border-slate-200 px-2.5 py-1 text-right text-[10px] tabular-nums font-bold text-rose-700 whitespace-nowrap">
+                        <td className="border-r border-slate-200 px-2.5 py-1 text-left text-[10px] tabular-nums font-bold text-rose-700 whitespace-nowrap">
                           ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                            reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Expense').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+                            reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Expense').reduce((sum, r) => sum + effectiveAmount(r), 0)
                           )}
                         </td>
-                        <td className="px-1.5 py-1 text-center whitespace-nowrap"></td>
+                        <td className="border-r border-slate-200 px-1.5 py-1 text-center whitespace-nowrap"></td>
                       </tr>
                     </tfoot>
                   )}
