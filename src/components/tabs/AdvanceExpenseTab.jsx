@@ -7017,17 +7017,31 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 )}
               </div>
 
-              {/* Clear Filters */}
-              {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategories.length > 0 || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
-                <button 
-                  onClick={clearAllFilters}
-                  className="flex items-center gap-1 px-3 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors h-[45px] font-medium"
-                  title="Clear all filters"
-                >
-                  <X size={14} />
-                  Clear
-                </button>
-              )}
+              {/* Clear Filters — only when a filter differs from defaults */}
+              {(() => {
+                const hasActiveFilters =
+                  reportFromDate !== firstDayOfMonth ||
+                  reportToDate !== today ||
+                  reportMonth !== new Date().toISOString().slice(0, 7) ||
+                  reportSelectedEmployees.length > 0 ||
+                  reportFilterCategories.length > 0 ||
+                  !!reportFilterRemarks ||
+                  !!reportFilterTxn ||
+                  reportFilterType !== 'All' ||
+                  reportFilterPayout !== 'All' ||
+                  !!reportFilterProject
+                if (!hasActiveFilters) return null
+                return (
+                  <button 
+                    onClick={clearAllFilters}
+                    className="flex items-center gap-1 px-3 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors h-[45px] font-medium"
+                    title="Clear all filters"
+                  >
+                    <X size={14} />
+                    Clear
+                  </button>
+                )
+              })()}
 
               {/* Recently Deleted Button */}
               <button 
@@ -7064,39 +7078,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
           </div>
           
-          {/* Totals Summary Row - Compact Stat Cards */}
-          {reportApplied && (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-2.5 mb-4 flex flex-wrap items-center justify-center gap-3">
-              <div className="flex items-center justify-center gap-x-2.5 gap-y-[5px] flex-wrap sm:mx-auto">
-                {/* Advance Card */}
-                <div className="bg-amber-50/70 border border-amber-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
-                  <span className="text-[10px] font-medium text-slate-600">Advance</span>
-                  <span className="text-xs font-semibold text-emerald-600">
-                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + effectiveAmount(a), 0))}
-                  </span>
-                </div>
-
-                {/* Expense Card */}
-                <div className="bg-blue-50/70 border border-blue-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
-                  <span className="text-[10px] font-medium text-slate-600">Expense</span>
-                  <span className="text-xs font-semibold text-rose-600">
-                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + effectiveAmount(e), 0))}
-                  </span>
-                </div>
-
-                {/* Cash in hand Card */}
-                <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
-                  <span className="text-[10px] font-medium text-slate-600">Cash in hand</span>
-                  <span className="text-xs font-semibold text-amber-600">
-                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                      advForReport.reduce((sum, a) => sum + effectiveAmount(a), 0) -
-                      expForReport.reduce((sum, e) => sum + effectiveAmount(e), 0)
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
           {canSelectAll && selectedVisibleReportCount > 0 && (
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-rose-100 bg-rose-50/60 px-4 py-3">
               <p className="text-xs font-semibold text-rose-800">{selectedVisibleReportCount} report record{selectedVisibleReportCount === 1 ? '' : 's'} selected</p>
@@ -7116,7 +7097,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {reportApplied && (
+                    <>
+                      <div className="bg-amber-50/70 border border-amber-200/70 rounded-lg px-2.5 py-[3px] flex flex-col justify-center">
+                        <span className="text-[9px] font-medium text-slate-600">Advance</span>
+                        <span className="text-[11px] font-semibold text-emerald-600">
+                          ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + effectiveAmount(a), 0))}
+                        </span>
+                      </div>
+                      <div className="bg-blue-50/70 border border-blue-200/70 rounded-lg px-2.5 py-[3px] flex flex-col justify-center">
+                        <span className="text-[9px] font-medium text-slate-600">Expense</span>
+                        <span className="text-[11px] font-semibold text-rose-600">
+                          ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + effectiveAmount(e), 0))}
+                        </span>
+                      </div>
+                      <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-lg px-2.5 py-[3px] flex flex-col justify-center">
+                        <span className="text-[9px] font-medium text-slate-600">Cash in hand</span>
+                        <span className="text-[11px] font-semibold text-amber-600">
+                          ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                            advForReport.reduce((sum, a) => sum + effectiveAmount(a), 0) -
+                            expForReport.reduce((sum, e) => sum + effectiveAmount(e), 0)
+                          )}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                     {reportUnifiedRows.length} Records
                   </span>
