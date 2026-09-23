@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
-import { SubTabsNav } from '../ui/SubTabsNav'
+import { ModulePillTabs } from '../ui/ModulePillTabs'
 import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight, Table } from 'lucide-react'
 import { getDocs, collection, query, where, setDoc, doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
@@ -421,13 +421,14 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
       {/* Main Tabs Navigation */}
       {!hideMainTabs && (
         <div>
-          <SubTabsNav
+          <ModulePillTabs
             tabs={[
               { id: 'summary', label: 'Summary' },
               { id: 'monthlyView', label: 'Full Summary' },
             ]}
             activeTabId={activeMainTab}
             onTabChange={(tab) => setActiveMainTab(tab.id)}
+            ariaLabel="Summary sections"
           />
         </div>
       )}

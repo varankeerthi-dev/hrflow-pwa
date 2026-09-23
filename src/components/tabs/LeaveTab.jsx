@@ -26,7 +26,7 @@ import {
   PencilLine
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
-import { SubTabsNav } from '../ui/SubTabsNav'
+import { ModulePillTabs } from '../ui/ModulePillTabs'
 
 const formatLeaveDate = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || '—'
@@ -213,23 +213,35 @@ export default function LeaveTab() {
         <p className="text-[12px] md:text-[13px] text-slate-500">Manage employee absence requests, approvals, and leave activity.</p>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-3 md:px-4 md:py-3 rounded-[12px] border border-gray-100 shadow-sm">
-        <SubTabsNav
-          tabs={subNav}
-          activeTabId={activeSub}
-          onTabChange={(tab) => setActiveSub(tab.id)}
-        />
-        <button 
-          onClick={() => {
-            setActiveSub('dashboard')
-            setShowInlineForm(!showInlineForm)
-          }}
-          className={`w-full md:w-auto inline-flex items-center justify-center rounded-lg text-[12px] font-semibold transition-colors h-10 px-4 ${showInlineForm ? 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}
-        >
-          {showInlineForm ? <X size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
-          {showInlineForm ? 'Cancel Application' : 'New Application'}
-        </button>
-      </div>
+      <ModulePillTabs
+        className="w-full"
+        tabs={subNav}
+        activeTabId={activeSub}
+        onTabChange={(tab) => setActiveSub(tab.id)}
+        ariaLabel="Leave sections"
+        rightContent={(
+          <button
+            onClick={() => {
+              setActiveSub('dashboard')
+              setShowInlineForm(!showInlineForm)
+            }}
+            className={`hidden md:inline-flex shrink-0 items-center justify-center rounded-lg text-[12px] font-semibold transition-colors h-8 px-3 ${showInlineForm ? 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}
+          >
+            {showInlineForm ? <X size={14} className="mr-1.5" /> : <PlusCircle size={14} className="mr-1.5" />}
+            {showInlineForm ? 'Cancel' : 'New Application'}
+          </button>
+        )}
+      />
+      <button
+        onClick={() => {
+          setActiveSub('dashboard')
+          setShowInlineForm(!showInlineForm)
+        }}
+        className={`md:hidden w-full inline-flex items-center justify-center rounded-lg text-[12px] font-semibold transition-colors h-10 px-4 ${showInlineForm ? 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}
+      >
+        {showInlineForm ? <X size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
+        {showInlineForm ? 'Cancel Application' : 'New Application'}
+      </button>
 
       {activeSub === 'dashboard' && (
         <div className="space-y-6">

@@ -30,7 +30,7 @@ import {
   Clock
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
-import { FleetVehicleSubTabs } from '../ui/FleetVehicleSubTabs'
+import { ModulePillTabs } from '../ui/ModulePillTabs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
@@ -315,7 +315,8 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
     <div className="fleet-vehicle-shell flex h-full flex-col selection:bg-emerald-100 selection:text-emerald-950">
 
 
-      <FleetVehicleSubTabs
+      <ModulePillTabs
+        className="mx-4 mt-3"
         tabs={[
           { id: 'mileage-tracker', label: 'Mileage Tracker' },
           { id: 'all-vehicles', label: 'Vehicle list' },
@@ -323,6 +324,7 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
         ]}
         activeTabId={activeSubTab}
         onTabChange={(tab) => setActiveSubTab(tab.id)}
+        ariaLabel="Vehicle sections"
       />
 
       {activeSubTab === 'mileage-tracker' ? (
