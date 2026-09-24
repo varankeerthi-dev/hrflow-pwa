@@ -37,8 +37,12 @@ import {
   Menu,
   MessageSquare,
   Car,
-  LifeBuoy
+  LifeBuoy,
+  Bell,
+  BellRing,
+  BellOff
 } from 'lucide-react'
+import { useTaskNotifications } from '../hooks/useTaskNotifications'
 
 import HomeTab from '../components/tabs/HomeTab'
 import AttendanceTab from '../components/tabs/AttendanceTab'
@@ -192,16 +196,23 @@ function StatCard({ icon, label, value, color }) {
   )
 }
 
-function MenuCard({ icon, label, onClick, color }) {
+function MenuCard({ icon, label, onClick, color, badge }) {
   return (
     <button 
       onClick={onClick}
-      className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all duration-200 hover:shadow-md hover:border-indigo-100"
+      className="flex flex-col items-center justify-start gap-1.5 p-1 active:scale-90 transition-transform group text-center"
     >
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${color} shadow-sm`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} bg-white shadow-xs border border-gray-100 group-hover:border-indigo-100 group-hover:shadow-sm transition-all relative [&>svg]:w-5 [&>svg]:h-5`}>
         {icon}
+        {badge ? (
+          <span className="absolute -top-1 -right-1 px-1 min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
+            {badge}
+          </span>
+        ) : null}
       </div>
-      <span className="text-[11px] font-semibold text-gray-700 text-center">{label}</span>
+      <span className="text-[11px] font-medium text-gray-700 leading-tight line-clamp-2 max-w-[76px]">
+        {label}
+      </span>
     </button>
   )
 }
@@ -268,6 +279,25 @@ export default function MobileDashboard() {
     const normalizedEmail = user.email.toLowerCase().trim()
     return employees.find(e => e.id === user.employeeId || [e.email, e.personalEmail, e.workEmail].some(email => email?.toLowerCase().trim() === normalizedEmail) || e.id === user.uid) || null
   }, [employees, user])
+
+  // PWA Mobile Push Notifications for Task Assignments & Team Tasks
+  const {
+    permission: notifPermission,
+    isPWA,
+    isSupported: isNotifSupported,
+    requestPermission: requestNotifPermission,
+    sendTestNotification
+  } = useTaskNotifications(user, currentEmployee)
+
+  const [dismissNotifBanner, setDismissNotifBanner] = useState(false)
+  const [notifToast, setNotifToast] = useState(null)
+
+  useEffect(() => {
+    if (notifToast) {
+      const timer = setTimeout(() => setNotifToast(null), 3500)
+      return () => clearTimeout(timer)
+    }
+  }, [notifToast])
 
     const allModules = useMemo(() => [
       // Core modules in order
@@ -424,6 +454,44 @@ export default function MobileDashboard() {
 
   const renderHomeDashboard = () => (
     <div className="p-4 space-y-4">
+      {/* PWA Push Notification Permission Prompt Banner */}
+      {isNotifSupported && notifPermission === 'default' && !dismissNotifBanner && (
+        <div className="bg-gradient-to-r from-indigo-50/95 to-blue-50/95 border border-indigo-100 rounded-2xl p-3.5 shadow-xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Bell size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800 font-heading">Enable Task Push Notifications</p>
+                <p className="text-[11px] text-slate-600 leading-tight">Get alerts when tasks are assigned to you or created for your team</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button 
+                onClick={async () => {
+                  const res = await requestNotifPermission()
+                  if (res === 'granted') {
+                    setNotifToast('✅ Push notifications active! Test alert sent.')
+                    await sendTestNotification()
+                  }
+                }}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-bold font-heading shadow-xs transition-all"
+              >
+                Enable
+              </button>
+              <button 
+                onClick={() => setDismissNotifBanner(true)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                aria-label="Dismiss banner"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2">
         <StatCard 
           icon={<Users size={16} className="text-blue-600" />} 
@@ -466,13 +534,29 @@ export default function MobileDashboard() {
       </div>
 
       <div>
-        <h3 className="text-sm font-bold text-gray-800 mb-2 px-1">Modules</h3>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex items-center justify-between mb-2.5 px-1">
+          <h3 className="text-sm font-bold text-gray-800 font-heading">Modules</h3>
+          {isNotifSupported && notifPermission === 'granted' && (
+            <button
+              onClick={async () => {
+                setNotifToast('🔔 Test notification sent to this device!')
+                await sendTestNotification()
+              }}
+              title="Push notifications active. Click to test on this device."
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 hover:bg-emerald-100 transition-colors"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Push Active (Test)
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-4 gap-y-4 gap-x-1 sm:grid-cols-4">
           {visibleModules.map((mod) => (
             <MenuCard 
               key={mod.id}
               icon={mod.icon}
               label={mod.label}
+              badge={mod.badge}
               onClick={() => setActiveTab(mod.id)}
               color={mod.color}
             />
@@ -630,16 +714,60 @@ export default function MobileDashboard() {
               {getCurrentModuleLabel()}
             </span>
           </div>
-          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hover:bg-indigo-50 p-2 rounded-xl transition-colors">
-            {currentEmployee?.photoURL ? (
-              <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md">
-                {getInitials(user?.name)}
-              </div>
+          <div className="flex items-center gap-1">
+            {isNotifSupported && (
+              <button 
+                onClick={async () => {
+                  if (notifPermission === 'default') {
+                    const res = await requestNotifPermission()
+                    if (res === 'granted') {
+                      setNotifToast('✅ Push notifications active! Test sent.')
+                      await sendTestNotification()
+                    }
+                  } else if (notifPermission === 'granted') {
+                    setNotifToast('🔔 Test notification sent to this device!')
+                    await sendTestNotification()
+                  } else if (notifPermission === 'denied') {
+                    setNotifToast('⚠️ Notifications are blocked in device browser settings.')
+                  }
+                }}
+                title={notifPermission === 'granted' ? 'Push notifications active (tap to test)' : 'Enable push notifications'}
+                className="relative p-2 rounded-xl text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 active:scale-90 transition-all"
+                aria-label="Task Notifications"
+              >
+                {notifPermission === 'granted' ? (
+                  <>
+                    <BellRing size={19} className="text-indigo-600" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                  </>
+                ) : notifPermission === 'denied' ? (
+                  <BellOff size={19} className="text-slate-400" />
+                ) : (
+                  <>
+                    <Bell size={19} className="text-slate-600" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-white"></span>
+                  </>
+                )}
+              </button>
             )}
-          </button>
+            <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hover:bg-indigo-50 p-1.5 rounded-xl transition-colors">
+              {currentEmployee?.photoURL ? (
+                <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md">
+                  {getInitials(user?.name)}
+                </div>
+              )}
+            </button>
+          </div>
         </header>
+
+        {/* Notification Toast Alert */}
+        {notifToast && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-slate-900/90 backdrop-blur-xs text-white text-xs font-semibold rounded-full shadow-xl border border-slate-700/60 animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-none">
+            {notifToast}
+          </div>
+        )}
 
         {/* Desktop Header / Breadcrumb */}
         <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white/80 backdrop-blur-md border-b border-gray-200/80 shrink-0 shadow-sm">

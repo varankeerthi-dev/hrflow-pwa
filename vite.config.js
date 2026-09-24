@@ -25,6 +25,7 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 10485760, // 10MB
         cleanupOutdatedCaches: true,
+        importScripts: ['sw-push.js'],
       },
       manifest: {
         name: 'HRFlow',

@@ -9,11 +9,14 @@ import { registerSW } from 'virtual:pwa-register'
 
 const queryClient = new QueryClient()
 
-// Explicit registration is required for Vite PWA auto-updates to activate and
-// reload clients after a deploy. Without it, an older cached index can request
-// deleted hashed chunks and receive the SPA HTML fallback instead of JavaScript.
+// Explicit registration is required for Vite PWA auto-updates and mobile push notifications.
 if (import.meta.env.PROD) {
   registerSW({ immediate: true })
+} else if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  // In development, register sw-push.js directly so push notification testing works on mobile dev server
+  navigator.serviceWorker.register('/sw-push.js', { scope: '/' }).catch((err) => {
+    console.log('Dev SW registration note:', err?.message)
+  })
 }
 
 const UpdateChecker = () => {
