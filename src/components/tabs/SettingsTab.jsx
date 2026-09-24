@@ -237,6 +237,7 @@ function createEmployeeFormState() {
     hideInAttendance: false,
     includeInSalary: true,
     includeInTask: true,
+    assignInTask: true,
     regularInTime: '',
     regularOutTime: '',
   }
@@ -1452,9 +1453,15 @@ export default function SettingsTab({ initialSubTab }) {
     const hasWorkEmail = employee.workEmail && employee.workEmail.trim()
     const hasLegacyEmail = employee.email && employee.email.trim()
 
+    const isTaskAllowed = employee.includeInTask !== undefined 
+      ? employee.includeInTask 
+      : (employee.assignInTask !== undefined ? employee.assignInTask : true)
+
     return {
       ...createEmployeeFormState(),
       ...employee,
+      includeInTask: isTaskAllowed,
+      assignInTask: isTaskAllowed,
       personalEmail: hasPersonalEmail ? employee.personalEmail : (hasLegacyEmail ? employee.email : ''),
       workEmail: hasWorkEmail ? employee.workEmail : '',
       loginEmailType: hasPersonalEmail ? employee.loginEmailType || 'personal' : (hasLegacyEmail ? 'personal' : 'work'),
@@ -6784,23 +6791,26 @@ export default function SettingsTab({ initialSubTab }) {
                   </button>
                 </div>
 
-                {/* Include in Task Toggle */}
+                {/* Assign in Task Toggle */}
                 <div className="flex items-center justify-between bg-sky-50/50 p-3.5 rounded-xl border border-sky-100/60">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
                       <AtSign size={16} />
                     </div>
                     <div className="pr-2">
-                      <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
+                      <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Assign in Task</label>
                       <p className="text-[10px] text-indigo-600 leading-tight">Allow mentions and assignments in Tasks</p>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setEditForm(s => ({ ...s, includeInTask: !s.includeInTask }))}
-                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                    onClick={() => setEditForm(s => {
+                      const nextVal = s.includeInTask !== false && s.assignInTask !== false ? false : true
+                      return { ...s, includeInTask: nextVal, assignInTask: nextVal }
+                    })}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInTask !== false && editForm.assignInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInTask !== false && editForm.assignInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
 
@@ -7498,23 +7508,26 @@ export default function SettingsTab({ initialSubTab }) {
                 </button>
               </div>
 
-              {/* Include in Task Toggle */}
+              {/* Assign in Task Toggle */}
               <div className="flex items-center justify-between bg-sky-50/50 p-3.5 rounded-xl border border-sky-100/60">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
                     <AtSign size={16} />
                   </div>
                   <div className="pr-2">
-                    <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
+                    <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Assign in Task</label>
                     <p className="text-[10px] text-indigo-600 leading-tight">Allow mentions and assignments in Tasks</p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setNewEmployee(s => ({ ...s, includeInTask: !s.includeInTask }))}
-                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                  onClick={() => setNewEmployee(s => {
+                    const nextVal = s.includeInTask !== false && s.assignInTask !== false ? false : true
+                    return { ...s, includeInTask: nextVal, assignInTask: nextVal }
+                  })}
+                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInTask !== false && newEmployee.assignInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInTask !== false && newEmployee.assignInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
 

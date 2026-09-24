@@ -23,6 +23,7 @@ import {
 import { format, isToday, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
+import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 import Modal from './ui/Modal'
 
 const STATUSES = [
@@ -76,7 +77,11 @@ export default function MobileTasksView() {
   })
 
   const taskEmployees = useMemo(() => {
-    return employees.filter(emp => emp.includeInTask !== false)
+    return employees.filter(emp => {
+      if (emp.includeInTask === false || emp.assignInTask === false) return false
+      if (emp.status && !isEmployeeActiveStatus(emp.status)) return false
+      return true
+    })
   }, [employees])
 
   const filteredTasks = useMemo(() => {
