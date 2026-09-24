@@ -4941,33 +4941,33 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           )}
         </div>
 
-        {/* Mobile Navigation - 5 Toggle Buttons in Single Row */}
+        {/* Mobile Navigation - Toggle Buttons in Single Row */}
         <div className="md:hidden">
-          <div className="flex items-center justify-between px-2 py-2 gap-1 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-1.5 px-2.5 py-2 overflow-x-auto scrollbar-hide">
             {modules.map(mod => {
               const isActive = activeModule === mod
               const getMobileColors = () => {
-                if (!isActive) return 'bg-white/60 text-gray-600 border-gray-200/60 hover:bg-gray-50/80'
-                if (mod === 'Add Advance') return 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
-                if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25'
-                if (mod === 'Cash Summary' || mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/25'
-                return 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/25'
+                if (!isActive) return 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
+                if (mod === 'Add Advance') return 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20'
+                if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                if (mod === 'Cash Summary' || mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                return 'bg-indigo-500 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
               }
 
-              const getShortLabel = () => {
-                if (mod === 'Add Advance') return 'Adv'
-                if (mod === 'Add Expense') return 'Exp'
-                if (mod === 'Cash Summary' || mod === 'Summary') return 'Cash Sum'
-                return 'Rep'
+              const getFullLabel = () => {
+                if (mod === 'Add Advance') return 'Advances'
+                if (mod === 'Add Expense') return 'Expenses'
+                if (mod === 'Cash Summary' || mod === 'Summary') return 'Cash Summary'
+                return mod
               }
 
               return (
                 <button
                   key={mod}
                   onClick={() => setActiveModule(mod)}
-                  className={`flex-shrink-0 px-3 py-2.5 rounded-xl text-xs font-bold border backdrop-blur-sm transition-all duration-200 ${getMobileColors()}`}
+                  className={`flex-1 min-w-[70px] whitespace-nowrap px-2.5 py-2 rounded-xl text-xs font-bold font-heading border backdrop-blur-sm transition-all duration-200 text-center active:scale-95 ${getMobileColors()}`}
                 >
-                  {getShortLabel()}
+                  {getFullLabel()}
                 </button>
               )
             })}
@@ -5093,9 +5093,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     />
                   </div>
 
-                  {/* Paid From */}
+                  {/* Paid From (Desktop) */}
                   {showSessionAccount && !portalMode && (
-                  <>
                     <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
                       <select
@@ -5108,19 +5107,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         ))}
                       </select>
                     </div>
-                    <div className="order-4 md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
-                      <Dropdown
-                        value={sessionAccount}
-                        onChange={setSessionAccount}
-                        options={companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS}
-                        size="sm"
-                        className="min-w-0 flex-1"
-                        panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-                        mobileMenu
-                      />
-                    </div>
-                  </>
                   )}
 
                   {/* Default Employee */}
@@ -5195,11 +5181,38 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
                   )}
 
-                  {/* Reset / Restore Session Button (Moved Next to Payout) */}
+                  {/* Account & Reset Row (Mobile: Account fills space, Reset is icon button at end) */}
+                  <div className="order-4 col-span-2 md:hidden flex items-center gap-2 w-full">
+                    {showSessionAccount && !portalMode && (
+                      <div className="flex-1 min-w-0 flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
+                        <Dropdown
+                          value={sessionAccount}
+                          onChange={setSessionAccount}
+                          options={companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS}
+                          size="sm"
+                          className="min-w-0 flex-1"
+                          panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                          mobileMenu
+                        />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleClearSession}
+                      className="h-10 w-10 shrink-0 flex items-center justify-center text-slate-500 hover:text-slate-800 bg-white rounded-xl border border-slate-200 shadow-sm transition-all active:scale-90 cursor-pointer"
+                      title="Reset / Clear Session"
+                      aria-label="Reset Session"
+                    >
+                      <RotateCcw size={16} className="text-slate-600" />
+                    </button>
+                  </div>
+
+                  {/* Reset / Restore Session Button (Desktop) */}
                   <button
                     type="button"
                     onClick={handleClearSession}
-                    className="order-5 col-span-1 w-full justify-self-stretch p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-colors h-10 flex items-center justify-center bg-white px-3 gap-1.5 cursor-pointer md:order-none md:col-span-1 md:w-auto md:justify-self-auto"
+                    className="hidden md:flex items-center justify-center gap-1.5 h-10 px-3 bg-white text-slate-500 hover:text-slate-800 rounded-xl border border-slate-200 shadow-sm transition-colors cursor-pointer"
                     title="Reset / Clear Session"
                   >
                     <RotateCcw size={14} className="text-slate-500" />
@@ -5209,10 +5222,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 4. Expenses Table Header & Controls Bar */}
                 <div className="bg-white rounded-[12px] border border-slate-200/90 overflow-hidden shadow-sm">
-                <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40 relative z-20">
+                <div className="px-3 py-2 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40 relative z-20">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-base font-bold text-slate-900">
-                      {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} <span className="text-slate-500 font-medium text-sm">({addRows.length} rows)</span>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                      {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} <span className="text-slate-500 font-medium text-xs sm:text-sm">({addRows.length} rows)</span>
                     </h2>
                   </div>
 
@@ -5223,7 +5236,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         ref={advanceFieldsButtonRef}
                         type="button"
                         onClick={toggleAdvanceFieldsDropdown}
-                        className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                        className={`flex items-center justify-center gap-2 text-xs font-semibold h-8 w-8 sm:h-auto sm:w-auto p-0 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer ${
                           showAdvanceFields || showProjectColumn || (!portalMode && (!showSessionEmployee || !showSessionAccount || !showSessionPayout))
                             ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -5231,7 +5244,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       >
                         <SlidersHorizontal size={13} className="hidden md:block" />
                         <span className="hidden md:inline">Columns / Options</span>
-                        <MoreVertical size={18} className="md:hidden" aria-hidden="true" />
+                        <MoreVertical size={16} className="md:hidden" aria-hidden="true" />
                         <ChevronDown size={13} className={`hidden md:block transition-transform duration-150 ${showAdvanceFieldsDropdown ? 'rotate-180' : ''}`} />
                         <span className="sr-only">Columns and options</span>
                       </button>
