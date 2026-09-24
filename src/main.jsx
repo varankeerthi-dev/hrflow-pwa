@@ -11,7 +11,27 @@ const queryClient = new QueryClient()
 
 // Explicit registration is required for Vite PWA auto-updates and mobile push notifications.
 if (import.meta.env.PROD) {
-  registerSW({ immediate: true })
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      // Automatically activate new service worker and reload to ensure mobile PWA never gets stuck on stale cache
+      console.log('New PWA version detected, updating immediately...')
+      updateSW(true)
+    },
+    onOfflineReady() {
+      console.log('HRFlow PWA ready for offline use')
+    },
+    onRegisteredSW(swScriptUrl, registration) {
+      if (registration) {
+        // Automatically check for updates whenever the mobile PWA is resumed
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            registration.update().catch(() => {})
+          }
+        })
+      }
+    }
+  })
 } else if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   // In development, register sw-push.js directly so push notification testing works on mobile dev server
   navigator.serviceWorker.register('/sw-push.js', { scope: '/' }).catch((err) => {
