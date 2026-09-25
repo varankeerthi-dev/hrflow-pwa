@@ -2355,6 +2355,43 @@ export default function TasksTab({ defaultSubTab }) {
         size="4xl"
       >
         <form onSubmit={handleCreateTask} className="p-6 space-y-5 font-body">
+          {/* Multi-Assignee Selector - FIRST ENTRY */}
+          <div>
+            <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Assign To</label>
+            <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
+              {taskEmployees.map(emp => {
+                const isSelected = newTask.assignedTo?.includes(emp.id)
+                return (
+                  <button
+                    key={emp.id}
+                    type="button"
+                    onClick={() => {
+                      const current = newTask.assignedTo || []
+                      const updated = isSelected 
+                        ? current.filter(id => id !== emp.id)
+                        : [...current, emp.id]
+                      setNewTask({ ...newTask, assignedTo: updated })
+                    }}
+                    className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body ${
+                      isSelected 
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[8px] font-bold font-mono flex items-center justify-center">
+                      {getInitials(emp.name)}
+                    </div>
+                    <span>{emp.name}</span>
+                    {isSelected && <Check size={12} className="text-blue-600" />}
+                  </button>
+                )
+              })}
+              {taskEmployees.length === 0 && (
+                <p className="text-xs text-slate-400 italic py-1">No employees found</p>
+              )}
+            </div>
+          </div>
+
           {/* Title & Description */}
           <div className="space-y-4">
             <div className="relative">
@@ -2448,43 +2485,6 @@ export default function TasksTab({ defaultSubTab }) {
                 value={newTask.notes}
                 onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
               />
-            </div>
-          </div>
-
-          {/* Multi-Assignee Selector */}
-          <div>
-            <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Assign To</label>
-            <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
-              {taskEmployees.map(emp => {
-                const isSelected = newTask.assignedTo?.includes(emp.id)
-                return (
-                  <button
-                    key={emp.id}
-                    type="button"
-                    onClick={() => {
-                      const current = newTask.assignedTo || []
-                      const updated = isSelected 
-                        ? current.filter(id => id !== emp.id)
-                        : [...current, emp.id]
-                      setNewTask({ ...newTask, assignedTo: updated })
-                    }}
-                    className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body ${
-                      isSelected 
-                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[8px] font-bold font-mono flex items-center justify-center">
-                      {getInitials(emp.name)}
-                    </div>
-                    <span>{emp.name}</span>
-                    {isSelected && <Check size={12} className="text-blue-600" />}
-                  </button>
-                )
-              })}
-              {taskEmployees.length === 0 && (
-                <p className="text-xs text-slate-400 italic py-1">No employees found</p>
-              )}
             </div>
           </div>
 
@@ -2603,6 +2603,43 @@ export default function TasksTab({ defaultSubTab }) {
       >
         {editingTask && (
           <form onSubmit={handleSaveEdit} className="p-6 space-y-5 font-body">
+            {/* Multi-Assignee Selector - FIRST ENTRY */}
+            <div>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Assign To</label>
+              <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
+                {taskEmployees.map(emp => {
+                  const isSelected = editingTask.assignedTo?.includes(emp.id)
+                  return (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onClick={() => {
+                        const current = editingTask.assignedTo || []
+                        const updated = isSelected 
+                          ? current.filter(id => id !== emp.id)
+                          : [...current, emp.id]
+                        setEditingTask({ ...editingTask, assignedTo: updated })
+                      }}
+                      className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body ${
+                        isSelected 
+                          ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[8px] font-bold font-mono flex items-center justify-center">
+                        {getInitials(emp.name)}
+                      </div>
+                      <span>{emp.name}</span>
+                      {isSelected && <Check size={12} className="text-blue-600" />}
+                    </button>
+                  )
+                })}
+                {taskEmployees.length === 0 && (
+                  <p className="text-xs text-slate-400 italic py-1">No employees found</p>
+                )}
+              </div>
+            </div>
+
             {/* Title & Description */}
             <div className="space-y-4">
               <div className="relative">
@@ -2693,43 +2730,6 @@ export default function TasksTab({ defaultSubTab }) {
                   value={editingTask.notes || ''}
                   onChange={e => setEditingTask({ ...editingTask, notes: e.target.value })}
                 />
-              </div>
-            </div>
-
-            {/* Multi-Assignee Selector */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Assign To</label>
-              <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
-                {taskEmployees.map(emp => {
-                  const isSelected = editingTask.assignedTo?.includes(emp.id)
-                  return (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => {
-                        const current = editingTask.assignedTo || []
-                        const updated = isSelected 
-                          ? current.filter(id => id !== emp.id)
-                          : [...current, emp.id]
-                        setEditingTask({ ...editingTask, assignedTo: updated })
-                      }}
-                      className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body ${
-                        isSelected 
-                          ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
-                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[8px] font-bold font-mono flex items-center justify-center">
-                        {getInitials(emp.name)}
-                      </div>
-                      <span>{emp.name}</span>
-                      {isSelected && <Check size={12} className="text-blue-600" />}
-                    </button>
-                  )
-                })}
-                {taskEmployees.length === 0 && (
-                  <p className="text-xs text-slate-400 italic py-1">No employees found</p>
-                )}
               </div>
             </div>
 

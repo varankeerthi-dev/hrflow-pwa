@@ -740,6 +740,82 @@ export default function MobileTasksView() {
       >
         <form onSubmit={handleAddTask} className="flex flex-col h-full bg-white">
           <div className="flex-1 p-4 space-y-4 overflow-y-auto font-body">
+            {/* Assign To (Multi-Assignee with Search) - FIRST ENTRY */}
+            {!newTask.isPersonal ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-800 font-body">Assign To</label>
+                  {newTask.assignedTo?.length > 0 && (
+                    <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      {newTask.assignedTo.length} selected
+                    </span>
+                  )}
+                </div>
+
+                {/* Inline Search Bar */}
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search team members..."
+                    value={assigneeSearch}
+                    onChange={(e) => setAssigneeSearch(e.target.value)}
+                    className="h-8 w-full pl-8 pr-8 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                  />
+                  {assigneeSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAssigneeSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Chips Container */}
+                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50/50 border border-slate-200 rounded-xl min-h-[44px] max-h-36 overflow-y-auto">
+                  {filteredAssignees.map(emp => {
+                    const isSelected = newTask.assignedTo?.includes(emp.id)
+                    return (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => {
+                          const current = newTask.assignedTo || []
+                          const updated = isSelected 
+                            ? current.filter(id => id !== emp.id)
+                            : [...current, emp.id]
+                          setNewTask({ ...newTask, assignedTo: updated })
+                        }}
+                        className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border font-body cursor-pointer ${
+                          isSelected 
+                            ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-2xs' 
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${
+                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {getInitials(emp.name)}
+                        </div>
+                        <span className="truncate max-w-[120px]">{emp.name}</span>
+                        {isSelected && <Check size={12} className="text-blue-600 shrink-0" />}
+                      </button>
+                    )
+                  })}
+                  {filteredAssignees.length === 0 && (
+                    <p className="text-xs text-slate-400 italic py-1 w-full text-center">No matching team members</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-xl flex items-center gap-2.5 text-xs text-blue-800 font-body">
+                <User size={15} className="text-blue-600 shrink-0" />
+                <span>Personal task — automatically assigned to you.</span>
+              </div>
+            )}
+
             {/* Task Name */}
             <div>
               <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Task Title *</label>
@@ -749,7 +825,6 @@ export default function MobileTasksView() {
                 className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all font-body"
                 value={newTask.title}
                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                autoFocus
               />
             </div>
 
@@ -830,82 +905,6 @@ export default function MobileTasksView() {
                 />
               </div>
             </div>
-
-            {/* Assign To (Multi-Assignee with Search) */}
-            {!newTask.isPersonal ? (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-slate-800 font-body">Assign To</label>
-                  {newTask.assignedTo?.length > 0 && (
-                    <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                      {newTask.assignedTo.length} selected
-                    </span>
-                  )}
-                </div>
-
-                {/* Inline Search Bar */}
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search team members..."
-                    value={assigneeSearch}
-                    onChange={(e) => setAssigneeSearch(e.target.value)}
-                    className="h-8 w-full pl-8 pr-8 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
-                  />
-                  {assigneeSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setAssigneeSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Chips Container */}
-                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50/50 border border-slate-200 rounded-xl min-h-[44px] max-h-36 overflow-y-auto">
-                  {filteredAssignees.map(emp => {
-                    const isSelected = newTask.assignedTo?.includes(emp.id)
-                    return (
-                      <button
-                        key={emp.id}
-                        type="button"
-                        onClick={() => {
-                          const current = newTask.assignedTo || []
-                          const updated = isSelected 
-                            ? current.filter(id => id !== emp.id)
-                            : [...current, emp.id]
-                          setNewTask({ ...newTask, assignedTo: updated })
-                        }}
-                        className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border font-body cursor-pointer ${
-                          isSelected 
-                            ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-2xs' 
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${
-                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-                        }`}>
-                          {getInitials(emp.name)}
-                        </div>
-                        <span className="truncate max-w-[120px]">{emp.name}</span>
-                        {isSelected && <Check size={12} className="text-blue-600 shrink-0" />}
-                      </button>
-                    )
-                  })}
-                  {filteredAssignees.length === 0 && (
-                    <p className="text-xs text-slate-400 italic py-1 w-full text-center">No matching team members</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-xl flex items-center gap-2.5 text-xs text-blue-800 font-body">
-                <User size={15} className="text-blue-600 shrink-0" />
-                <span>Personal task — automatically assigned to you.</span>
-              </div>
-            )}
 
             {/* Client Tracking */}
             <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
@@ -1238,6 +1237,38 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
         </div>
 
         <div className="p-4 space-y-5 overflow-y-auto max-h-[calc(90vh-60px)] font-body">
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 uppercase font-medium">Assigned to</p>
+            <div className="flex flex-wrap gap-2">
+              {employees.map(emp => {
+                const isSelected = editedTask.assignedTo.includes(emp.id)
+                return (
+                  <button
+                    key={emp.id}
+                    onClick={() => {
+                      const updated = isSelected
+                        ? editedTask.assignedTo.filter(id => id !== emp.id)
+                        : [...editedTask.assignedTo, emp.id]
+                      setEditedTask({ ...editedTask, assignedTo: updated })
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border cursor-pointer ${
+                      isSelected 
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold' 
+                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'
+                    }`}>
+                      {emp.name.charAt(0).toUpperCase()}
+                    </div>
+                    {emp.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div>
             <input
               type="text"
@@ -1282,38 +1313,6 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                   {p.label}
                 </button>
               ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs text-gray-500 uppercase font-medium">Assigned to</p>
-            <div className="flex flex-wrap gap-2">
-              {employees.map(emp => {
-                const isSelected = editedTask.assignedTo.includes(emp.id)
-                return (
-                  <button
-                    key={emp.id}
-                    onClick={() => {
-                      const updated = isSelected
-                        ? editedTask.assignedTo.filter(id => id !== emp.id)
-                        : [...editedTask.assignedTo, emp.id]
-                      setEditedTask({ ...editedTask, assignedTo: updated })
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border cursor-pointer ${
-                      isSelected 
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold' 
-                        : 'bg-gray-100 text-gray-600 border-gray-200'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                      isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'
-                    }`}>
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
-                    {emp.name}
-                  </button>
-                )
-              })}
             </div>
           </div>
 
