@@ -19,13 +19,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
-  Search
+  Search,
+  Check,
+  Bell,
+  RotateCw,
+  FileText
 } from 'lucide-react'
 import { format, isToday, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 import Modal from './ui/Modal'
+import TaskChecklistBuilder from './tasks/TaskChecklistBuilder'
 
 const STATUSES = [
   { id: 'To Do', label: 'To Do', icon: Circle, color: 'text-gray-400', bg: 'bg-gray-50' },
@@ -36,10 +41,23 @@ const STATUSES = [
 ]
 
 const PRIORITIES = [
-  { id: 'normal', label: 'Normal', color: 'bg-gray-100 text-gray-600 border-gray-200' },
-  { id: 'high', label: 'High', color: 'bg-amber-100 text-amber-600 border-amber-200' },
-  { id: 'urgent', label: 'Urgent', color: 'bg-rose-100 text-rose-600 border-rose-200' }
+  { id: 'normal', label: 'Normal', dot: 'bg-slate-400', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+  { id: 'high', label: 'High', dot: 'bg-amber-500', color: 'bg-amber-50 text-amber-700 border-amber-300' },
+  { id: 'urgent', label: 'Urgent', dot: 'bg-rose-500', color: 'bg-rose-50 text-rose-700 border-rose-300' }
 ]
+
+const CLIENT_TYPES = [
+  { id: 'order', label: 'Order', icon: '📦', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+  { id: 'complaint', label: 'Complaint', icon: '⚠️', color: 'text-rose-700', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
+  { id: 'followup', label: 'Follow-up', icon: '📞', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' }
+]
+
+const getInitials = (name) => {
+  if (!name) return '?'
+  const parts = name.trim().split(' ')
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
 
 export default function MobileTasksView() {
   const { user } = useAuth()
@@ -62,6 +80,7 @@ export default function MobileTasksView() {
   // Task modals
   const [showAddModal, setShowAddModal] = useState(false)
   const [showTaskDetail, setShowTaskDetail] = useState(null)
+  const [assigneeSearch, setAssigneeSearch] = useState('')
   
   // Idea modal
   const [showIdeaModal, setShowIdeaModal] = useState(false)
@@ -70,12 +89,20 @@ export default function MobileTasksView() {
   
   const [newTask, setNewTask] = useState({
     title: '',
+    description: '',
     dueDate: new Date(),
     priority: 'normal',
-    assignedTo: [],
     status: 'To Do',
+    assignedTo: [],
+    notes: '',
+    clientName: '',
+    clientType: null,
     isPersonal: false,
-    category: 'task'
+    category: 'task',
+    buzzer: false,
+    repeat: { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
+    reminder: { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
+    checklists: []
   })
 
   const taskEmployees = useMemo(() => {
@@ -85,6 +112,35 @@ export default function MobileTasksView() {
       return true
     })
   }, [employees])
+
+  const filteredAssignees = useMemo(() => {
+    if (!assigneeSearch.trim()) return taskEmployees
+    const q = assigneeSearch.toLowerCase().trim()
+    return taskEmployees.filter(emp => emp.name?.toLowerCase().includes(q))
+  }, [taskEmployees, assigneeSearch])
+
+  const openAddTaskModal = (date = null) => {
+    const isPersonalTab = activeTab === 'personal'
+    setNewTask({
+      title: '',
+      description: '',
+      dueDate: date || new Date(),
+      priority: 'normal',
+      status: 'To Do',
+      assignedTo: isPersonalTab && user?.uid ? [user.uid] : [],
+      notes: '',
+      clientName: '',
+      clientType: null,
+      isPersonal: isPersonalTab,
+      category: activeTab === 'ideas' ? 'idea' : 'task',
+      buzzer: false,
+      repeat: { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
+      reminder: { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
+      checklists: []
+    })
+    setAssigneeSearch('')
+    setShowAddModal(true)
+  }
 
   const filteredTasks = useMemo(() => {
     let filtered = tasks.filter(t => t.category === 'idea' ? activeTab === 'ideas' : activeTab !== 'ideas')
@@ -128,22 +184,30 @@ export default function MobileTasksView() {
     e.preventDefault()
     if (!newTask.title.trim()) return
     
-    await addTask({
-      ...newTask,
-      isPersonal: activeTab === 'personal',
-      category: activeTab === 'ideas' ? 'idea' : 'task'
-    })
-    
-    setShowAddModal(false)
-    setNewTask({
-      title: '',
-      dueDate: new Date(),
-      priority: 'normal',
-      assignedTo: [],
-      status: 'To Do',
-      isPersonal: activeTab === 'personal',
-      category: activeTab === 'ideas' ? 'idea' : 'task'
-    })
+    try {
+      await addTask({
+        title: newTask.title.trim(),
+        description: newTask.description?.trim() || '',
+        dueDate: newTask.dueDate || null,
+        priority: newTask.priority || 'normal',
+        status: newTask.status || 'To Do',
+        assignedTo: newTask.isPersonal ? (user?.uid ? [user.uid] : []) : (newTask.assignedTo || []),
+        notes: newTask.notes?.trim() || '',
+        clientName: newTask.clientName?.trim() || '',
+        clientType: newTask.clientType || null,
+        buzzer: !!newTask.buzzer,
+        repeat: newTask.repeat || { enabled: false },
+        reminder: newTask.reminder || { enabled: false },
+        checklists: newTask.checklists || [],
+        isPersonal: !!newTask.isPersonal,
+        category: newTask.category || 'task'
+      })
+      
+      setShowAddModal(false)
+    } catch (err) {
+      console.error('Failed to create task on mobile:', err)
+      alert('Failed to create task')
+    }
   }
 
   const handleDeleteTask = async (taskId) => {
@@ -349,11 +413,8 @@ export default function MobileTasksView() {
               </div>
               <div className="flex items-center gap-1">
                 <button 
-                  onClick={() => {
-                    setNewTask({ ...newTask, dueDate: selectedDate })
-                    setShowAddModal(true)
-                  }}
-                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                  onClick={() => openAddTaskModal(selectedDate)}
+                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer"
                 >
                   <Plus size={18} />
                 </button>
@@ -362,7 +423,7 @@ export default function MobileTasksView() {
                     setSelectedDate(null)
                     setDateTasks([])
                   }}
-                  className="p-1.5 text-gray-400 hover:text-gray-600"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -430,11 +491,8 @@ export default function MobileTasksView() {
             </div>
             <p className="text-sm text-gray-500 italic mb-3">No tasks for this day</p>
             <button 
-              onClick={() => {
-                setNewTask({ ...newTask, dueDate: selectedDate })
-                setShowAddModal(true)
-              }}
-              className="w-full py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg"
+              onClick={() => openAddTaskModal(selectedDate)}
+              className="w-full py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg cursor-pointer hover:bg-indigo-100/70 transition-colors"
             >
               <Plus size={16} className="inline mr-1" />
               Add task for this day
@@ -664,9 +722,11 @@ export default function MobileTasksView() {
       </div>
 
       {/* Add Task/Idea Button */}
+      {/* Add Task/Idea Button */}
       <button 
-        onClick={() => activeTab === 'ideas' ? setShowIdeaModal(true) : setShowAddModal(true)}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-indigo-300 z-30"
+        onClick={() => activeTab === 'ideas' ? setShowIdeaModal(true) : openAddTaskModal()}
+        className="fixed bottom-20 right-4 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-300/60 z-30 transition-all cursor-pointer"
+        aria-label="Add Task or Idea"
       >
         <Plus size={28} />
       </button>
@@ -676,106 +736,290 @@ export default function MobileTasksView() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         title="New Task"
-        size="full"
+        size="2xl"
       >
         <form onSubmit={handleAddTask} className="flex flex-col h-full bg-white">
-          <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+          <div className="flex-1 p-4 space-y-4 overflow-y-auto font-body">
+            {/* Task Name */}
             <div>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Task Title *</label>
               <input
                 type="text"
-                placeholder="Task name"
-                className="w-full text-lg font-medium placeholder-gray-400 border-0 focus:ring-0 p-0"
+                placeholder="What needs to be done?"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all font-body"
                 value={newTask.title}
                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                 autoFocus
               />
             </div>
-            
-            {/* Due Date with react-datepicker */}
-            <div className="flex items-center gap-3 py-3 border-t border-gray-100">
-              <Calendar size={18} className="text-gray-400" />
-              <div className="flex-1">
-                <p className="text-xs text-gray-500 mb-1">Due date</p>
-                <DatePicker
-                  selected={newTask.dueDate}
-                  onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
-                  dateFormat="MMM d, yyyy"
-                  placeholderText="Select date"
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Description</label>
+              <textarea
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all min-h-[72px] resize-y placeholder:text-slate-400 text-slate-800 font-body"
+                placeholder="Add description, instructions, or notes..."
+                value={newTask.description}
+                onChange={e => setNewTask({ ...newTask, description: e.target.value })}
+              />
+            </div>
+
+            {/* Priority & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Priority */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Priority</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {PRIORITIES.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setNewTask({ ...newTask, priority: p.id })}
+                      className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading cursor-pointer ${
+                        newTask.priority === p.id 
+                          ? `${p.color} font-bold shadow-2xs`
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${p.dot}`} />
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Status</label>
+                <select
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
+                  value={newTask.status}
+                  onChange={e => setNewTask({ ...newTask, status: e.target.value })}
+                >
+                  {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Due Date & Internal Notes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Due Date */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Due Date</label>
+                <div className="relative">
+                  <DatePicker
+                    selected={newTask.dueDate ? (newTask.dueDate.toDate ? newTask.dueDate.toDate() : new Date(newTask.dueDate)) : null}
+                    onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
+                    placeholderText="Select due date"
+                    dateFormat="MMM d, yyyy"
+                  />
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                </div>
+              </div>
+
+              {/* Internal Notes */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Internal Notes</label>
+                <input
+                  type="text"
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                  placeholder="Quick note (internal only)"
+                  value={newTask.notes}
+                  onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
                 />
               </div>
             </div>
-            
-            {/* Priority - Same Row */}
-            <div className="py-3 border-t border-gray-100">
-              <p className="text-xs text-gray-500 mb-2">Priority</p>
-              <div className="flex gap-2">
-                {PRIORITIES.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setNewTask({ ...newTask, priority: p.id })}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all border ${
-                      newTask.priority === p.id ? p.color : 'bg-white border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Assign To (only for Team tab) */}
-            {activeTab !== 'personal' && (
-              <div className="py-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500 mb-2">Assign to</p>
-                <div className="flex flex-wrap gap-2">
-                  {taskEmployees.map(emp => {
-                    const isSelected = newTask.assignedTo.includes(emp.id)
+
+            {/* Assign To (Multi-Assignee with Search) */}
+            {!newTask.isPersonal ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-800 font-body">Assign To</label>
+                  {newTask.assignedTo?.length > 0 && (
+                    <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      {newTask.assignedTo.length} selected
+                    </span>
+                  )}
+                </div>
+
+                {/* Inline Search Bar */}
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search team members..."
+                    value={assigneeSearch}
+                    onChange={(e) => setAssigneeSearch(e.target.value)}
+                    className="h-8 w-full pl-8 pr-8 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                  />
+                  {assigneeSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAssigneeSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Chips Container */}
+                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50/50 border border-slate-200 rounded-xl min-h-[44px] max-h-36 overflow-y-auto">
+                  {filteredAssignees.map(emp => {
+                    const isSelected = newTask.assignedTo?.includes(emp.id)
                     return (
                       <button
                         key={emp.id}
                         type="button"
                         onClick={() => {
-                          const updated = isSelected
-                            ? newTask.assignedTo.filter(id => id !== emp.id)
-                            : [...newTask.assignedTo, emp.id]
+                          const current = newTask.assignedTo || []
+                          const updated = isSelected 
+                            ? current.filter(id => id !== emp.id)
+                            : [...current, emp.id]
                           setNewTask({ ...newTask, assignedTo: updated })
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border ${
+                        className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border font-body cursor-pointer ${
                           isSelected 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                            : 'bg-gray-50 text-gray-600 border-gray-200'
+                            ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-2xs' 
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
-                          isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'
+                        <div className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${
+                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
                         }`}>
-                          {emp.name.charAt(0).toUpperCase()}
+                          {getInitials(emp.name)}
                         </div>
-                        {emp.name.split(' ')[0]}
+                        <span className="truncate max-w-[120px]">{emp.name}</span>
+                        {isSelected && <Check size={12} className="text-blue-600 shrink-0" />}
                       </button>
                     )
                   })}
+                  {filteredAssignees.length === 0 && (
+                    <p className="text-xs text-slate-400 italic py-1 w-full text-center">No matching team members</p>
+                  )}
                 </div>
               </div>
+            ) : (
+              <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-xl flex items-center gap-2.5 text-xs text-blue-800 font-body">
+                <User size={15} className="text-blue-600 shrink-0" />
+                <span>Personal task — automatically assigned to you.</span>
+              </div>
             )}
+
+            {/* Client Tracking */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <div className="bg-slate-50/80 px-3 py-2 border-b border-slate-200/80 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider font-heading flex items-center gap-1.5">
+                  <User size={13} className="text-slate-400" />
+                  Client Tracking
+                </span>
+                <span className="text-[10px] font-medium text-slate-400 italic font-body">Optional</span>
+              </div>
+              
+              <div className="p-3 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Name</label>
+                  <input
+                    type="text"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                    placeholder="e.g. Acme Corp / John Doe"
+                    value={newTask.clientName || ''}
+                    onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Type</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {CLIENT_TYPES.map(type => {
+                      const isSelected = newTask.clientType === type.id
+                      return (
+                        <button
+                          key={type.id}
+                          type="button"
+                          onClick={() => setNewTask({ ...newTask, clientType: isSelected ? null : type.id })}
+                          className={`h-9 rounded-lg text-xs font-medium transition-all border flex items-center justify-center gap-1 cursor-pointer font-body ${
+                            isSelected 
+                              ? `${type.bgColor} ${type.borderColor} ${type.color} font-bold shadow-2xs`
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{type.icon}</span>
+                          <span>{type.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Toggles */}
+            <div className="flex items-center gap-6 py-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={newTask.isPersonal}
+                    onChange={e => {
+                      const checked = e.target.checked
+                      setNewTask({
+                        ...newTask,
+                        isPersonal: checked,
+                        assignedTo: checked && user?.uid ? [user.uid] : newTask.assignedTo
+                      })
+                    }}
+                  />
+                  <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5 shadow-2xs"></div>
+                </div>
+                <span className="text-xs font-medium text-slate-700 font-body">Personal Task</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={newTask.category === 'idea'}
+                    onChange={e => setNewTask({ ...newTask, category: e.target.checked ? 'idea' : 'task' })}
+                  />
+                  <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-amber-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5 shadow-2xs"></div>
+                </div>
+                <span className="text-xs font-medium text-slate-700 font-body">Mark as Idea</span>
+              </label>
+            </div>
+
+            {/* Buzzer, Repeat, Reminder & Checklist Section */}
+            <div className="pt-2 border-t border-slate-200">
+              <TaskChecklistBuilder
+                buzzer={newTask.buzzer}
+                onBuzzerChange={(buzzer) => setNewTask({ ...newTask, buzzer })}
+                repeat={newTask.repeat}
+                onRepeatChange={(repeat) => setNewTask({ ...newTask, repeat })}
+                reminder={newTask.reminder}
+                onReminderChange={(reminder) => setNewTask({ ...newTask, reminder })}
+                checklists={newTask.checklists}
+                onChecklistsChange={(checklists) => setNewTask({ ...newTask, checklists })}
+              />
+            </div>
           </div>
           
-          <div className="p-4 border-t border-gray-100 flex gap-3">
+          {/* Modal Footer */}
+          <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-white flex gap-3 shrink-0">
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
-              className="flex-1 py-3 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl"
+              className="flex-1 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition-colors font-heading cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!newTask.title.trim()}
-              className="flex-1 py-3 text-sm font-medium text-white bg-indigo-600 rounded-xl disabled:opacity-50"
+              className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 font-heading cursor-pointer"
             >
-              Add Task
+              Create Task
             </button>
           </div>
         </form>
