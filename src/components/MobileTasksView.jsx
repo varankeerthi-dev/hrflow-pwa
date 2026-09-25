@@ -18,7 +18,8 @@ import {
   LayoutGrid,
   ChevronLeft,
   ChevronRight,
-  Edit3
+  Edit3,
+  Search
 } from 'lucide-react'
 import { format, isToday, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns'
 import DatePicker from 'react-datepicker'
@@ -47,8 +48,9 @@ export default function MobileTasksView() {
   
   // Main tabs: Team | Personal | Ideas
   const [activeTab, setActiveTab] = useState('team')
+  const [searchQuery, setSearchQuery] = useState('')
   
-  // Team/Personal sub-tabs: Calendar | To Do | In Progress | Review | Completed
+  // Team/Personal sub-tabs: Calendar | To Do | In Progress | On Hold | Review | Completed
   const [teamView, setTeamView] = useState('calendar')
   const [personalView, setPersonalView] = useState('calendar')
   const [calendarDate, setCalendarDate] = useState(new Date())
@@ -94,9 +96,17 @@ export default function MobileTasksView() {
     } else if (activeTab === 'ideas') {
       filtered = filtered.filter(t => t.category === 'idea')
     }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(t => 
+        (t.title && t.title.toLowerCase().includes(q)) ||
+        (t.description && t.description.toLowerCase().includes(q))
+      )
+    }
     
     return filtered
-  }, [tasks, activeTab])
+  }, [tasks, activeTab, searchQuery])
 
   const ideas = useMemo(() => {
     return tasks.filter(t => t.category === 'idea')
@@ -525,6 +535,29 @@ export default function MobileTasksView() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-4 py-2 border-b border-gray-100 bg-white">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-2.5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks..."
+            className="w-full h-8 pl-8 pr-8 bg-gray-50 border border-gray-200 rounded-lg text-xs placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all font-body"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'team' && (
@@ -535,6 +568,7 @@ export default function MobileTasksView() {
                 { id: 'calendar', label: 'Calendar', icon: LayoutGrid },
                 { id: 'To Do', label: 'To Do', count: filteredTasks.filter(t => t.status === 'To Do').length },
                 { id: 'In Progress', label: 'In Progress', count: filteredTasks.filter(t => t.status === 'In Progress').length },
+                { id: 'On Hold', label: 'On Hold', count: filteredTasks.filter(t => t.status === 'On Hold').length },
                 { id: 'Review', label: 'Review', count: filteredTasks.filter(t => t.status === 'Review').length },
                 { id: 'Completed', label: 'Completed', count: filteredTasks.filter(t => t.status === 'Completed').length }
               ].map(view => (
@@ -569,6 +603,7 @@ export default function MobileTasksView() {
               {teamView === 'calendar' && renderCalendarView()}
               {teamView === 'To Do' && renderTaskList('To Do', 'To Do', true)}
               {teamView === 'In Progress' && renderTaskList('In Progress', 'In Progress', true)}
+              {teamView === 'On Hold' && renderTaskList('On Hold', 'On Hold', true)}
               {teamView === 'Review' && renderTaskList('Review', 'Review', true)}
               {teamView === 'Completed' && renderTaskList('Completed', 'Completed', true)}
             </div>
@@ -583,6 +618,7 @@ export default function MobileTasksView() {
                 { id: 'calendar', label: 'Calendar', icon: LayoutGrid },
                 { id: 'To Do', label: 'To Do', count: filteredTasks.filter(t => t.status === 'To Do').length },
                 { id: 'In Progress', label: 'In Progress', count: filteredTasks.filter(t => t.status === 'In Progress').length },
+                { id: 'On Hold', label: 'On Hold', count: filteredTasks.filter(t => t.status === 'On Hold').length },
                 { id: 'Review', label: 'Review', count: filteredTasks.filter(t => t.status === 'Review').length },
                 { id: 'Completed', label: 'Completed', count: filteredTasks.filter(t => t.status === 'Completed').length }
               ].map(view => (
@@ -617,6 +653,7 @@ export default function MobileTasksView() {
               {personalView === 'calendar' && renderCalendarView()}
               {personalView === 'To Do' && renderTaskList('To Do', 'To Do', true)}
               {personalView === 'In Progress' && renderTaskList('In Progress', 'In Progress', true)}
+              {personalView === 'On Hold' && renderTaskList('On Hold', 'On Hold', true)}
               {personalView === 'Review' && renderTaskList('Review', 'Review', true)}
               {personalView === 'Completed' && renderTaskList('Completed', 'Completed', true)}
             </div>
@@ -858,14 +895,16 @@ function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
   return (
     <div
       onClick={onClick}
-      className={`flex items-start gap-3 p-3 bg-white border border-gray-100 rounded-xl active:bg-gray-50 transition-colors ${isCompleted ? 'opacity-60' : ''}`}
+      className={`flex items-start gap-3 p-3 bg-white border border-gray-100 rounded-xl active:bg-gray-50 transition-colors cursor-pointer ${isCompleted ? 'opacity-60' : ''}`}
     >
       <button 
+        type="button"
         onClick={(e) => {
           e.stopPropagation()
           onComplete(task.id, e)
         }}
-        className={`mt-0.5 flex-shrink-0 ${isCompleted ? 'text-emerald-500' : 'text-gray-300'}`}
+        className={`mt-0.5 flex-shrink-0 cursor-pointer ${isCompleted ? 'text-emerald-500' : 'text-gray-300 hover:text-emerald-500 transition-colors'}`}
+        title="Toggle task completion"
       >
         {isCompleted ? <CheckCircle2 size={22} /> : <Circle size={22} />}
       </button>
@@ -875,22 +914,35 @@ function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
           {task.title}
         </p>
         
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
           {task.dueDate && (
-            <span className={`text-xs ${isToday(task.dueDate.toDate?.() || new Date(task.dueDate)) ? 'text-rose-500 font-medium' : 'text-gray-500'}`}>
+            <span className={`text-xs ${isToday(task.dueDate.toDate?.() || new Date(task.dueDate)) ? 'text-rose-500 font-semibold' : 'text-gray-500'}`}>
               {format(task.dueDate.toDate?.() || new Date(task.dueDate), 'MMM d')}
             </span>
           )}
           
           {task.priority !== 'normal' && (
-            <span className={task.priority === 'urgent' ? 'text-rose-500' : 'text-amber-500'}>
+            <span className={`text-xs ${task.priority === 'urgent' ? 'text-rose-500' : 'text-amber-500'}`} title={`Priority: ${task.priority}`}>
               <Flag size={12} />
+            </span>
+          )}
+
+          {task.clientType && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80">
+              {task.clientType === 'order' ? '📦 Order' : task.clientType === 'complaint' ? '⚠️ Complaint' : '📞 Follow-up'}
+            </span>
+          )}
+
+          {Array.isArray(task.checklists) && task.checklists.length > 0 && (
+            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+              <span>☑</span>
+              <span>{task.checklists.filter(c => c.completed).length}/{task.checklists.length}</span>
             </span>
           )}
           
           {assignees.length > 0 && (
-            <div className="flex -space-x-1">
-              {assignees.slice(0, 2).map(emp => (
+            <div className="flex -space-x-1 ml-auto">
+              {assignees.slice(0, 3).map(emp => (
                 <div key={emp.id} className="w-4 h-4 rounded-full bg-emerald-100 border border-white flex items-center justify-center text-[7px] font-bold text-emerald-600">
                   {emp.name.charAt(0).toUpperCase()}
                 </div>
@@ -907,7 +959,8 @@ function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
 function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
   const [editedTask, setEditedTask] = useState({
     ...task,
-    assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : []
+    assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : [],
+    checklists: Array.isArray(task.checklists) ? task.checklists : []
   })
 
   const handleSave = async () => {
@@ -916,7 +969,8 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
       status: editedTask.status,
       priority: editedTask.priority,
       assignedTo: editedTask.assignedTo,
-      dueDate: editedTask.dueDate
+      dueDate: editedTask.dueDate,
+      checklists: editedTask.checklists || []
     })
     onClose()
   }
@@ -928,24 +982,24 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-200">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <button onClick={onClose} className="p-2 -ml-2 text-gray-500">
+          <button onClick={onClose} className="p-2 -ml-2 text-gray-500 cursor-pointer">
             <X size={20} />
           </button>
           <button 
             onClick={handleSave}
-            className="text-indigo-600 font-medium text-sm"
+            className="text-indigo-600 font-semibold text-sm cursor-pointer"
           >
             Save
           </button>
         </div>
 
-        <div className="p-4 space-y-5 overflow-y-auto max-h-[calc(90vh-60px)]">
+        <div className="p-4 space-y-5 overflow-y-auto max-h-[calc(90vh-60px)] font-body">
           <div>
             <input
               type="text"
               value={editedTask.title}
               onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
-              className="w-full text-lg font-medium text-gray-900 placeholder-gray-400 border-0 focus:ring-0 p-0"
+              className="w-full text-lg font-medium text-gray-900 placeholder-gray-400 border-0 focus:ring-0 p-0 font-heading font-semibold"
               placeholder="Task name"
             />
           </div>
@@ -957,10 +1011,10 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                 <button
                   key={s.id}
                   onClick={() => setEditedTask({ ...editedTask, status: s.id })}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                     editedTask.status === s.id 
-                      ? 'bg-gray-900 text-white' 
-                      : 'bg-gray-100 text-gray-600'
+                      ? 'bg-gray-900 text-white font-semibold' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200/70'
                   }`}
                 >
                   <s.icon size={14} className={editedTask.status === s.id ? 'text-white' : s.color} />
@@ -977,7 +1031,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                 <button
                   key={p.id}
                   onClick={() => setEditedTask({ ...editedTask, priority: p.id })}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all border ${
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all border cursor-pointer ${
                     editedTask.priority === p.id ? p.color : 'bg-white border-gray-200 text-gray-600'
                   }`}
                 >
@@ -1001,9 +1055,9 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                         : [...editedTask.assignedTo, emp.id]
                       setEditedTask({ ...editedTask, assignedTo: updated })
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border cursor-pointer ${
                       isSelected 
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold' 
                         : 'bg-gray-100 text-gray-600 border-gray-200'
                     }`}
                   >
@@ -1019,6 +1073,38 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
             </div>
           </div>
 
+          {/* Subtasks / Checklist Items */}
+          {Array.isArray(editedTask.checklists) && editedTask.checklists.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500 uppercase font-medium">Subtasks / Checklist</p>
+                <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                  {editedTask.checklists.filter(c => c.completed).length} / {editedTask.checklists.length}
+                </span>
+              </div>
+              <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                {editedTask.checklists.map((item, idx) => (
+                  <label key={item.id || idx} className="flex items-start gap-2.5 p-1.5 rounded-lg hover:bg-white transition-colors cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={!!item.completed}
+                      onChange={(e) => {
+                        const updated = editedTask.checklists.map((c, i) => i === idx ? { ...c, completed: e.target.checked } : c)
+                        setEditedTask({ ...editedTask, checklists: updated })
+                      }}
+                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-xs block ${item.completed ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}`}>
+                        {item.title}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <p className="text-xs text-gray-500 uppercase font-medium">Due date</p>
             <DatePicker
@@ -1032,7 +1118,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
 
           <button
             onClick={() => onDelete(task.id)}
-            className="w-full py-3 text-rose-600 font-medium text-sm border-t border-gray-100 flex items-center justify-center gap-2"
+            className="w-full py-3 text-rose-600 font-semibold text-sm border-t border-gray-100 flex items-center justify-center gap-2 cursor-pointer hover:bg-rose-50 rounded-b-xl transition-colors"
           >
             <Trash2 size={16} />
             Delete Task

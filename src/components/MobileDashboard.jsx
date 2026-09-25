@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
 import { isEmployeeActiveStatus } from '../lib/employeeStatus'
-import { doc, getDoc, collection, getDocs, addDoc, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc, collection, getDocs, addDoc, updateDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore'
 import {
   Calendar,
   PencilLine,
@@ -17,6 +17,7 @@ import {
   Building2,
   Clock,
   CheckCircle2,
+  Circle,
   XCircle,
   AlertCircle,
   Plus,
@@ -34,13 +35,15 @@ import {
   CheckCircle,
   XOctagon,
   ArrowLeft,
+  ArrowRight,
   Menu,
   MessageSquare,
   Car,
   LifeBuoy,
   Bell,
   BellRing,
-  BellOff
+  BellOff,
+  Flag
 } from 'lucide-react'
 import { useTaskNotifications } from '../hooks/useTaskNotifications'
 
@@ -184,14 +187,34 @@ function getAvatarColor(id) {
   return `hsl(${h}, 70%, 50%)`
 }
 
-function StatCard({ icon, label, value, color }) {
+const MODULE_CATEGORIES = [
+  { id: 'all', label: 'All Modules' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'hr', label: 'HR & People' },
+  { id: 'finance', label: 'Finance' },
+  { id: 'personal', label: 'My Space' },
+]
+
+function StatCard({ icon, label, value, color, indicatorColor, subtitle, badge }) {
+  const dotColor = indicatorColor || (color?.includes('green') ? 'bg-emerald-500' : color?.includes('red') ? 'bg-rose-500' : 'bg-blue-500')
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow duration-200">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${color} shadow-sm`}>
-        {icon}
+    <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
+      <div className="flex items-center justify-between gap-1 mb-2">
+        <span className="text-[11px] font-semibold text-slate-500 truncate">{label}</span>
+        {badge ? (
+          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-600">
+            {badge}
+          </span>
+        ) : (
+          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+        )}
       </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-[11px] text-gray-500 font-semibold mt-0.5">{label}</p>
+      <div>
+        <p className="text-2xl font-bold text-slate-900 font-heading tracking-tight leading-none">{value}</p>
+        {subtitle && (
+          <p className="text-[10px] text-slate-400 font-medium mt-1.5 truncate">{subtitle}</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -200,17 +223,17 @@ function MenuCard({ icon, label, onClick, color, badge }) {
   return (
     <button 
       onClick={onClick}
-      className="flex flex-col items-center justify-start gap-1.5 p-1 active:scale-90 transition-transform group text-center"
+      className="flex flex-col items-center justify-start gap-1.5 p-1 active:scale-95 transition-transform group text-center cursor-pointer"
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} bg-white shadow-xs border border-gray-100 group-hover:border-indigo-100 group-hover:shadow-sm transition-all relative [&>svg]:w-5 [&>svg]:h-5`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} bg-white shadow-2xs border border-slate-200/80 group-hover:border-indigo-200 group-hover:shadow-xs transition-all relative [&>svg]:w-5 [&>svg]:h-5`}>
         {icon}
         {badge ? (
-          <span className="absolute -top-1 -right-1 px-1 min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
+          <span className="absolute -top-1 -right-1 px-1 min-w-[18px] h-[18px] bg-rose-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
             {badge}
           </span>
         ) : null}
       </div>
-      <span className="text-[11px] font-medium text-gray-700 leading-tight line-clamp-2 max-w-[76px]">
+      <span className="text-[11px] font-medium text-slate-700 leading-tight line-clamp-2 max-w-[76px] font-body">
         {label}
       </span>
     </button>
@@ -237,6 +260,8 @@ export default function MobileDashboard() {
   const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [dashboardTasks, setDashboardTasks] = useState([])
   
   // Real-time unread counts
   const [unreadChatCount, setUnreadChatCount] = useState(0)
@@ -280,6 +305,44 @@ export default function MobileDashboard() {
     return employees.find(e => e.id === user.employeeId || [e.email, e.personalEmail, e.workEmail].some(email => email?.toLowerCase().trim() === normalizedEmail) || e.id === user.uid) || null
   }, [employees, user])
 
+  // Real-time listener for top actionable tasks on Home Dashboard
+  useEffect(() => {
+    if (!user?.orgId) return
+    const q = query(
+      collection(db, 'organisations', user.orgId, 'tasks'),
+      where('status', '!=', 'Completed'),
+      limit(12)
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      const myId = currentEmployee?.id || user?.uid
+      const sorted = all.sort((a, b) => {
+        const aMine = (Array.isArray(a.assignedTo) && a.assignedTo.includes(myId)) ? 1 : 0
+        const bMine = (Array.isArray(b.assignedTo) && b.assignedTo.includes(myId)) ? 1 : 0
+        if (bMine !== aMine) return bMine - aMine
+        const prioScore = { urgent: 3, high: 2, normal: 1 }
+        return (prioScore[b.priority] || 0) - (prioScore[a.priority] || 0)
+      })
+      setDashboardTasks(sorted.slice(0, 3))
+    })
+    return () => unsubscribe()
+  }, [user?.orgId, user?.uid, currentEmployee?.id])
+
+  const handleToggleTaskComplete = async (taskId, currentStatus, e) => {
+    e?.stopPropagation()
+    if (!user?.orgId) return
+    const newStatus = currentStatus === 'Completed' ? 'To Do' : 'Completed'
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'tasks', taskId), {
+        status: newStatus,
+        completedAt: newStatus === 'Completed' ? serverTimestamp() : null,
+        updatedAt: serverTimestamp()
+      })
+    } catch (err) {
+      console.error('Error toggling task:', err)
+    }
+  }
+
   // PWA Mobile Push Notifications for Task Assignments & Team Tasks
   const {
     permission: notifPermission,
@@ -301,34 +364,34 @@ export default function MobileDashboard() {
 
     const allModules = useMemo(() => [
       // Core modules in order
-      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400' },
-      { id: 'attendance-list', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400' },
-      { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
+      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', category: 'personal', color: 'text-blue-500' },
+      { id: 'attendance-list', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', category: 'operations', color: 'text-emerald-500' },
+      { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', category: 'operations', color: 'text-indigo-600', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
       
       // HR modules
-      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400' },
-      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400' },
-      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
-      { id: 'letters', label: 'HR Communications', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400' },
-      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400' },
-      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400' },
+      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', category: 'hr', color: 'text-amber-500' },
+      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', category: 'hr', color: 'text-purple-500' },
+      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', category: 'hr', color: 'text-cyan-500', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
+      { id: 'letters', label: 'HR Communications', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', category: 'hr', color: 'text-indigo-500' },
+      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', category: 'hr', color: 'text-amber-600' },
+      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', category: 'hr', color: 'text-pink-500' },
       
       // Payroll modules
-      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400' },
-      { id: 'salary-slip', label: 'Payroll', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400' },
-      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400' },
+      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', category: 'finance', color: 'text-teal-600' },
+      { id: 'salary-slip', label: 'Payroll', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', category: 'finance', color: 'text-emerald-600' },
+      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', category: 'finance', color: 'text-rose-500' },
       
       // Workforce modules
-      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Vehicle', color: 'text-blue-400' },
-      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400' },
-      { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', badge: unreadChatCount > 0 ? unreadChatCount : null },
-      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400' },
+      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Vehicle', category: 'operations', color: 'text-blue-500' },
+      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', category: 'hr', color: 'text-amber-500' },
+      { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', category: 'hr', color: 'text-indigo-600', badge: unreadChatCount > 0 ? unreadChatCount : null },
+      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', category: 'operations', color: 'text-violet-500' },
       
       // Account modules
-      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400' },
-      { id: 'attendance-reports', label: 'Attendance Reports', icon: <BarChart3 className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400' },
-      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
-      { id: 'help', label: 'HELP', icon: <LifeBuoy className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
+      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', category: 'personal', color: 'text-indigo-600' },
+      { id: 'attendance-reports', label: 'Attendance Reports', icon: <BarChart3 className="h-4 w-4" />, module: 'Attendance', category: 'operations', color: 'text-emerald-600' },
+      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', category: 'personal', color: 'text-slate-500' },
+      { id: 'help', label: 'HELP', icon: <LifeBuoy className="h-4 w-4" />, module: 'Settings', category: 'personal', color: 'text-slate-500' },
     ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
 
   const visibleModules = useMemo(() => {
@@ -350,9 +413,6 @@ export default function MobileDashboard() {
 
       // Check if user has view permission for this module
       const modulePerms = userPerms[mod.module] || {}
-      // Match desktop navigation: a role may intentionally grant a task action
-      // (for example, create an Advance/Expense request) without separately
-      // setting the view flag. Any granted module action must expose its entry.
       return modulePerms.view === true ||
         modulePerms.create === true ||
         modulePerms.edit === true ||
@@ -361,6 +421,13 @@ export default function MobileDashboard() {
         modulePerms.export === true
     })
   }, [allModules, user?.permissions, user?.role])
+
+  const categorizedModules = useMemo(() => {
+    // Exclude the 'home' tile itself from the dashboard view
+    const modulesWithoutHome = visibleModules.filter(m => m.id !== 'home')
+    if (selectedCategory === 'all') return modulesWithoutHome
+    return modulesWithoutHome.filter(mod => mod.category === selectedCategory)
+  }, [visibleModules, selectedCategory])
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -452,119 +519,217 @@ export default function MobileDashboard() {
 
   if (!user) return null
 
-  const renderHomeDashboard = () => (
-    <div className="p-4 space-y-4">
-      {/* PWA Push Notification Permission Prompt Banner */}
-      {isNotifSupported && notifPermission === 'default' && !dismissNotifBanner && (
-        <div className="bg-gradient-to-r from-indigo-50/95 to-blue-50/95 border border-indigo-100 rounded-2xl p-3.5 shadow-xs">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Bell size={18} />
+  const renderHomeDashboard = () => {
+    const attendanceRate = stats.totalEmployees > 0
+      ? Math.round((stats.presentToday / stats.totalEmployees) * 100)
+      : 0
+
+    return (
+      <div className="p-4 space-y-4">
+        {/* PWA Push Notification Permission Prompt Banner */}
+        {isNotifSupported && notifPermission === 'default' && !dismissNotifBanner && (
+          <div className="bg-gradient-to-r from-indigo-50/95 to-blue-50/95 border border-indigo-100 rounded-2xl p-3.5 shadow-xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Bell size={18} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 font-heading">Enable Task Push Notifications</p>
+                  <p className="text-[11px] text-slate-600 leading-tight">Get alerts when tasks are assigned to you or created for your team</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800 font-heading">Enable Task Push Notifications</p>
-                <p className="text-[11px] text-slate-600 leading-tight">Get alerts when tasks are assigned to you or created for your team</p>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button 
+                  onClick={async () => {
+                    const res = await requestNotifPermission()
+                    if (res === 'granted') {
+                      setNotifToast('✅ Push notifications active! Test alert sent.')
+                      await sendTestNotification()
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-bold font-heading shadow-xs transition-all cursor-pointer"
+                >
+                  Enable
+                </button>
+                <button 
+                  onClick={() => setDismissNotifBanner(true)}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                  aria-label="Dismiss banner"
+                >
+                  <X size={15} />
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button 
-                onClick={async () => {
-                  const res = await requestNotifPermission()
-                  if (res === 'granted') {
-                    setNotifToast('✅ Push notifications active! Test alert sent.')
-                    await sendTestNotification()
-                  }
-                }}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-bold font-heading shadow-xs transition-all"
-              >
-                Enable
-              </button>
-              <button 
-                onClick={() => setDismissNotifBanner(true)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
-                aria-label="Dismiss banner"
-              >
-                <X size={15} />
-              </button>
-            </div>
           </div>
+        )}
+
+        {/* 1. Linear-Style Stat Cards */}
+        <div className="grid grid-cols-3 gap-2">
+          <StatCard 
+            label="Employees" 
+            value={stats.totalEmployees}
+            indicatorColor="bg-blue-500"
+            subtitle="Total Staff"
+          />
+          <StatCard 
+            label="Present" 
+            value={stats.presentToday}
+            indicatorColor="bg-emerald-500"
+            subtitle={`${attendanceRate}% active`}
+          />
+          <StatCard 
+            label="Absent" 
+            value={stats.absentToday}
+            indicatorColor="bg-rose-500"
+            subtitle="Today"
+          />
         </div>
-      )}
 
-      <div className="grid grid-cols-3 gap-2">
-        <StatCard 
-          icon={<Users size={16} className="text-blue-600" />} 
-          label="Employees" 
-          value={stats.totalEmployees}
-          color="bg-blue-50"
-        />
-        <StatCard 
-          icon={<CheckCircle2 size={16} className="text-green-600" />} 
-          label="Present" 
-          value={stats.presentToday}
-          color="bg-green-50"
-        />
-        <StatCard 
-          icon={<XCircle size={16} className="text-red-600" />} 
-          label="Absent" 
-          value={stats.absentToday}
-          color="bg-red-50"
-        />
-      </div>
-
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">Quick Overview</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+        {/* 2. Today's Tasks & Focus Widget */}
+        <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
-              <AlertCircle size={14} className="text-orange-500" />
-              <span className="text-xs text-gray-600">Pending Corrections</span>
+              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+              <h3 className="text-xs font-bold text-slate-900 font-heading tracking-tight">Today's Tasks</h3>
+              {pendingTaskCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                  {pendingTaskCount}
+                </span>
+              )}
             </div>
-            <span className="text-sm font-bold text-orange-600">{stats.pendingCorrections}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock size={14} className="text-purple-500" />
-              <span className="text-xs text-gray-600">Today's Date</span>
-            </div>
-            <span className="text-sm font-bold text-gray-800">{new Date().toLocaleDateString()}</span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2.5 px-1">
-          <h3 className="text-sm font-bold text-gray-800 font-heading">Modules</h3>
-          {isNotifSupported && notifPermission === 'granted' && (
             <button
-              onClick={async () => {
-                setNotifToast('🔔 Test notification sent to this device!')
-                await sendTestNotification()
-              }}
-              title="Push notifications active. Click to test on this device."
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 hover:bg-emerald-100 transition-colors"
+              onClick={() => setActiveTab('tasks')}
+              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Push Active (Test)
+              <span>View all</span>
+              <ArrowRight size={12} />
             </button>
+          </div>
+
+          {dashboardTasks.length === 0 ? (
+            <div className="py-3 px-2 text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+              <p className="text-xs font-medium text-slate-500">No pending tasks for today 🎉</p>
+              <button
+                onClick={() => setActiveTab('tasks')}
+                className="mt-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+              >
+                + Open Tasks
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {dashboardTasks.map(task => {
+                const isUrgent = task.priority === 'urgent'
+                const isHigh = task.priority === 'high'
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => setActiveTab('tasks')}
+                    className="flex items-center gap-2.5 p-2 bg-slate-50/60 hover:bg-slate-50 border border-slate-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleTaskComplete(task.id, task.status, e)}
+                      className="text-slate-300 hover:text-emerald-500 transition-colors shrink-0 cursor-pointer"
+                      title="Mark task completed"
+                    >
+                      <Circle size={18} />
+                    </button>
+                    <span className="text-xs font-medium text-slate-800 truncate flex-1 font-body">
+                      {task.title}
+                    </span>
+                    {(isUrgent || isHigh) && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border shrink-0 ${
+                        isUrgent ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-600 border-amber-200'
+                      }`}>
+                        {task.priority}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
-        <div className="grid grid-cols-4 gap-y-4 gap-x-1 sm:grid-cols-4">
-          {visibleModules.map((mod) => (
-            <MenuCard 
-              key={mod.id}
-              icon={mod.icon}
-              label={mod.label}
-              badge={mod.badge}
-              onClick={() => setActiveTab(mod.id)}
-              color={mod.color}
-            />
-          ))}
+
+        {/* 3. Pending Corrections Alert Banner (if any) */}
+        {stats.pendingCorrections > 0 && (
+          <div
+            onClick={() => setActiveTab('approvals')}
+            className="flex items-center justify-between p-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl cursor-pointer active:scale-[0.99] transition-all"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                <AlertCircle size={16} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-amber-950 font-heading">
+                  {stats.pendingCorrections} Pending Approval{stats.pendingCorrections > 1 ? 's' : ''}
+                </p>
+                <p className="text-[10px] text-amber-800 truncate">Attendance correction requests need review</p>
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1 shrink-0 font-heading">
+              Review <ArrowRight size={12} />
+            </span>
+          </div>
+        )}
+
+        {/* 4. Modules Section with Linear Filter Pills */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-heading">Modules</h3>
+            {isNotifSupported && notifPermission === 'granted' && (
+              <button
+                onClick={async () => {
+                  setNotifToast('🔔 Test notification sent to this device!')
+                  await sendTestNotification()
+                }}
+                title="Push notifications active. Click to test on this device."
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 hover:bg-emerald-100 transition-colors cursor-pointer"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Push Active
+              </button>
+            )}
+          </div>
+
+          {/* Linear-Style Horizontal Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5 px-0.5">
+            {MODULE_CATEGORIES.map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-slate-900 text-white shadow-xs font-semibold'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Module Tiles Grid */}
+          <div className="grid grid-cols-4 gap-y-4 gap-x-1 sm:grid-cols-4 pt-1">
+            {categorizedModules.map((mod) => (
+              <MenuCard 
+                key={mod.id}
+                icon={mod.icon}
+                label={mod.label}
+                badge={mod.badge}
+                onClick={() => setActiveTab(mod.id)}
+                color={mod.color}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
