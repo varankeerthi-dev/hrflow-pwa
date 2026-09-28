@@ -48,11 +48,13 @@ import {
 import { useTaskNotifications } from '../hooks/useTaskNotifications'
 
 import HomeTab from '../components/tabs/HomeTab'
+import EmployeesTab from '../components/tabs/EmployeesTab'
 import AttendanceTab from '../components/tabs/AttendanceTab'
 import CorrectionTab from '../components/tabs/CorrectionTab'
 import LeaveTab from '../components/tabs/LeaveTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
 import HRLettersTab from '../components/tabs/HRLettersTab'
+import RecruitmentTab from '../components/tabs/RecruitmentTab'
 import DocumentsTab from '../components/tabs/DocumentsTab'
 import SummaryTab from '../components/tabs/SummaryTab'
 import SalarySlipTab from '../components/tabs/SalarySlipTab'
@@ -369,12 +371,14 @@ export default function MobileDashboard() {
       { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', category: 'operations', color: 'text-indigo-600', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
       
       // HR modules
+      { id: 'employees', label: 'Employees', icon: <Users className="h-4 w-4" />, module: 'Employees', category: 'hr', color: 'text-blue-600' },
       { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', category: 'hr', color: 'text-amber-500' },
       { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', category: 'hr', color: 'text-purple-500' },
       { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', category: 'hr', color: 'text-cyan-500', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
       { id: 'letters', label: 'HR Communications', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', category: 'hr', color: 'text-indigo-500' },
       { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', category: 'hr', color: 'text-amber-600' },
       { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', category: 'hr', color: 'text-pink-500' },
+      { id: 'recruitment', label: 'Recruitment', icon: <Briefcase className="h-4 w-4" />, module: 'Recruitment', category: 'hr', color: 'text-indigo-600' },
       
       // Payroll modules
       { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', category: 'finance', color: 'text-teal-600' },
@@ -385,7 +389,7 @@ export default function MobileDashboard() {
       { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Vehicle', category: 'operations', color: 'text-blue-500' },
       { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', category: 'hr', color: 'text-amber-500' },
       { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', category: 'hr', color: 'text-indigo-600', badge: unreadChatCount > 0 ? unreadChatCount : null },
-      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', category: 'operations', color: 'text-violet-500' },
+      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'Shifts', alternateModule: 'ShiftPlanning', category: 'operations', color: 'text-violet-500' },
       
       // Account modules
       { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', category: 'personal', color: 'text-indigo-600' },
@@ -412,13 +416,13 @@ export default function MobileDashboard() {
       }
 
       // Check if user has view permission for this module
-      const modulePerms = userPerms[mod.module] || {}
-      return modulePerms.view === true ||
-        modulePerms.create === true ||
-        modulePerms.edit === true ||
-        modulePerms.delete === true ||
-        modulePerms.approve === true ||
-        modulePerms.export === true
+      const modulePerms = [userPerms[mod.module], mod.alternateModule && userPerms[mod.alternateModule]].filter(Boolean)
+      return modulePerms.some(permission => permission.view === true ||
+        permission.create === true ||
+        permission.edit === true ||
+        permission.delete === true ||
+        permission.approve === true ||
+        permission.export === true)
     })
   }, [allModules, user?.permissions, user?.role])
 
@@ -735,6 +739,8 @@ export default function MobileDashboard() {
     switch (activeTab) {
       case 'home':
         return renderHomeDashboard()
+      case 'employees':
+        return <EmployeesTab />
       case 'attendance':
         return <AttendanceTab onOpenHolidaySettings={() => { setSettingsSubTab('holidays'); setActiveTab('settings') }} onReviewEmployees={() => setActiveTab('employees')} />
       case 'attendance-reports':

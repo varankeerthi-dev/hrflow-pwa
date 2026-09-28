@@ -310,6 +310,7 @@ export default function Dashboard() {
     { id: 'letters', label: 'HR Communications', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'vehicle', label: 'Vehicle', icon: <Truck size={18} strokeWidth={1.75} />, module: 'Vehicle' },
     { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Operations' },
+    { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Shifts', alternateModule: 'ShiftPlanning' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
@@ -335,15 +336,15 @@ export default function Dashboard() {
       if (tab.id === 'home' || tab.id === 'portal') return true
       
       // Check module permissions
-      const modulePerms = userPermissions[tab.module]
-      if (!modulePerms) return false
+      const modulePerms = [userPermissions[tab.module], tab.alternateModule && userPermissions[tab.alternateModule]].filter(Boolean)
+      if (modulePerms.length === 0) return false
       
       // User needs at least 'view' permission for the module
-      return modulePerms.view === true || 
-             modulePerms.create === true || 
-             modulePerms.edit === true || 
-             modulePerms.delete === true ||
-             modulePerms.approve === true
+      return modulePerms.some(permission => permission.view === true ||
+             permission.create === true ||
+             permission.edit === true ||
+             permission.delete === true ||
+             permission.approve === true)
     })
     return tabs.filter(tab => !hiddenTabs.includes(tab.id))
   }, [allTabs, isAdmin, userPermissions])
@@ -404,7 +405,7 @@ export default function Dashboard() {
   // Management holds the HR + Reports accordions alongside Operations/Finance items.
   const coreTabs = ['home', 'attendance-list', 'advance', 'vehicle', 'tasks']
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction', 'engage', 'fines']
-  const manageTabs = ['operations', 'accountant', 'salary-slip', 'approvals']
+  const manageTabs = ['operations', 'shift-planning', 'accountant', 'salary-slip', 'approvals']
   const systemTabs = ['settings', 'portal', 'help']
 
   const [hoveredTooltip, setHoveredTooltip] = useState(null)
@@ -612,6 +613,7 @@ export default function Dashboard() {
       case 'letters': return <HRLettersTab />
       case 'vehicle': return isAdmin ? <OperationsTab initialSubTab="vehicles" /> : <EmployeeVehiclePortal employeeId={currentEmployee?.id || null} />
       case 'operations': return <OperationsTab initialSubTab={operationsSubTab} />
+      case 'shift-planning': return <ShiftPlanningTab />
       case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />

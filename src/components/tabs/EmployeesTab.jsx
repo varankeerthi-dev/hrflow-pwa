@@ -7,7 +7,8 @@ import { useLogs } from '../../hooks/useActivityLog';
 import { db } from '../../lib/firebase';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useQuery } from '@tanstack/react-query';
-import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, User, Briefcase, Mail, Phone, MapPin, BadgeCheck, Circle, Activity, Users, List, UserCheck, Cake, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, User, Briefcase, Mail, Phone, MapPin, BadgeCheck, Circle, Activity, Users, List, UserCheck, Cake, ChevronRight, ClipboardCheck, Eye, EyeOff } from 'lucide-react';
+import { maskSensitiveValue } from '../../lib/sensitiveData';
 import EmployeeDirectoryTab from './EmployeeDirectoryTab';
 import EmployeeProfileUpdatesTab from './EmployeeProfileUpdatesTab';
 import { ModulePillTabs } from '../ui/ModulePillTabs';
@@ -328,75 +329,129 @@ function EmployeeListPanel({
           backgroundColor: statusColor(e.status)
         }}>              {(e.name || '?').charAt(0).toUpperCase()}            </div>            <div className="flex-1 min-w-0">              <div className="text-[13px] font-semibold text-[#1A1D26] truncate">{e.name}</div>              <div className="text-[11px] text-[#6B7280] truncate">{e.designation || e.department || '—'}</div>            </div>            <div className={`w-2 h-2 rounded-full shrink-0 ${e.status === 'Active' ? 'bg-[#09CE99]' : e.status === 'Inactive' ? 'bg-[#EF4444]' : 'bg-[#F59E0B]'}`} />          </button>)}      </div>      <div className="px-4 py-2.5 border-t border-[#E9ECF0] text-[11px] text-[#9CA3AF] text-center">        {filtered.length} of {employees.length} employees      </div>    </div>;
 }
-function EmployeeDetailsPanel({
-  employee,
-  onBack,
-  onShowActivity
-}) {
-  const {
-    user
-  } = useAuth();
-  const orgId = user?.orgId;
+function EmployeeDetailsPanel({ employee, onBack, onShowActivity }) {
+  const { user } = useAuth()
+  const orgId = user?.orgId
+  const [revealedEmployeeId, setRevealedEmployeeId] = useState(null)
+  const showSensitive = Boolean(employee?.id && revealedEmployeeId === employee.id)
+
   if (!employee) {
-    return <div className="h-full flex flex-col items-center justify-center bg-white rounded-2xl border border-[#E9ECF0]">        <User size={40} className="text-[#D1D5DB] mb-3" />        <p className="text-[14px] font-medium text-[#9CA3AF]">Select an employee</p>        <p className="text-[12px] text-[#D1D5DB] mt-1">Choose from the list to view details</p>      </div>;
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-white rounded-2xl border border-[#E9ECF0]">
+        <User size={40} className="text-[#D1D5DB] mb-3" />
+        <p className="text-[14px] font-medium text-[#9CA3AF]">Select an employee</p>
+        <p className="text-[12px] text-[#D1D5DB] mt-1">Choose from the list to view details</p>
+      </div>
+    )
   }
-  const fields = [{
-    label: 'Employee ID',
-    value: employee.empCode,
-    icon: <Briefcase size={14} />
-  }, {
-    label: 'Department',
-    value: employee.department,
-    icon: <Briefcase size={14} />
-  }, {
-    label: 'Designation',
-    value: employee.designation,
-    icon: <Briefcase size={14} />
-  }, {
-    label: 'Email',
-    value: employee.email,
-    icon: <Mail size={14} />
-  }, {
-    label: 'Phone',
-    value: employee.mobileNo || employee.contactNo || employee.phone,
-    icon: <Phone size={14} />
-  }, {
-    label: 'Address',
-    value: employee.address,
-    icon: <MapPin size={14} />
-  }, {
-    label: 'Date of Joining',
-    value: formatDate(employee.joinedDate || employee.doj),
-    icon: <Calendar size={14} />
-  }, {
-    label: 'Date of Birth',
-    value: formatDate(employee.dob),
-    icon: <Calendar size={14} />
-  }, {
-    label: 'Blood Group',
-    value: employee.bloodGroup,
-    icon: <Activity size={14} />
-  }, {
-    label: 'Aadhar',
-    value: employee.aadharNo,
-    icon: <BadgeCheck size={14} />
-  }, {
-    label: 'PAN',
-    value: employee.panNo,
-    icon: <BadgeCheck size={14} />
-  }, {
-    label: 'PF No',
-    value: employee.pfNo,
-    icon: <FileText size={14} />
-  }, {
-    label: 'ESI No',
-    value: employee.esiNo,
-    icon: <FileText size={14} />
-  }].filter(f => f.value);
-  return <div className="h-full flex flex-col bg-white rounded-2xl border border-[#E9ECF0] overflow-hidden">      <div className="p-5 pb-4 border-b border-[#E9ECF0] space-y-3">        <div className="flex items-center justify-between lg:hidden">          <button onClick={onBack} className="flex items-center gap-1.5 text-[12px] font-medium text-[#6B7280] hover:text-[#1A1D26] transition-colors">            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><polyline points="12 19 5 12 12 5" /></svg>            Back          </button>          <button onClick={onShowActivity} className="flex items-center gap-1.5 text-[12px] font-medium text-[#6B7280] hover:text-[#09CE99] transition-colors">            <Activity size={14} />            Activity          </button>        </div>        <div className="flex items-center gap-4">          <div className="w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-bold text-white shrink-0" style={{
-          backgroundColor: statusColor(employee.status)
-        }}>            {(employee.name || '?').charAt(0).toUpperCase()}          </div>          <div className="flex-1 min-w-0">            <div className="flex items-center gap-2.5">              <h2 className="text-[18px] font-bold text-[#1A1D26] truncate">{employee.name}</h2>              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${employee.status === 'Active' ? 'bg-[#09CE99]/10 text-[#09CE99]' : employee.status === 'Inactive' ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'}`}>{employee.status}</span>            </div>            <p className="text-[12px] text-[#6B7280] mt-0.5">{employee.designation || employee.department || ''}</p>          </div>        </div>      </div>      <div className="flex-1 overflow-y-auto p-5 pt-4 space-y-5">        <div className="grid grid-cols-2 gap-x-6 gap-y-3">          {fields.map(f => <div key={f.label} className="flex items-start gap-2.5">              <span className="text-[#9CA3AF] mt-0.5 shrink-0">{f.icon}</span>              <div className="min-w-0">                <div className="text-[10px] font-medium text-[#9CA3AF] uppercase tracking-wider">{f.label}</div>                <div className="text-[13px] font-medium text-[#1A1D26] truncate mt-0.5">{f.value}</div>              </div>            </div>)}        </div>        {employee.personalBank?.accountNo && <div className="bg-[#F7F8FA] rounded-xl p-4">            <div className="text-[10px] font-medium text-[#9CA3AF] uppercase tracking-wider mb-2">Bank Account</div>            <div className="grid grid-cols-2 gap-3 text-[12px]">              <div><span className="text-[#6B7280]">Bank:</span> <span className="text-[#1A1D26] font-medium">{employee.personalBank.bankName}</span></div>              <div><span className="text-[#6B7280]">Acct:</span> <span className="text-[#1A1D26] font-medium">{employee.personalBank.accountNo}</span></div>              <div><span className="text-[#6B7280]">IFSC:</span> <span className="text-[#1A1D26] font-medium">{employee.personalBank.ifsc}</span></div>              <div><span className="text-[#6B7280]">Holder:</span> <span className="text-[#1A1D26] font-medium">{employee.personalBank.holderName}</span></div>            </div>          </div>}        <div className="space-y-3">          <CollapsibleSection title="Leave Summary" defaultOpen={false} icon={<Calendar size={15} />}>            <LeaveSection orgId={orgId} employeeId={employee.id} />          </CollapsibleSection>          <CollapsibleSection title="Attendance" defaultOpen={false} icon={<Clock size={15} />}>            <AttendanceSection orgId={orgId} employeeId={employee.id} />          </CollapsibleSection>          <CollapsibleSection title="Fines" defaultOpen={false} icon={<Gavel size={15} />}>            <FinesSection orgId={orgId} employeeId={employee.id} />          </CollapsibleSection>          <CollapsibleSection title="Advances & Expenses" defaultOpen={false} icon={<Wallet size={15} />}>            <AdvancesSection orgId={orgId} employeeId={employee.id} />          </CollapsibleSection>          <CollapsibleSection title="Bonus & Variable Pay" defaultOpen={false} icon={<Gift size={15} />}>            <BonusSection orgId={orgId} employeeId={employee.id} />          </CollapsibleSection>        </div>      </div>    </div>;
+
+  const personalBank = employee.personalBank || {}
+  const accountNo = personalBank.accountNo || employee.bankAccount
+  const ifsc = personalBank.ifsc || employee.ifsc
+  const hasSensitiveValues = Boolean(employee.aadharNo || employee.panNo || accountNo || ifsc)
+  const fields = [
+    { label: 'Employee ID', value: employee.empCode, icon: <Briefcase size={14} /> },
+    { label: 'Department', value: employee.department, icon: <Briefcase size={14} /> },
+    { label: 'Designation', value: employee.designation, icon: <Briefcase size={14} /> },
+    { label: 'Email', value: employee.email, icon: <Mail size={14} /> },
+    { label: 'Phone', value: employee.mobileNo || employee.contactNo || employee.phone, icon: <Phone size={14} /> },
+    { label: 'Address', value: employee.address, icon: <MapPin size={14} /> },
+    { label: 'Date of Joining', value: formatDate(employee.joinedDate || employee.doj), icon: <Calendar size={14} /> },
+    { label: 'Date of Birth', value: formatDate(employee.dob), icon: <Calendar size={14} /> },
+    { label: 'Blood Group', value: employee.bloodGroup, icon: <Activity size={14} /> },
+    { label: 'Aadhaar', value: employee.aadharNo, sensitive: true, icon: <BadgeCheck size={14} /> },
+    { label: 'PAN', value: employee.panNo, sensitive: true, icon: <BadgeCheck size={14} /> },
+    { label: 'PF No', value: employee.pfNo, icon: <FileText size={14} /> },
+    { label: 'ESI No', value: employee.esiNo, icon: <FileText size={14} /> }
+  ].filter(field => field.value)
+
+  const displayedValue = value => showSensitive ? value : maskSensitiveValue(value)
+
+  return (
+    <div className="h-full flex flex-col bg-white rounded-2xl border border-[#E9ECF0] overflow-hidden">
+      <div className="p-5 pb-4 border-b border-[#E9ECF0] space-y-3">
+        <div className="flex items-center justify-between lg:hidden">
+          <button onClick={onBack} className="flex items-center gap-1.5 text-[12px] font-medium text-[#6B7280] hover:text-[#1A1D26] transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><polyline points="12 19 5 12 12 5" /></svg>
+            Back
+          </button>
+          <button onClick={onShowActivity} className="flex items-center gap-1.5 text-[12px] font-medium text-[#6B7280] hover:text-[#09CE99] transition-colors">
+            <Activity size={14} /> Activity
+          </button>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-bold text-white shrink-0" style={{ backgroundColor: statusColor(employee.status) }}>
+            {(employee.name || '?').charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[18px] font-bold text-[#1A1D26] truncate">{employee.name}</h2>
+              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${employee.status === 'Active' ? 'bg-[#09CE99]/10 text-[#09CE99]' : employee.status === 'Inactive' ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'}`}>{employee.status}</span>
+            </div>
+            <p className="text-[12px] text-[#6B7280] mt-0.5">{employee.designation || employee.department || ''}</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-5 pt-4 space-y-5">
+        {hasSensitiveValues && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-[11px] text-amber-900">Sensitive ID and bank values are masked by default.</p>
+            <button
+              type="button"
+              aria-pressed={showSensitive}
+              aria-label={showSensitive ? 'Hide sensitive employee details' : 'Show sensitive employee details'}
+              onClick={() => setRevealedEmployeeId(current => current === employee.id ? null : employee.id)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+            >
+              {showSensitive ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+              {showSensitive ? 'Hide sensitive details' : 'Show sensitive details'}
+            </button>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          {fields.map(field => (
+            <div key={field.label} className="flex items-start gap-2.5">
+              <span className="text-[#9CA3AF] mt-0.5 shrink-0">{field.icon}</span>
+              <div className="min-w-0">
+                <div className="text-[10px] font-medium text-[#9CA3AF] uppercase tracking-wider">{field.label}</div>
+                <div className="text-[13px] font-medium text-[#1A1D26] truncate mt-0.5">{field.sensitive && !showSensitive ? maskSensitiveValue(field.value) : field.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {(accountNo || personalBank.bankName || ifsc || personalBank.holderName) && (
+          <div className="bg-[#F7F8FA] rounded-xl p-4">
+            <div className="text-[10px] font-medium text-[#9CA3AF] uppercase tracking-wider mb-2">Bank Account</div>
+            <div className="grid grid-cols-2 gap-3 text-[12px]">
+              {(personalBank.bankName || employee.bankName) && <div><span className="text-[#6B7280]">Bank:</span> <span className="text-[#1A1D26] font-medium">{personalBank.bankName || employee.bankName}</span></div>}
+              {accountNo && <div><span className="text-[#6B7280]">Acct:</span> <span className="text-[#1A1D26] font-medium">{displayedValue(accountNo)}</span></div>}
+              {ifsc && <div><span className="text-[#6B7280]">IFSC:</span> <span className="text-[#1A1D26] font-medium">{displayedValue(ifsc)}</span></div>}
+              {(personalBank.holderName || employee.bankHolderName) && <div><span className="text-[#6B7280]">Holder:</span> <span className="text-[#1A1D26] font-medium">{personalBank.holderName || employee.bankHolderName}</span></div>}
+            </div>
+          </div>
+        )}
+        <div className="space-y-3">
+          <CollapsibleSection title="Leave Summary" defaultOpen={false} icon={<Calendar size={15} />}>
+            <LeaveSection orgId={orgId} employeeId={employee.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Attendance" defaultOpen={false} icon={<Clock size={15} />}>
+            <AttendanceSection orgId={orgId} employeeId={employee.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Fines" defaultOpen={false} icon={<Gavel size={15} />}>
+            <FinesSection orgId={orgId} employeeId={employee.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Advances & Expenses" defaultOpen={false} icon={<Wallet size={15} />}>
+            <AdvancesSection orgId={orgId} employeeId={employee.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Bonus & Variable Pay" defaultOpen={false} icon={<Gift size={15} />}>
+            <BonusSection orgId={orgId} employeeId={employee.id} />
+          </CollapsibleSection>
+        </div>
+      </div>
+    </div>
+  )
 }
+
 function ActivityLogPanel({
   employee,
   onBack
