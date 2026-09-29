@@ -3,12 +3,15 @@ import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
 import { useAttendance, calcOT } from '../hooks/useAttendance'
 import { useLeaves } from '../hooks/useLeaves'
+import { useLeaveBalances } from '../hooks/useLeaveBalances'
 import { db, storage } from '../lib/firebase'
 import { collection, query, where, getDocs, deleteDoc, doc, addDoc, serverTimestamp, orderBy } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { attendanceCol } from '../lib/firestore'
 import { formatTimeTo12Hour } from '../lib/salaryUtils'
-import { buildPortalApprovalFields } from '../lib/portalApprovalWorkflow'
+import { buildPortalApprovalFields, requiresStandardApproval } from '../lib/portalApprovalWorkflow'
+import { buildLeaveCoverageCandidates, getLeavePolicy } from '../lib/leaveLifecycle'
+import { normalizeLeaveTypeCode } from '../lib/leaveEntitlements'
 import Modal from './ui/Modal'
 import TimePicker from './ui/TimePicker'
 import SelfieCaptureModal from './ui/SelfieCaptureModal'
@@ -53,26 +56,19 @@ import {
   Upload,
   X
 } from 'lucide-react'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isWeekend, getDay, differenceInCalendarDays, addDays } from 'date-fns'
+import { format, differenceInCalendarDays } from 'date-fns'
 
 // Validation Schemas
 const leaveSchema = z.object({
-  leaveType: z.enum(['Casual', 'Sick', 'Annual', 'Unpaid']),
+  leaveType: z.string().min(1, 'Choose a leave type'),
   fromDate: z.string().min(1, 'From date is required'),
   toDate: z.string().min(1, 'To date is required'),
+  halfDay: z.boolean().optional(),
   reason: z.string().min(5, 'Reason must be at least 5 characters'),
 }).refine((data) => {
-  // Check that fromDate and toDate themselves are not Sundays
-  // But Sundays CAN be between them for long leaves
-  const start = new Date(data.fromDate)
-  const end = new Date(data.toDate)
-  if (start.getDay() === 0) return false // From date is Sunday
-  if (end.getDay() === 0) return false // To date is Sunday
-  return true
-}, { message: 'Leave cannot start or end on a Sunday' }).refine((data) => {
   // To date must be >= from date
   return new Date(data.toDate) >= new Date(data.fromDate)
-}, { message: 'To date must be after or same as from date' })
+}, { message: 'To date must be after or same as from date' }).refine((data) => !data.halfDay || data.fromDate === data.toDate, { message: 'Half-day requests must be for a single date', path: ['halfDay'] })
 
 const permissionSchema = z.object({
   date: z.string().min(1, 'Date is required'),
@@ -141,6 +137,7 @@ export default function MobileEmployeePortal() {
     leaveType: 'Casual',
     fromDate: '',
     toDate: '',
+    halfDay: false,
     date: '',
     fromTime: '',
     toTime: '',
@@ -149,6 +146,18 @@ export default function MobileEmployeePortal() {
     reason: '',
     attachment: null,
   })
+  const { orgData: leaveOrgData, leaveTypes: configuredLeaveTypes, balances: leaveBalances, balanceByCode: leaveBalanceByCode, refresh: refreshLeaveBalances } = useLeaveBalances(user?.orgId, employee?.id || null)
+  const selectedLeaveType = configuredLeaveTypes.some((type) => type.name === requestForm.leaveType) ? requestForm.leaveType : (configuredLeaveTypes[0]?.name || requestForm.leaveType)
+  const selectedLeaveBalance = leaveBalanceByCode[normalizeLeaveTypeCode(selectedLeaveType)]
+  const selectedLeavePolicy = getLeavePolicy(leaveOrgData, selectedLeaveType, requestForm.fromDate || new Date().toISOString().slice(0, 10))
+  const leaveRequestPreview = useMemo(() => {
+    if (requestForm.type !== 'Leave' || !requestForm.fromDate || !requestForm.toDate || requestForm.toDate < requestForm.fromDate) return []
+    const requestedUnits = requestForm.halfDay ? 0.5 : differenceInCalendarDays(new Date(requestForm.toDate), new Date(requestForm.fromDate)) + 1
+    return buildLeaveCoverageCandidates({ ...requestForm, leaveType: selectedLeaveType, requestedUnits, orgData: leaveOrgData })
+  }, [leaveOrgData, requestForm, selectedLeaveType])
+  const leaveRequestUnits = leaveRequestPreview.reduce((sum, candidate) => sum + Number(candidate.leaveUnits || 0), 0)
+  const leaveRequestPaidUnits = leaveRequestPreview.reduce((sum, candidate) => sum + (String(candidate.classification || '').includes('paid') ? Number(candidate.leaveUnits || 0) : 0), 0)
+  const leaveRequestShortfall = selectedLeaveBalance?.configured ? Math.max(0, leaveRequestPaidUnits - Number(selectedLeaveBalance.available || 0)) : 0
   const [validationErrors, setValidationErrors] = useState({})
   const [submitSuccess, setSubmitSuccess] = useState('')
   const [fileUploading, setFileUploading] = useState(false)
@@ -423,9 +432,10 @@ export default function MobileEmployeePortal() {
     let validationResult
     if (requestForm.type === 'Leave') {
       validationResult = leaveSchema.safeParse({
-        leaveType: requestForm.leaveType,
+        leaveType: selectedLeaveType,
         fromDate: requestForm.fromDate,
         toDate: requestForm.toDate,
+        halfDay: requestForm.halfDay,
         reason: requestForm.reason,
       })
     } else if (requestForm.type === 'Permission') {
@@ -466,19 +476,31 @@ export default function MobileEmployeePortal() {
       }
 
       const approvalSetting = getApprovalSettingForType(requestForm.type)
-      const portalApprovalFields = buildPortalApprovalFields(getModuleNameForRequestType(requestForm.type), approvalSetting)
+      const approvalModule = getModuleNameForRequestType(requestForm.type)
+      const basePortalApprovalFields = buildPortalApprovalFields(approvalModule, approvalSetting)
+      const isNoApproval = !requiresStandardApproval([{ ...approvalSetting, moduleName: approvalModule }], approvalModule)
+      const portalApprovalFields = isNoApproval ? {
+        ...basePortalApprovalFields,
+        portalApproval: false,
+        portalApprovalType: 'none',
+        portalApprovalStages: [],
+        portalApprovalLastAction: 'Approved',
+        portalApprovalLastActionBy: user.uid,
+        approvalType: 'none',
+        totalStages: 0,
+      } : basePortalApprovalFields
       const approvalType = portalApprovalFields.portalApprovalType
       const totalStages = portalApprovalFields.totalStages
-      const isNoApproval = false
 
       if (requestForm.type === 'Leave') {
         await applyLeave({
           employeeId,
           employeeName: employee?.name || user?.name,
           department: employee?.department || '',
-          leaveType: requestForm.leaveType,
+          leaveType: selectedLeaveType,
           fromDate: requestForm.fromDate,
           toDate: requestForm.toDate,
+          requestedUnits: requestForm.halfDay ? 0.5 : undefined,
           reason: requestForm.reason,
           attachmentUrl,
           createdBy: user.uid,
@@ -548,9 +570,10 @@ export default function MobileEmployeePortal() {
       // Reset form and show success
       setRequestForm({
         type: 'Leave',
-        leaveType: 'Casual',
+        leaveType: selectedLeaveType || 'Casual',
         fromDate: '',
         toDate: '',
+        halfDay: false,
         date: '',
         fromTime: '',
         toTime: '',
@@ -560,6 +583,7 @@ export default function MobileEmployeePortal() {
         attachment: null,
       })
       await fetchRequests()
+      refreshLeaveBalances()
       setSubmitSuccess('Request submitted successfully!')
     } catch (err) {
       setValidationErrors({ submit: err.message })
@@ -754,10 +778,11 @@ export default function MobileEmployeePortal() {
             </div>
             <span className="text-xs text-gray-500">Leave Balance</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {employee?.leaveBalance?.Casual || employee?.leaveBalance?.Annual || 0}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Days available</p>
+          <div className="space-y-1.5">
+            {leaveBalances.filter((balance) => balance.configured).map((balance) => <p key={balance.leaveTypeCode} className="text-[11px] font-semibold text-gray-800">{balance.leaveType}: {balance.available.toFixed(2)} available</p>)}
+            {!leaveBalances.some((balance) => balance.configured) && <p className="text-sm font-semibold text-gray-700">Not configured</p>}
+          </div>
+          {employee?.leaveBalance !== undefined && employee?.leaveBalance !== null && typeof employee.leaveBalance !== 'object' && <p className="text-[10px] text-gray-400 mt-1">Legacy aggregate: {Number(employee.leaveBalance || 0).toFixed(2)}; not allocated by type.</p>}
         </div>
         
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -1450,12 +1475,12 @@ export default function MobileEmployeePortal() {
                   Leave Type
                 </label>
                 <select
-                  value={requestForm.leaveType}
+                  value={selectedLeaveType}
                   onChange={(e) => setRequestForm({ ...requestForm, leaveType: e.target.value })}
                   className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                 >
-                  {['Casual', 'Sick', 'Annual', 'Unpaid'].map(type => (
-                    <option key={type} value={type}>{type} Leave</option>
+                  {configuredLeaveTypes.map(type => (
+                    <option key={type.code} value={type.name}>{type.name}</option>
                   ))}
                 </select>
               </div>
@@ -1476,6 +1501,7 @@ export default function MobileEmployeePortal() {
                         setRequestForm({ 
                           ...requestForm, 
                           fromDate: dateStr,
+                          halfDay: false,
                           toDate: requestForm.toDate || dateStr // Auto-set to date if not set
                         })
                       }}
@@ -1483,7 +1509,6 @@ export default function MobileEmployeePortal() {
                       className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                       placeholderText="Select date"
                       minDate={new Date()}
-                      filterDate={(date) => date.getDay() !== 0} // Disable Sundays
                     />
                   </div>
                   <div>
@@ -1494,13 +1519,13 @@ export default function MobileEmployeePortal() {
                       selected={requestForm.toDate ? new Date(requestForm.toDate) : null}
                       onChange={(date) => {
                         const dateStr = date ? date.toISOString().split('T')[0] : ''
-                        setRequestForm({ ...requestForm, toDate: dateStr })
+                        setRequestForm({ ...requestForm, toDate: dateStr, halfDay: false })
                       }}
                       dateFormat="dd/MM/yyyy"
                       className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                       placeholderText="Select date"
                       minDate={requestForm.fromDate ? new Date(requestForm.fromDate) : new Date()}
-                      filterDate={(date) => date.getDay() !== 0} // Disable Sundays
+                      disabled={requestForm.halfDay}
                     />
                   </div>
                 </div>
@@ -1509,9 +1534,11 @@ export default function MobileEmployeePortal() {
                 {requestForm.fromDate && requestForm.toDate && (
                   <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-center justify-between">
                     <span className="text-sm font-medium text-indigo-700">Total Days:</span>
-                    <span className="text-lg font-bold text-indigo-700">{calculateTotalDays()} day(s)</span>
+                    <span className="text-lg font-bold text-indigo-700">{requestForm.halfDay ? '0.5' : calculateTotalDays()} day(s)</span>
                   </div>
                 )}
+                <label className="inline-flex items-center gap-2 text-[11px] font-medium text-gray-600"><input type="checkbox" checked={requestForm.halfDay} disabled={!requestForm.fromDate || requestForm.toDate !== requestForm.fromDate || !selectedLeavePolicy.allowHalfDay} onChange={(event) => setRequestForm((previous) => ({ ...previous, halfDay: event.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-indigo-600" />Half day (0.5 leave unit)</label>
+                {selectedLeaveBalance?.configured && <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-3 text-[11px] leading-5 text-indigo-900"><strong>{leaveRequestUnits.toFixed(2)} leave unit(s)</strong> included under this policy; {selectedLeaveBalance.available.toFixed(2)} available before the request.{leaveRequestShortfall > 0 && selectedLeavePolicy.overuseMode === 'block' && <span className="mt-1 block font-semibold text-rose-700">This request exceeds balance by {leaveRequestShortfall.toFixed(2)} and will be blocked.</span>}{leaveRequestShortfall > 0 && selectedLeavePolicy.overuseMode === 'allow_negative' && <span className="mt-1 block">Approval may leave a negative balance of {leaveRequestShortfall.toFixed(2)} units.</span>}{leaveRequestShortfall > 0 && selectedLeavePolicy.overuseMode === 'unpaid_shortfall' && <span className="mt-1 block">The {leaveRequestShortfall.toFixed(2)}-unit shortfall is unpaid/LOP if approved and will affect pay under the existing Basic/HRA proration.</span>}</div>}
               </div>
             )}
 

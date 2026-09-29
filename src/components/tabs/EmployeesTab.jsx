@@ -11,6 +11,8 @@ import EmployeeDirectoryTab from './EmployeeDirectoryTab';
 import EmployeeProfileUpdatesTab from './EmployeeProfileUpdatesTab';
 import EmployeeLifecycleTab from './EmployeeLifecycleTab';
 import { ModulePillTabs } from '../ui/ModulePillTabs';
+import { useLeaveBalances } from '../../hooks/useLeaveBalances';
+import { normalizeLeaveTypeCode } from '../../lib/leaveEntitlements';
 const formatDate = d => d ? new Date(d).toLocaleDateString('en-IN', {
   day: '2-digit',
   month: 'short',
@@ -139,6 +141,15 @@ function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
   return <div className="rounded-xl border border-[#E9ECF0] bg-white overflow-hidden">      <button onClick={() => setOpen(!open)} className="flex items-center gap-3 w-full px-5 py-3.5 bg-white hover:bg-[#F7F8FA] transition-colors text-left">        <span className="text-[#6B7280] shrink-0">{icon}</span>        <span className="text-[13px] font-semibold text-[#1A1D26] flex-1">{title}</span>        {count !== undefined && <span className="text-[11px] font-medium text-[#6B7280] bg-[#F3F4F6] px-2.5 py-0.5 rounded-full">{count}</span>}        <ChevronDown size={15} className={`text-[#9CA3AF] transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />      </button>      <div className={`transition duration-200 overflow-hidden ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>        <div className="px-5 pb-4 pt-1 border-t border-[#E9ECF0]">          {children}        </div>      </div>    </div>;
 }
+function EmployeeLeaveBalanceBreakdown({ orgId, employeeId, legacyBalance }) {
+  const { balances, loading, error } = useLeaveBalances(orgId, employeeId)
+  return <div className="rounded-lg border border-[#E9ECF0] bg-white p-3.5">
+    <div className="mb-2 flex items-center justify-between"><h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">Leave balances by type</h4>{loading && <span className="text-[10px] text-[#9CA3AF]">Updating…</span>}</div>
+    {error && <p className="mb-2 text-[11px] text-rose-600">{error}</p>}
+    <div className="space-y-2">{balances.map((balance) => <div key={balance.leaveTypeCode} className="flex items-start justify-between gap-3 text-[11px]"><div><span className="font-medium text-[#1A1D26]">{balance.leaveType}</span>{balance.configured && <span className="ml-2 text-[10px] text-[#9CA3AF]">Accrued {balance.accrued.toFixed(2)} · used {balance.used.toFixed(2)} · pending {balance.pending.toFixed(2)}</span>}</div>{balance.configured ? <strong className={balance.available < 0 ? 'text-rose-600' : 'text-[#09CE99]'}>{balance.available.toFixed(2)} available</strong> : <span className="text-[10px] text-[#9CA3AF]">Not configured</span>}</div>)}</div>
+    {legacyBalance !== undefined && legacyBalance !== null && <p className="mt-3 rounded-md bg-[#F7F8FA] px-2.5 py-2 text-[10px] leading-4 text-[#6B7280]">Legacy aggregate: {Number(legacyBalance || 0).toFixed(2)} units; not allocated by leave type.</p>}
+  </div>
+}
 function LeaveSection({
   orgId,
   employeeId
@@ -161,9 +172,10 @@ function LeaveSection({
       total: 0
     };
     return leaves.reduce((acc, l) => {
-      acc.total += l.duration || 1;
-      if (l.hrApproval === 'Approved' || l.status === 'Approved') acc.approved += l.duration || 1;else if (l.hrApproval === 'Pending' || l.status === 'Pending') acc.pending += l.duration || 1;else if (l.hrApproval === 'Rejected' || l.status === 'Rejected') acc.rejected += l.duration || 1;
-      if (l.leaveType === 'LOP') acc.lop += l.duration || 1;
+      const units = Number(l.requestedUnits || l.duration || 1)
+      acc.total += units;
+      if (l.hrApproval === 'Approved' || l.status === 'Approved') acc.approved += units;else if (l.hrApproval === 'Pending' || l.status === 'Pending') acc.pending += units;else if (l.hrApproval === 'Rejected' || l.status === 'Rejected') acc.rejected += units;
+      if (normalizeLeaveTypeCode(l.leaveTypeCode || l.leaveType) === 'lop') acc.lop += units;
       return acc;
     }, {
       approved: 0,
@@ -429,6 +441,7 @@ function EmployeeDetailsPanel({ employee, onBack, onShowActivity }) {
           </div>
         )}
         <div className="space-y-3">
+          <EmployeeLeaveBalanceBreakdown orgId={orgId} employeeId={employee.id} legacyBalance={employee.leaveBalance} />
           <CollapsibleSection title="Leave Summary" defaultOpen={false} icon={<Calendar size={15} />}>
             <LeaveSection orgId={orgId} employeeId={employee.id} />
           </CollapsibleSection>

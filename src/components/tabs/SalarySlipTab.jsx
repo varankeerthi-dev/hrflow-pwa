@@ -1616,6 +1616,20 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           const dailyClassification = resolveDailyClassification({ attendanceRecord: r, coverage })
           if (dailyClassification.source === 'leave_coverage') {
             const leaveUnits = Number(dailyClassification.leaveUnits || 0)
+            if (dailyClassification.classification === 'mixed_leave') {
+              const segments = Array.isArray(dailyClassification.segments) ? dailyClassification.segments : []
+              const paidUnits = segments.filter(segment => ['paid_leave', 'half_paid_leave'].includes(segment.classification)).reduce((sum, segment) => sum + Number(segment.units || 0), 0)
+              const unpaidUnits = segments.filter(segment => segment.classification === 'unpaid_leave').reduce((sum, segment) => sum + Number(segment.units || 0), 0)
+              const lopUnits = segments.filter(segment => segment.classification === 'lop_leave').reduce((sum, segment) => sum + Number(segment.units || 0), 0)
+              paidLeave += paidUnits
+              leave += paidUnits
+              unpaidLeave += unpaidUnits
+              lop += unpaidUnits + lopUnits
+              worked += Number(dailyClassification.workUnits || 0)
+              if (Number(dailyClassification.workUnits || 0) > 0) hd += 1
+              if (unpaidUnits + lopUnits > 0) lopDatesList.push(i)
+              continue
+            }
             if (dailyClassification.classification === 'paid_leave' || dailyClassification.classification === 'half_paid_leave') {
               paidLeave += leaveUnits
               leave += leaveUnits
@@ -1629,11 +1643,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
               unpaidLeave += leaveUnits
               lop += leaveUnits
               lopDatesList.push(i)
+              worked += Number(dailyClassification.workUnits || 0)
+              if (Number(dailyClassification.workUnits || 0) > 0) hd += 1
               continue
             }
             if (dailyClassification.classification === 'lop_leave') {
               lop += leaveUnits
               lopDatesList.push(i)
+              worked += Number(dailyClassification.workUnits || 0)
+              if (Number(dailyClassification.workUnits || 0) > 0) hd += 1
               continue
             }
           }

@@ -33,6 +33,7 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
+import { LEGACY_LEAVE_TYPE_DEFINITIONS } from '../../lib/leaveEntitlements'
 import MapLocationPicker from '../ui/MapLocationPicker'
 
 import SalarySlabSettings from './SalarySlabSettings'
@@ -113,12 +114,46 @@ const createDefaultLeavePolicy = (leaveType) => ({
   allowHalfDay: true,
   monthlyRequestWarningThreshold: 3,
   conflictMode: 'review_required',
+  entitlementCadence: 'unconfigured',
+  entitlementAmount: '',
+  effectiveFrom: '',
+  overuseMode: 'block',
 })
 
-const normalizeLeavePolicies = (policies = {}) => LEAVE_POLICY_TYPES.reduce((result, leaveType) => ({
-  ...result,
-  [leaveType]: { ...createDefaultLeavePolicy(leaveType), ...(policies?.[leaveType] || {}) },
-}), {})
+const normalizeLeavePolicies = (policies = {}, definitions = []) => {
+  const leaveTypes = [...new Set([
+    ...LEAVE_POLICY_TYPES,
+    ...definitions.map((definition) => definition.name),
+    ...Object.keys(policies || {}).filter((key) => key !== 'default'),
+  ])]
+  return leaveTypes.reduce((result, leaveType) => ({
+    ...result,
+    [leaveType]: {
+      ...createDefaultLeavePolicy(leaveType),
+      ...(policies?.[leaveType] || {}),
+    },
+  }), {})
+}
+
+const getLeaveTypeEditorDefinitions = (orgSettings = {}) => {
+  const saved = Array.isArray(orgSettings.leaveTypes) ? orgSettings.leaveTypes : []
+  const builtIns = LEGACY_LEAVE_TYPE_DEFINITIONS.map((base) => {
+    const override = saved.find((item) => String(item.code || '').toLowerCase() === base.code)
+    return { ...base, ...override, code: base.code, aliases: override?.aliases || base.aliases, enabled: override?.enabled !== false, builtIn: true }
+  })
+  const custom = saved.filter((item) => !LEGACY_LEAVE_TYPE_DEFINITIONS.some((base) => String(item.code || '').toLowerCase() === base.code))
+  return [...builtIns, ...custom.map((item) => ({ ...item, builtIn: false }))]
+}
+
+const persistLeaveTypeDefinitions = (definitions = []) => definitions.map((item) => (
+  Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'builtIn'))
+))
+const normalizeLeaveIdentifier = (value) => String(value || '').trim().toLowerCase().replace(/[._-]+/g, ' ').replace(/\s+/g, ' ')
+const isValidLeaveDate = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false
+  const parsed = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+}
 
 const employeeValidationSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -617,6 +652,7 @@ export default function SettingsTab({ initialSubTab }) {
   const [editingAccountIndex, setEditingAccountIndex] = useState(null)
   const [editingAccountValue, setEditingAccountValue] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
+  const [newLeaveTypeName, setNewLeaveTypeName] = useState('')
   const [editingHolidayIndex, setEditingHolidayIndex] = useState(null)
   const [holidayError, setHolidayError] = useState('')
   const [holidaySaveNotice, setHolidaySaveNotice] = useState(null)
@@ -4152,7 +4188,9 @@ export default function SettingsTab({ initialSubTab }) {
   const activeEmployeesCount = employees.filter(emp => isEmployeeActiveStatus(emp.status)).length
   const currentSettingsMeta = settingsSubTabMeta[activeSubTab] || settingsSubTabMeta.organization
   const attendancePolicy = normalizeAttendancePolicy(orgSettings.attendancePolicy)
-  const leavePolicies = normalizeLeavePolicies(orgSettings.leavePolicies)
+  const leaveTypeDefinitions = getLeaveTypeEditorDefinitions(orgSettings)
+  const activeLeaveTypeDefinitions = leaveTypeDefinitions.filter((definition) => definition.enabled !== false)
+  const leavePolicies = normalizeLeavePolicies(orgSettings.leavePolicies, leaveTypeDefinitions)
   const updateLeavePolicy = (leaveType, field, value) => {
     setOrgSettings((previous) => ({
       ...previous,
@@ -4165,6 +4203,105 @@ export default function SettingsTab({ initialSubTab }) {
         },
       },
     }))
+  }
+  const updateLeaveTypeDefinition = (code, field, value) => {
+    setOrgSettings((previous) => {
+      const definitions = getLeaveTypeEditorDefinitions(previous)
+      const oldType = definitions.find((item) => item.code === code)
+      if (!oldType) return previous
+      const nextType = { ...oldType, [field]: value }
+      const nextTypes = definitions.map((item) => item.code === code ? nextType : item)
+      const policies = { ...(previous.leavePolicies || {}) }
+      if (field === 'name' && oldType.name !== value) {
+        policies[value] = policies[oldType.name] || createDefaultLeavePolicy(value)
+        if (!LEAVE_POLICY_TYPES.includes(oldType.name)) delete policies[oldType.name]
+      }
+      return { ...previous, leaveTypes: persistLeaveTypeDefinitions(nextTypes), leavePolicies: policies }
+    })
+  }
+  const addEmployerLeaveType = () => {
+    const name = newLeaveTypeName.trim()
+    const code = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+    if (!name || !code) return
+    if (leaveTypeDefinitions.some((item) => item.code === code || item.name.toLowerCase() === name.toLowerCase())) {
+      alert('A leave type with this name or code already exists.')
+      return
+    }
+    const definitions = [...leaveTypeDefinitions, { code, name, aliases: [], enabled: true }]
+    setOrgSettings((previous) => ({
+      ...previous,
+      leaveTypes: persistLeaveTypeDefinitions(definitions),
+      leavePolicies: { ...normalizeLeavePolicies(previous.leavePolicies, definitions), [name]: createDefaultLeavePolicy(name) },
+    }))
+    setNewLeaveTypeName('')
+  }
+  const publishLeavePolicies = async () => {
+    const effectiveFrom = String(orgSettings.leavePolicyEffectiveFrom || '').trim()
+    if (!isValidLeaveDate(effectiveFrom)) {
+      alert('Choose the effective date for this leave-policy publication.')
+      return
+    }
+    const identifiers = new Map()
+    for (const definition of leaveTypeDefinitions) {
+      const name = String(definition.name || '').trim()
+      if (!name) {
+        alert('Every leave type must have a display name.')
+        return
+      }
+      const values = [definition.code, name, ...(definition.aliases || [])]
+      for (const value of values) {
+        const key = normalizeLeaveIdentifier(value)
+        const existingCode = identifiers.get(key)
+        if (key && existingCode && existingCode !== definition.code) {
+          alert(`“${value}” identifies more than one leave type. Use unique names and aliases before publishing.`)
+          return
+        }
+        if (key) identifiers.set(key, definition.code)
+      }
+    }
+    const versions = [...(Array.isArray(orgSettings.leavePolicyVersions) ? orgSettings.leavePolicyVersions : [])]
+    const nextPolicies = { ...leavePolicies }
+    for (const definition of activeLeaveTypeDefinitions) {
+      const policy = { ...createDefaultLeavePolicy(definition.name), ...(nextPolicies[definition.name] || {}) }
+      const amount = Number(policy.entitlementAmount)
+      if (policy.entitlementCadence !== 'unconfigured' && (!Number.isFinite(amount) || amount <= 0)) {
+        alert(`Enter a positive entitlement amount for ${definition.name}, or choose “Not configured”.`)
+        return
+      }
+      if (policy.entitlementCadence !== 'unconfigured' && !isValidLeaveDate(String(policy.effectiveFrom || effectiveFrom))) {
+        alert(`Choose a valid entitlement effective date for ${definition.name}.`)
+        return
+      }
+      const entitlementEffectiveFrom = policy.entitlementCadence === 'unconfigured' ? effectiveFrom : (policy.effectiveFrom || effectiveFrom)
+      const codeVersions = versions.filter((version) => String(version.leaveTypeCode || '').toLowerCase() === definition.code)
+      const latest = codeVersions.sort((a, b) => String(a.effectiveFrom || '').localeCompare(String(b.effectiveFrom || '')) || Number(a.version || 0) - Number(b.version || 0)).at(-1)
+      const policyVersion = Number(latest?.version || 0) + 1
+      const snapshot = {
+        ...policy,
+        leaveTypeCode: definition.code,
+        effectiveFrom: entitlementEffectiveFrom,
+        policyVersion: `v${policyVersion}`,
+      }
+      const comparable = (value) => JSON.stringify({ ...value, policyVersion: undefined })
+      if (latest && latest.effectiveFrom === entitlementEffectiveFrom) {
+        if (comparable(latest.policy || {}) !== comparable(snapshot)) {
+          alert(`A ${definition.name} policy version already exists for ${entitlementEffectiveFrom}. Choose a later effective date for changes.`)
+          return
+        }
+      } else {
+        versions.push({ leaveTypeCode: definition.code, leaveType: definition.name, version: policyVersion, effectiveFrom: entitlementEffectiveFrom, policy: snapshot, publishedAt: new Date().toISOString() })
+      }
+      nextPolicies[definition.name] = snapshot
+    }
+    const nextSettings = {
+      leaveTypes: persistLeaveTypeDefinitions(leaveTypeDefinitions),
+      leavePolicies: nextPolicies,
+      leavePolicyVersions: versions,
+      leavePolicyEffectiveFrom: effectiveFrom,
+      leavePolicyVersion: `v${versions.length || 1}`,
+    }
+    setOrgSettings((previous) => ({ ...previous, ...nextSettings }))
+    await handleSaveOrg('Leave policy published successfully', nextSettings)
   }
   const openMobileSettingsItem = (tab) => {
     setActiveSubTab(tab.id)
@@ -4305,11 +4442,53 @@ export default function SettingsTab({ initialSubTab }) {
             <div className={`${settingsPanelClassName} p-5 md:p-6`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-600">Time off rules</p>
               <h2 className="mt-1 text-[24px] font-normal tracking-[-0.03em] text-slate-950">Leave Policy</h2>
-              <p className="mt-2 max-w-3xl text-[13px] leading-6 text-slate-500">Define how final approved leave is paid, expanded across non-working dates, and sent for repeated-leave review. Approval routing remains in My Portal Approval.</p>
+              <p className="mt-2 max-w-3xl text-[13px] leading-6 text-slate-500">Define employer-specific leave types, paid/unpaid treatment, monthly or annual entitlement, and what happens when an employee requests more than their available balance. No entitlement amount is prefilled.</p>
             </div>
 
+            <section className={`${settingsPanelClassName} p-5 md:p-6`}>
+              <div className="mb-4">
+                <h3 className="text-[15px] font-semibold text-slate-950">Leave types and publication date</h3>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">Built-in names keep their stable codes and legacy aliases. Renaming changes the display label only; disabled types stay in history but cannot be newly requested.</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-[1fr_1.5fr]">
+                <label className="block">
+                  <span className={settingsSectionLabelClassName}>Policy effective from</span>
+                  <input type="date" value={orgSettings.leavePolicyEffectiveFrom || ''} onChange={(event) => setOrgSettings((previous) => ({ ...previous, leavePolicyEffectiveFrom: event.target.value }))} className={settingsInputClassName} aria-describedby="leave-policy-date-help" />
+                  <span id="leave-policy-date-help" className="mt-1 block text-[10px] leading-4 text-slate-500">Choose the date for the values in this publication. Later versions do not rewrite prior leave or locked payroll.</span>
+                </label>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <label className="block">
+                      <span className={settingsSectionLabelClassName}>Add an employer-defined type</span>
+                      <input value={newLeaveTypeName} onChange={(event) => setNewLeaveTypeName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addEmployerLeaveType() } }} placeholder="e.g. Volunteer Leave" className={settingsInputClassName} />
+                    </label>
+                    <button type="button" onClick={addEmployerLeaveType} className="mt-5 h-9 rounded-md bg-indigo-600 px-4 text-[11px] font-semibold text-white hover:bg-indigo-700">Add type</button>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {leaveTypeDefinitions.map((definition) => (
+                      <div key={definition.code} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                        <label className="block">
+                          <span className={settingsSectionLabelClassName}>Display name · {definition.code}</span>
+                          <input value={definition.name} onChange={(event) => updateLeaveTypeDefinition(definition.code, 'name', event.target.value)} className={settingsInputClassName} />
+                        </label>
+                        <label className="mt-2 block">
+                          <span className={settingsSectionLabelClassName}>Legacy aliases</span>
+                          <input value={(definition.aliases || []).join(', ')} onChange={(event) => updateLeaveTypeDefinition(definition.code, 'aliases', event.target.value.split(',').map((alias) => alias.trim()).filter(Boolean))} className={settingsInputClassName} aria-label={`Aliases for ${definition.name}`} />
+                        </label>
+                        <label className="mt-2 inline-flex items-center gap-2 text-[11px] font-medium text-slate-700">
+                          <input type="checkbox" checked={definition.enabled !== false} onChange={(event) => updateLeaveTypeDefinition(definition.code, 'enabled', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
+                          Active for new requests
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <div className="grid gap-4 xl:grid-cols-2">
-              {LEAVE_POLICY_TYPES.map((leaveType) => {
+              {activeLeaveTypeDefinitions.map((definition) => {
+                const leaveType = definition.name
                 const policy = leavePolicies[leaveType]
                 return (
                   <section key={leaveType} className={`${settingsPanelClassName} p-5`}>
@@ -4338,6 +4517,30 @@ export default function SettingsTab({ initialSubTab }) {
                         <span className={settingsSectionLabelClassName}>Monthly warning threshold</span>
                         <input type="number" min="0" value={policy.monthlyRequestWarningThreshold} onChange={(event) => updateLeavePolicy(leaveType, 'monthlyRequestWarningThreshold', Math.max(0, Number(event.target.value) || 0))} className={settingsInputClassName} />
                       </label>
+                      <label className="block">
+                        <span className={settingsSectionLabelClassName}>Entitlement</span>
+                        <select value={policy.entitlementCadence || 'unconfigured'} onChange={(event) => updateLeavePolicy(leaveType, 'entitlementCadence', event.target.value)} className={settingsInputClassName}>
+                          <option value="unconfigured">Not configured — keep legacy behavior</option>
+                          <option value="monthly">Monthly accrual</option>
+                          <option value="annual">Annual grant</option>
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className={settingsSectionLabelClassName}>{policy.entitlementCadence === 'annual' ? 'Annual units' : 'Units per month'}</span>
+                        <input type="number" min="0" step="0.5" value={policy.entitlementAmount ?? ''} onChange={(event) => updateLeavePolicy(leaveType, 'entitlementAmount', event.target.value)} disabled={!['monthly', 'annual'].includes(policy.entitlementCadence)} placeholder="No default" className={`${settingsInputClassName} disabled:bg-slate-100`} />
+                      </label>
+                      <label className="block">
+                        <span className={settingsSectionLabelClassName}>Entitlement effective date</span>
+                        <input type="date" value={policy.effectiveFrom || ''} onChange={(event) => updateLeavePolicy(leaveType, 'effectiveFrom', event.target.value)} disabled={!['monthly', 'annual'].includes(policy.entitlementCadence)} className={`${settingsInputClassName} disabled:bg-slate-100`} />
+                      </label>
+                      <label className="block">
+                        <span className={settingsSectionLabelClassName}>When the balance is short</span>
+                        <select value={policy.overuseMode || 'block'} onChange={(event) => updateLeavePolicy(leaveType, 'overuseMode', event.target.value)} disabled={!['monthly', 'annual'].includes(policy.entitlementCadence)} className={`${settingsInputClassName} disabled:bg-slate-100`}>
+                          <option value="block">Block over-entitlement</option>
+                          <option value="allow_negative">Allow negative balance</option>
+                          <option value="unpaid_shortfall">Convert shortfall to unpaid / LOP</option>
+                        </select>
+                      </label>
                       <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 sm:col-span-2">
                         <input type="checkbox" checked={policy.allowHalfDay} onChange={(event) => updateLeavePolicy(leaveType, 'allowHalfDay', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
                         <span className="text-[12px] font-semibold text-slate-700">Allow half-day coverage and 0.5-unit ledger entries</span>
@@ -4349,8 +4552,8 @@ export default function SettingsTab({ initialSubTab }) {
             </div>
 
             <div className={`${settingsPanelClassName} flex flex-wrap justify-between gap-3 p-5`}>
-              <p className="max-w-3xl text-[11px] leading-5 text-slate-500"><strong className="text-slate-700">Policy safety:</strong> Existing locked payroll periods preserve historical treatment. Future approved leave stores its policy snapshot and does not rewrite past payroll when settings later change.</p>
-              <button onClick={() => handleSaveOrg('Leave policy saved successfully!')} disabled={saving} className="h-10 rounded-lg bg-indigo-600 px-5 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving policy...' : 'Save leave policy'}</button>
+              <p className="max-w-3xl text-[11px] leading-5 text-slate-500"><strong className="text-slate-700">Policy safety:</strong> No quota is assumed. Entitlement accrues from the effective-date anniversary; shortfalls follow only the selected policy. Existing locked payroll periods preserve historical treatment.</p>
+              <button onClick={publishLeavePolicies} disabled={saving} className="h-10 rounded-lg bg-indigo-600 px-5 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Publishing policy…' : 'Publish leave policy'}</button>
             </div>
           </div>
         )}
