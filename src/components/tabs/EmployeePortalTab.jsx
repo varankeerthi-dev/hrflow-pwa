@@ -12,6 +12,7 @@ import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
 import SelfieCaptureModal from '../ui/SelfieCaptureModal'
 import { useLeaves } from '../../hooks/useLeaves'
+import { useLeaveBalances } from '../../hooks/useLeaveBalances'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import EmployeeTasksView from './EmployeeTasksView'
 import AdvanceExpenseTab from './AdvanceExpenseTab'
@@ -19,8 +20,10 @@ import EmployeeProfileUpdateForm from './EmployeeProfileUpdateForm'
 import EmployeeCommunicationsView from './hr-communications/EmployeeCommunicationsView'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR, formatTimeTo12Hour } from '../../lib/salaryUtils'
-import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
+import { buildPortalApprovalFields, requiresStandardApproval } from '../../lib/portalApprovalWorkflow'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
+import { buildLeaveCoverageCandidates, getLeavePolicy } from '../../lib/leaveLifecycle'
+import { normalizeLeaveTypeCode } from '../../lib/leaveEntitlements'
 import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../../lib/attendanceWorkflow'
 import { compressSelfieBlob, evaluateSiteProximity, getCurrentPositionOnce, getOrgSites, resolveTargetSite, submitPendingAttendanceEvent, uploadTempSelfie } from '../../lib/geoAttendanceService'
 import { 
@@ -122,12 +125,25 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     leaveType: 'Casual',
     fromDate: '',
     toDate: '',
+    halfDay: false,
     date: '',
     time: '',
     amount: '',
     reason: '',
     approverIds: [],
   })
+  const { orgData: leaveOrgData, leaveTypes: configuredLeaveTypes, balances: leaveBalances, balanceByCode: leaveBalanceByCode, refresh: refreshLeaveBalances } = useLeaveBalances(user?.orgId, employeeId)
+  const selectedLeaveType = configuredLeaveTypes.some((type) => type.name === requestForm.leaveType) ? requestForm.leaveType : (configuredLeaveTypes[0]?.name || requestForm.leaveType)
+  const selectedLeaveBalance = leaveBalanceByCode[normalizeLeaveTypeCode(selectedLeaveType)]
+  const selectedLeavePolicy = getLeavePolicy(leaveOrgData, selectedLeaveType, requestForm.fromDate || new Date().toISOString().slice(0, 10))
+  const leaveRequestPreview = useMemo(() => {
+    if (requestForm.type !== 'Leave' || !requestForm.fromDate || !requestForm.toDate || requestForm.toDate < requestForm.fromDate) return []
+    const requestedUnits = requestForm.halfDay ? 0.5 : Math.floor((new Date(`${requestForm.toDate}T00:00:00`).getTime() - new Date(`${requestForm.fromDate}T00:00:00`).getTime()) / 86400000) + 1
+    return buildLeaveCoverageCandidates({ ...requestForm, leaveType: selectedLeaveType, requestedUnits, orgData: leaveOrgData })
+  }, [leaveOrgData, requestForm, selectedLeaveType])
+  const leaveRequestUnits = leaveRequestPreview.reduce((sum, candidate) => sum + Number(candidate.leaveUnits || 0), 0)
+  const leaveRequestPaidUnits = leaveRequestPreview.reduce((sum, candidate) => sum + (String(candidate.classification || '').includes('paid') ? Number(candidate.leaveUnits || 0) : 0), 0)
+  const leaveRequestShortfall = selectedLeaveBalance?.configured ? Math.max(0, leaveRequestPaidUnits - Number(selectedLeaveBalance.available || 0)) : 0
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -371,6 +387,10 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       alert('Please select both From and To dates.')
       return
     }
+    if (requestForm.type === 'Leave' && requestForm.halfDay && requestForm.fromDate !== requestForm.toDate) {
+      alert('Half-day requests must be for a single date.')
+      return
+    }
 
     if (requestForm.type === 'Permission' && (!requestForm.date || !requestForm.time)) {
       alert('Please select date and time for permission.')
@@ -385,18 +405,30 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     setLoading(true)
     try {
       const approvalSetting = getApprovalSettingForType(requestForm.type)
-      const portalApprovalFields = buildPortalApprovalFields(getModuleNameForRequestType(requestForm.type), approvalSetting)
+      const approvalModule = getModuleNameForRequestType(requestForm.type)
+      const basePortalApprovalFields = buildPortalApprovalFields(approvalModule, approvalSetting)
+      const isNoApproval = !requiresStandardApproval([{ ...approvalSetting, moduleName: approvalModule }], approvalModule)
+      const portalApprovalFields = isNoApproval ? {
+        ...basePortalApprovalFields,
+        portalApproval: false,
+        portalApprovalType: 'none',
+        portalApprovalStages: [],
+        portalApprovalLastAction: 'Approved',
+        portalApprovalLastActionBy: user.uid,
+        approvalType: 'none',
+        totalStages: 0,
+      } : basePortalApprovalFields
       const approvalType = portalApprovalFields.portalApprovalType
       const totalStages = portalApprovalFields.totalStages
-      const isNoApproval = false
 
       if (requestForm.type === 'Leave') {
         const payload = {
           employeeId,
           employeeName: employee?.name || user.name,
-          leaveType: requestForm.leaveType || 'Casual',
+          leaveType: selectedLeaveType || 'Casual',
           fromDate: requestForm.fromDate,
           toDate: requestForm.toDate || requestForm.fromDate,
+          requestedUnits: requestForm.halfDay ? 0.5 : undefined,
           reason: requestForm.reason,
           orgId: user.orgId,
           approvalType,
@@ -478,6 +510,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         leaveType: 'Casual',
         fromDate: '',
         toDate: '',
+        halfDay: false,
         date: '',
         time: '',
         amount: '',
@@ -485,6 +518,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         approverIds: [],
       })
       fetchRequests()
+      refreshLeaveBalances()
     } catch (err) {
       alert('Failed to submit request: ' + err.message)
     } finally {
@@ -828,14 +862,13 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
               <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Leave Balance
+                  Leave balances by type
                 </p>
-                <p className="text-2xl font-black text-gray-900">
-                  {employee?.leaveBalance ?? '--'} <span className="text-sm font-semibold">days</span>
-                </p>
-                <p className="text-[12px] text-gray-500 mt-2">
-                  Contact HR if your leave balance looks incorrect.
-                </p>
+                <div className="space-y-2">
+                  {leaveBalances.map((balance) => <div key={balance.leaveTypeCode} className="flex items-center justify-between gap-3 border-b border-gray-100 pb-2 text-[12px] last:border-0 last:pb-0"><span className="font-medium text-gray-700">{balance.leaveType}<small className="block text-[10px] font-normal text-gray-400">{balance.configured ? `Accrued ${balance.accrued.toFixed(2)} · used ${balance.used.toFixed(2)} · pending ${balance.pending.toFixed(2)}` : 'Not configured'}</small></span>{balance.configured ? <strong className={`${balance.available < 0 ? 'text-rose-600' : 'text-indigo-600'}`}>{balance.available.toFixed(2)} available</strong> : <span className="text-[10px] text-gray-400">—</span>}</div>)}
+                </div>
+                {employee?.leaveBalance !== undefined && employee?.leaveBalance !== null && <p className="mt-3 rounded-md bg-gray-50 px-2.5 py-2 text-[10px] leading-4 text-gray-500">Legacy aggregate: {Number(employee.leaveBalance || 0).toFixed(2)} units; not allocated to a type.</p>}
+                <p className="text-[11px] text-gray-500 mt-2">Contact HR if a balance needs review.</p>
               </div>
 
               <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm">
@@ -1346,7 +1379,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
               
               return (
                 <div className="space-y-6 px-4">
-                  {monthKeys.map((monthKey, index) => {
+                  {monthKeys.map((monthKey) => {
                     const monthRequests = grouped[monthKey]
                     const isExpanded = expandedMonths[monthKey] !== false // Default to expanded
                     
@@ -1637,17 +1670,11 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                     Leave Classification
                   </label>
                   <select
-                    value={requestForm.leaveType}
+                    value={selectedLeaveType}
                     onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
                     className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
                   >
-                    <option value="Casual">Casual Leave</option>
-                    <option value="Sick">Sick Leave</option>
-                    <option value="Privilege">Privilege Leave</option>
-                    <option value="Maternity">Maternity Leave</option>
-                    <option value="Paternity">Paternity Leave</option>
-                    <option value="Unpaid">Unpaid Leave</option>
-                    <option value="LOP">Loss of Pay (LOP)</option>
+                    {configuredLeaveTypes.map((type) => <option key={type.code} value={type.name}>{type.name}</option>)}
                   </select>
                 </div>
                 
@@ -1681,7 +1708,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   <input
                     type="date"
                     value={requestForm.fromDate}
-                    onChange={e => setRequestForm(f => ({ ...f, fromDate: e.target.value }))}
+                    onChange={e => setRequestForm(f => ({ ...f, fromDate: e.target.value, halfDay: false }))}
                     className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
                   />
                 </div>
@@ -1692,11 +1719,13 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   <input
                     type="date"
                     value={requestForm.toDate}
-                    onChange={e => setRequestForm(f => ({ ...f, toDate: e.target.value }))}
+                    onChange={e => setRequestForm(f => ({ ...f, toDate: e.target.value, halfDay: false }))}
                     className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
                   />
                 </div>
               </div>
+              <label className="inline-flex items-center gap-2 text-[11px] font-medium text-gray-600"><input type="checkbox" checked={requestForm.halfDay} disabled={!requestForm.fromDate || requestForm.toDate !== requestForm.fromDate || !selectedLeavePolicy.allowHalfDay} onChange={(event) => setRequestForm((previous) => ({ ...previous, halfDay: event.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-indigo-600" />Half day (0.5 leave unit)</label>
+              {selectedLeaveBalance?.configured && <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3 text-[11px] leading-5 text-indigo-900"><strong>{leaveRequestUnits.toFixed(2)} leave unit(s)</strong> included by the current date policy; {selectedLeaveBalance.available.toFixed(2)} available before this request.{leaveRequestShortfall > 0 && selectedLeavePolicy.overuseMode === 'block' && <span className="block font-semibold text-rose-700">This request exceeds the configured balance by {leaveRequestShortfall.toFixed(2)} unit(s) and will be blocked.</span>}{leaveRequestShortfall > 0 && selectedLeavePolicy.overuseMode === 'allow_negative' && <span className="block">Approval will leave a negative balance of up to {leaveRequestShortfall.toFixed(2)} unit(s).</span>}{leaveRequestShortfall > 0 && selectedLeavePolicy.overuseMode === 'unpaid_shortfall' && <span className="block">The {leaveRequestShortfall.toFixed(2)}-unit shortfall will be unpaid/LOP if approved and will affect payroll under the existing Basic/HRA proration.</span>}</div>}
             </div>
           )}
 

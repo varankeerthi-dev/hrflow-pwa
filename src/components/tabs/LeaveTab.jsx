@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useLeaves } from '../../hooks/useLeaves'
+import { useLeaveBalances } from '../../hooks/useLeaveBalances'
 import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore'
 import { 
@@ -27,6 +28,15 @@ import {
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { ModulePillTabs } from '../ui/ModulePillTabs'
+import { buildLeaveCoverageCandidates, getLeavePolicy } from '../../lib/leaveLifecycle'
+import { isLeaveEntitlementConfigured, normalizeLeaveTypeCode } from '../../lib/leaveEntitlements'
+
+const createOpeningBalanceForm = () => ({
+  quantity: '',
+  effectiveDate: new Date().toISOString().slice(0, 10),
+  reason: '',
+  idempotencyKey: globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+})
 
 const formatLeaveDate = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || '—'
@@ -38,7 +48,7 @@ const formatLeaveDate = (value) => {
 export default function LeaveTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { loading: leaveLoading, fetchLeaves, applyLeave, updateLeaveStatus, deleteLeave, cancelLeave, calculateDuration } = useLeaves(user?.orgId)
+  const { loading: leaveLoading, fetchLeaves, applyLeave, updateLeaveStatus, deleteLeave, cancelLeave, recordOpeningBalance, calculateDuration } = useLeaves(user?.orgId)
   
   const [activeSub, setActiveSub] = useState('dashboard')
   const [leaves, setLeaves] = useState([])
@@ -53,6 +63,7 @@ export default function LeaveTab() {
     leaveType: 'Casual', 
     fromDate: '', 
     toDate: '', 
+    halfDay: false,
     reason: '',
     deptHeadId: '',
     approverIds: [], // For multi-stage
@@ -75,16 +86,31 @@ export default function LeaveTab() {
   const [actionRemarks, setActionRemarks] = useState({})
   const [selectedNextApprover, setSelectedNextApprover] = useState({})
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7))
+  const [openingBalanceForm, setOpeningBalanceForm] = useState(createOpeningBalanceForm)
 
-  const leaveTypes = ['Casual', 'Sick', 'Privilege', 'Maternity', 'Paternity', 'Unpaid', 'LOP']
+  const selectedEmployee = employees.find((employee) => employee.id === form.employeeId) || null
+  const { orgData: leaveOrgData, leaveTypes: configuredLeaveTypes, balances: employeeBalances, balanceByCode, error: balanceError, refresh: refreshEmployeeBalances } = useLeaveBalances(user?.orgId, form.employeeId)
+  const leaveTypes = configuredLeaveTypes.map((type) => type.name)
+  const selectedLeaveType = leaveTypes.includes(form.leaveType) ? form.leaveType : (leaveTypes[0] || form.leaveType)
+  const selectedLeaveBalance = balanceByCode[normalizeLeaveTypeCode(selectedLeaveType)]
+  const selectedLeavePolicy = getLeavePolicy(leaveOrgData, selectedLeaveType, form.fromDate || new Date().toISOString().slice(0, 10))
+  const openingBalancePolicy = getLeavePolicy(leaveOrgData, selectedLeaveType, openingBalanceForm.effectiveDate)
+  const canRecordOpeningBalance = isLeaveEntitlementConfigured(openingBalancePolicy)
+  const formCoveragePreview = !selectedEmployee || !form.fromDate || !form.toDate || form.toDate < form.fromDate
+    ? []
+    : buildLeaveCoverageCandidates({ ...form, leaveType: selectedLeaveType, requestedUnits: form.halfDay ? 0.5 : calculateDuration(form.fromDate, form.toDate), orgData: leaveOrgData })
+  const formPaidUnits = formCoveragePreview.reduce((sum, candidate) => sum + (String(candidate.classification || '').includes('paid') ? Number(candidate.leaveUnits || 0) : 0), 0)
+  const formUnpaidShortfall = selectedLeaveBalance?.configured ? Math.max(0, formPaidUnits - Number(selectedLeaveBalance.available || 0)) : 0
 
   const refreshLeaves = useCallback(async () => {
     const data = await fetchLeaves()
     setLeaves(data)
   }, [fetchLeaves])
 
-  useEffect(() => { 
-    if (user?.orgId) refreshLeaves() 
+  useEffect(() => {
+    if (!user?.orgId) return undefined
+    const timer = window.setTimeout(() => { void refreshLeaves() }, 0)
+    return () => window.clearTimeout(timer)
   }, [user?.orgId, refreshLeaves])
 
   // Close menu when clicking outside
@@ -115,6 +141,7 @@ export default function LeaveTab() {
 
     if (!form.fromDate) return alert('Please select the From Date.')
     if (!form.toDate) return alert('Please select the To Date.')
+    if (form.halfDay && form.fromDate !== form.toDate) return alert('Half-day requests must be for a single date.')
     if (!form.reason.trim()) return alert('Please provide a reason.')
     
     try {
@@ -124,6 +151,8 @@ export default function LeaveTab() {
       
       const payload = {
         ...form,
+        leaveType: selectedLeaveType,
+        requestedUnits: form.halfDay ? 0.5 : calculateDuration(form.fromDate, form.toDate),
         employeeName: emp?.name || 'Unknown',
         orgId: user.orgId,
         approvalType,
@@ -150,6 +179,7 @@ export default function LeaveTab() {
         leaveType: 'Casual', 
         fromDate: '', 
         toDate: '', 
+        halfDay: false,
         reason: '', 
         deptHeadId: '',
         approverIds: [],
@@ -157,8 +187,30 @@ export default function LeaveTab() {
         deterrentLeave: false
       })
       refreshLeaves()
+      refreshEmployeeBalances()
     } catch (err) {
       alert('Failed to submit application: ' + err.message)
+    }
+  }
+
+  const handleRecordOpeningBalance = async (event) => {
+    event.preventDefault()
+    if (!form.employeeId) return alert('Select an employee before recording an opening balance.')
+    if (!form.leaveType) return alert('Select a leave type before recording an opening balance.')
+    try {
+      await recordOpeningBalance({
+        employeeId: form.employeeId,
+        leaveType: selectedLeaveType,
+        quantity: openingBalanceForm.quantity,
+        effectiveDate: openingBalanceForm.effectiveDate,
+        reason: openingBalanceForm.reason,
+        idempotencyKey: openingBalanceForm.idempotencyKey,
+      })
+      setOpeningBalanceForm(createOpeningBalanceForm())
+      refreshEmployeeBalances()
+      alert('Opening balance recorded and audit logged.')
+    } catch (error) {
+      alert(error.message || 'Opening balance could not be recorded.')
     }
   }
 
@@ -175,6 +227,7 @@ export default function LeaveTab() {
       setActionRemarks(prev => ({ ...prev, [requestId]: '' }))
       setSelectedNextApprover(prev => ({ ...prev, [requestId]: '' }))
       refreshLeaves()
+      refreshEmployeeBalances()
     } catch (err) {
       alert('Update failed: ' + err.message)
     }
@@ -188,7 +241,7 @@ export default function LeaveTab() {
   const filteredLeaves = leaves.filter(l => {
     const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (l.reason || '').toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'All' || l.leaveType === filterType
+    const matchesType = filterType === 'All' || normalizeLeaveTypeCode(l.leaveTypeCode || l.leaveType, configuredLeaveTypes) === normalizeLeaveTypeCode(filterType, configuredLeaveTypes)
     return matchesSearch && matchesType
   })
 
@@ -197,13 +250,6 @@ export default function LeaveTab() {
     { id: 'request', label: 'Requests', icon: <FileText size={14} /> },
     { id: 'approve', label: 'Approvals', icon: <CheckCircle size={14} /> },
     { id: 'reports', label: 'Analytics', icon: <PieChart size={14} /> }
-  ]
-
-  const stats = [
-    { label: 'Pending', count: filteredByMonthLeaves.filter(l => l.status === 'Pending').length },
-    { label: 'Approved', count: filteredByMonthLeaves.filter(l => l.status === 'Approved').length },
-    { label: 'Rejected', count: filteredByMonthLeaves.filter(l => l.status === 'Rejected').length },
-    { label: 'Total', count: filteredByMonthLeaves.length }
   ]
 
   return (
@@ -324,26 +370,30 @@ export default function LeaveTab() {
                     </div>
 
                     {form.employeeId && (
-                      <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm max-w-sm">
-                        <div className="bg-slate-50 px-4 py-1.5 border-b border-slate-200 text-[10px] font-semibold text-slate-500 uppercase">
-                          Entitlements
+                      <div className="max-w-xl overflow-hidden rounded-lg border border-slate-200 shadow-sm">
+                        <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-[10px] font-semibold uppercase text-slate-500">Per-type balance · {selectedEmployee?.name || 'Employee'}</div>
+                        {balanceError && <p className="px-4 py-2 text-[11px] text-rose-700">{balanceError}</p>}
+                        <div className="divide-y divide-slate-100">
+                          {employeeBalances.map((row) => (
+                            <div key={row.leaveTypeCode} className="grid grid-cols-[1fr_auto] gap-2 px-4 py-2 text-[11px]">
+                              <div><strong className="font-semibold text-slate-800">{row.leaveType}</strong><p className="mt-0.5 text-[10px] text-slate-500">{row.configured ? `Accrued ${row.accrued.toFixed(2)} · used ${row.used.toFixed(2)} · pending ${row.pending.toFixed(2)}` : 'Not configured — legacy behavior remains'}</p></div>
+                              {row.configured ? <div className="text-right"><strong className={`font-semibold ${row.available < 0 ? 'text-rose-700' : 'text-indigo-700'}`}>Available {row.available.toFixed(2)}</strong>{row.overEntitlement > 0 && <p className="text-[10px] font-semibold text-rose-700">Over by {row.overEntitlement.toFixed(2)}</p>}</div> : <span className="self-center text-[10px] text-slate-400">—</span>}
+                            </div>
+                          ))}
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-[11px]">
-                            <tbody className="divide-y divide-slate-100">
-                              {[
-                                { type: 'Casual', total: 0, used: 0 },
-                                { type: 'Privilege', total: 0, used: 0 },
-                                { type: 'Sick', total: 0, used: 0 }
-                              ].map((row, i) => (
-                                <tr key={i}>
-                                  <td className="px-4 py-1.5 text-slate-700">{row.type}</td>
-                                  <td className="px-4 py-1.5 text-center font-bold text-indigo-600">Available: {row.total - row.used}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                        {selectedEmployee?.leaveBalance !== undefined && selectedEmployee?.leaveBalance !== null && <p className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[10px] leading-4 text-slate-500">Legacy aggregate balance: {Number(selectedEmployee.leaveBalance || 0).toFixed(2)} units. This amount is not allocated to a leave type.</p>}
+                        {['admin', 'hr'].includes(String(user?.role || '').toLowerCase()) && (
+                          <form onSubmit={handleRecordOpeningBalance} className="border-t border-slate-200 bg-white p-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase text-slate-500">Reconcile reviewed opening balance</p>
+                            {!canRecordOpeningBalance && <p className="mb-2 text-[10px] leading-4 text-amber-700">Publish a monthly or annual entitlement for this type first.</p>}
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              <input type="number" min="0.01" step="0.25" value={openingBalanceForm.quantity} onChange={(event) => setOpeningBalanceForm((previous) => ({ ...previous, quantity: event.target.value }))} placeholder="Units" className="h-9 rounded-md border border-slate-200 px-2 text-[11px]" aria-label="Opening balance units" />
+                              <input type="date" value={openingBalanceForm.effectiveDate} onChange={(event) => setOpeningBalanceForm((previous) => ({ ...previous, effectiveDate: event.target.value }))} className="h-9 rounded-md border border-slate-200 px-2 text-[11px]" aria-label="Opening balance effective date" />
+                              <button type="submit" disabled={!canRecordOpeningBalance} className="h-9 rounded-md bg-slate-900 px-3 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Record for {selectedLeaveType}</button>
+                            </div>
+                            <input value={openingBalanceForm.reason} onChange={(event) => setOpeningBalanceForm((previous) => ({ ...previous, reason: event.target.value }))} placeholder="Required reconciliation reason" className="mt-2 h-9 w-full rounded-md border border-slate-200 px-2 text-[11px]" aria-label="Opening balance reason" />
+                          </form>
+                        )}
                       </div>
                     )}
                   </div>
@@ -355,7 +405,7 @@ export default function LeaveTab() {
                         <input 
                           type="date" 
                           value={form.fromDate} 
-                          onChange={e => setForm({...form, fromDate: e.target.value})} 
+                          onChange={e => setForm({...form, fromDate: e.target.value, halfDay: false})}
                           className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" 
                         />
                       </div>
@@ -364,26 +414,25 @@ export default function LeaveTab() {
                         <input 
                           type="date" 
                           value={form.toDate} 
-                          onChange={e => setForm({...form, toDate: e.target.value})} 
+                          onChange={e => setForm({...form, toDate: e.target.value, halfDay: false})}
                           className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" 
                         />
                       </div>
                     </div>
+                    <label className="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                      <input type="checkbox" checked={form.halfDay} disabled={!form.fromDate || form.toDate !== form.fromDate || !selectedLeavePolicy.allowHalfDay} onChange={(event) => setForm({ ...form, halfDay: event.target.checked })} className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
+                      Half day (0.5 leave unit)
+                    </label>
 
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-slate-500 uppercase">Classification</label>
-                      <div className="flex flex-wrap gap-2">
-                        {leaveTypes.slice(0, 4).map(type => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => setForm({...form, leaveType: type})}
-                            className={`inline-flex items-center justify-center rounded-md text-[10px] font-medium border transition-colors h-7 px-3 ${form.leaveType === type ? 'bg-slate-900 text-slate-50 border-slate-900 shadow-sm' : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-100'}`}
-                          >
-                            {type}
-                          </button>
-                        ))}
-                      </div>
+                      <select value={selectedLeaveType} onChange={(event) => setForm({ ...form, leaveType: event.target.value })} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950">
+                        {leaveTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                      {selectedLeaveBalance?.configured && <p className="text-[10px] text-slate-500">Available now: {Number(selectedLeaveBalance.available || 0).toFixed(2)} · this request: {formPaidUnits.toFixed(2)} paid unit(s)</p>}
+                      {formUnpaidShortfall > 0 && selectedLeavePolicy.overuseMode === 'block' && <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-2 text-[10px] leading-4 text-rose-800">This request exceeds the available balance by {formUnpaidShortfall.toFixed(2)} unit(s) and will be blocked under the published policy.</div>}
+                      {formUnpaidShortfall > 0 && selectedLeavePolicy.overuseMode === 'allow_negative' && <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-2 text-[10px] leading-4 text-amber-800">This approval will record an over-entitlement of {formUnpaidShortfall.toFixed(2)} unit(s); the balance may become negative.</div>}
+                      {formUnpaidShortfall > 0 && selectedLeavePolicy.overuseMode === 'unpaid_shortfall' && <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-2 text-[10px] leading-4 text-amber-800">The {formUnpaidShortfall.toFixed(2)}-unit shortfall will be unpaid/LOP if approved. Payroll will apply the existing Basic/HRA proration to the actual coverage.</div>}
                     </div>
 
                     <div className="space-y-2">
@@ -481,7 +530,7 @@ export default function LeaveTab() {
               </div>
               <div className="p-3 md:p-4 space-y-3">
                 {leaveTypes.map(type => {
-                  const count = filteredByMonthLeaves.filter(l => l.leaveType === type).length
+                  const count = filteredByMonthLeaves.filter(l => normalizeLeaveTypeCode(l.leaveTypeCode || l.leaveType, configuredLeaveTypes) === normalizeLeaveTypeCode(type, configuredLeaveTypes)).length
                   const percentage = filteredByMonthLeaves.length ? (count / filteredByMonthLeaves.length) * 100 : 0
                   if (count === 0) return null
                   return (
@@ -558,6 +607,7 @@ export default function LeaveTab() {
                             <div className="flex flex-col">
                               <span className="text-[12px] font-semibold text-slate-900">{leave.employeeName}</span>
                               <span className="text-[10px] text-slate-500 line-clamp-1 max-w-[150px]">{leave.reason}</span>
+                              {leave.leaveBalanceSnapshot?.overuseMode && <span className={`mt-0.5 text-[9px] font-medium ${Number(leave.leaveBalanceSnapshot.unpaidShortfallUnits || leave.leaveBalanceSnapshot.overEntitlementUnits || 0) > 0 ? 'text-amber-700' : 'text-slate-500'}`}>Balance {Number(leave.leaveBalanceSnapshot.availableBefore || 0).toFixed(2)} · requested {Number(leave.leaveBalanceSnapshot.requestedUnits || 0).toFixed(2)}{Number(leave.leaveBalanceSnapshot.unpaidShortfallUnits || 0) > 0 ? ` · ${Number(leave.leaveBalanceSnapshot.unpaidShortfallUnits).toFixed(2)} unpaid/LOP` : Number(leave.leaveBalanceSnapshot.overEntitlementUnits || 0) > 0 ? ` · ${Number(leave.leaveBalanceSnapshot.overEntitlementUnits).toFixed(2)} over` : ''}</span>}
                             </div>
                           </td>
                           <td className="px-4 md:px-6 hidden md:table-cell">
