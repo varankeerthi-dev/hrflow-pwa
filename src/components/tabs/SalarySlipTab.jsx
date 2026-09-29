@@ -558,8 +558,8 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
     }
     if (isSunW) return { char: 'SW', name: 'Sunday Worked', color: 'bg-emerald-50 text-emerald-700 font-bold border-emerald-100' };
     if (isHolW) return { char: 'HW', name: 'Holiday Worked', color: 'bg-emerald-50 text-emerald-700 font-bold border-emerald-100' };
-    if (isSunday) return { char: 'S', name: 'Sunday', color: 'bg-zinc-100 text-zinc-400 border-zinc-200/50' };
-    if (isHoliday) return { char: 'H', name: 'Holiday', color: 'bg-zinc-100 text-zinc-400 border-zinc-200/50' };
+    if (isSunday) return { char: 'S', name: 'Sunday', color: 'bg-zinc-100 text-slate-400 border-slate-200/50' };
+    if (isHoliday) return { char: 'H', name: 'Holiday', color: 'bg-zinc-100 text-slate-400 border-slate-200/50' };
     return { char: 'P', name: 'Present', color: 'bg-green-50 text-green-600 border-green-100/50' };
   };
 
@@ -570,64 +570,64 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-5xl flex flex-col max-h-[85vh] overflow-hidden border border-zinc-200">
+      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-5xl flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
         {showSuccess && (
           <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
             <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
               <CheckCircle2 size={40} />
             </div>
-            <h3 className="text-lg font-semibold text-zinc-900">OT Escalation Saved!</h3>
-            <p className="text-sm text-zinc-600">Attendance records have been updated.</p>
+            <h3 className="text-lg font-semibold text-slate-900">OT Escalation Saved!</h3>
+            <p className="text-sm text-slate-600">Attendance records have been updated.</p>
           </div>
         )}
         
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900">OT Escalation</h2>
-            <p className="text-[11px] text-zinc-600">{formatMonthDisplay(month)}</p>
+            <h2 className="text-sm font-semibold text-slate-900">OT Escalation</h2>
+            <p className="text-[11px] text-slate-600">{formatMonthDisplay(month)}</p>
           </div>
-          <button onClick={onClose} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-600 hover:bg-indigo-50/40 rounded-md transition-colors">
             <X size={18} />
           </button>
         </div>
 
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Left Panel: Employee Adjustments Table */}
-          <div className="flex-1 overflow-auto border-r border-zinc-200">
+          <div className="flex-1 overflow-auto border-r border-slate-200">
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-white z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
-                <tr className="h-10 bg-white border-b border-zinc-200">
-                  <th className="px-4 font-semibold text-[12px] text-zinc-600">Staff Member</th>
-                  <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Actual (Hrs)</th>
-                  <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Adjustment</th>
-                  <th className="px-4 font-semibold text-[12px] text-zinc-600 text-right">Final (Hrs)</th>
+                <tr className="h-10 bg-white border-b border-slate-200">
+                  <th className="px-4 font-semibold text-[12px] text-slate-600">Staff Member</th>
+                  <th className="px-4 font-semibold text-[12px] text-slate-600 text-center">Actual (Hrs)</th>
+                  <th className="px-4 font-semibold text-[12px] text-slate-600 text-center">Adjustment</th>
+                  <th className="px-4 font-semibold text-[12px] text-slate-600 text-right">Final (Hrs)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200">
+              <tbody className="divide-y divide-slate-200">
                 {employees.map(emp => {
                   const isSelected = selectedEmpId === emp.id;
                   return (
                     <tr 
                       key={emp.id} 
                       onClick={() => setSelectedEmpId(emp.id)}
-                      className={`group h-12 cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/40 border-l-2 border-indigo-600 font-semibold' : 'hover:bg-zinc-50 bg-white'}`}
+                      className={`group h-12 cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/40 border-l-2 border-indigo-600 font-semibold' : 'hover:bg-indigo-50/30 bg-white'}`}
                     >
-                      <td className="px-4 border-b border-zinc-200">
+                      <td className="px-4 border-b border-slate-200">
                         <div className="flex flex-col">
-                          <span className="text-[14px] text-zinc-900">{emp.name}</span>
+                          <span className="text-[14px] text-slate-900">{emp.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 text-center text-[13px] text-zinc-600 font-medium border-b border-zinc-200">
+                      <td className="px-4 text-center text-[13px] text-slate-600 font-medium border-b border-slate-200">
                         {Number(emp.ot || 0).toFixed(2)}
                       </td>
-                      <td className="px-4 border-b border-zinc-200" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 border-b border-slate-200" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors">-</button>
-                          <input type="number" step="0.5" className="h-8 w-12 text-center text-xs border border-zinc-200 rounded-md hover:bg-zinc-100 hover:border-zinc-300 focus:bg-white focus:ring-1 focus:border-zinc-950 focus:ring-zinc-950/20 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
-                          <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors">+</button>
+                          <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-8 w-8 flex items-center justify-center border border-slate-200 rounded-md hover:bg-indigo-50/40 text-slate-600 hover:text-slate-900 transition-colors">-</button>
+                          <input type="number" step="0.5" className="h-8 w-12 text-center text-xs border border-slate-200 rounded-md hover:bg-indigo-50/40 hover:border-slate-300 focus:bg-white focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500/20 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
+                          <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-8 w-8 flex items-center justify-center border border-slate-200 rounded-md hover:bg-indigo-50/40 text-slate-600 hover:text-slate-900 transition-colors">+</button>
                         </div>
                       </td>
-                      <td className="px-4 text-right text-[13px] font-semibold text-zinc-900 relative border-b border-zinc-200">
+                      <td className="px-4 text-right text-[13px] font-semibold text-slate-900 relative border-b border-slate-200">
                         <div className="flex items-center justify-end gap-2">
                           {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
                           <button 
@@ -648,24 +648,24 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
 
           {/* Right Panel: Attendance details & Excel table */}
           {/* Right Panel: Attendance details & Excel table */}
-          <div className="w-[460px] shrink-0 bg-zinc-50 flex flex-col p-4 border-l border-zinc-200 overflow-hidden">
+          <div className="w-[460px] shrink-0 bg-slate-50 flex flex-col p-4 border-l border-slate-200 overflow-hidden">
             {selectedEmp ? (
               <div className="flex-1 flex flex-col min-h-0 space-y-3">
                 {/* Employee details (simple text header, single row) */}
-                <div className="shrink-0 bg-white p-3 rounded-lg border border-zinc-200 shadow-sm text-[12px] font-semibold text-zinc-700 flex items-center gap-2">
-                  <span className="text-zinc-900 capitalize">{selectedEmp.name.toLowerCase()}</span>
-                  <span className="text-zinc-300">|</span>
-                  <span className="text-zinc-500 font-medium">{selectedEmp.designation}</span>
-                  <span className="text-zinc-300">|</span>
-                  <span className="font-mono text-[11px] text-zinc-500 font-medium">Code: {selectedEmp.empId}</span>
+                <div className="shrink-0 bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-[12px] font-semibold text-slate-700 flex items-center gap-2">
+                  <span className="text-slate-900 capitalize">{selectedEmp.name.toLowerCase()}</span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-500 font-medium">{selectedEmp.designation}</span>
+                  <span className="text-slate-300">|</span>
+                  <span className="font-mono text-[11px] text-slate-500 font-medium">Code: {selectedEmp.empId}</span>
                 </div>
 
                 <div className="flex-1 flex flex-col min-h-0 space-y-2">
-                  <span className="text-[10px] font-semibold text-zinc-400 block uppercase tracking-wider shrink-0">Attendance Sheet (Vertical Excel View)</span>
+                  <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider shrink-0">Attendance Sheet (Vertical Excel View)</span>
                   
-                  <div className="font-mono border border-zinc-200 rounded overflow-hidden text-[11px] bg-white shadow-sm flex-1 flex flex-col min-h-0">
+                  <div className="font-mono border border-slate-200 rounded overflow-hidden text-[11px] bg-white shadow-sm flex-1 flex flex-col min-h-0">
                     {/* Excel Toolbar */}
-                    <div className="bg-[#f3f3f3] px-2.5 py-1.5 border-b border-zinc-200 flex items-center justify-between text-[9px] text-zinc-500 font-sans select-none shrink-0">
+                    <div className="bg-[#f3f3f3] px-2.5 py-1.5 border-b border-slate-200 flex items-center justify-between text-[9px] text-slate-500 font-sans select-none shrink-0">
                       <div className="flex gap-1.5 items-center">
                         <span className="font-bold text-[#107c41]">Excel View</span>
                         <span>•</span>
@@ -681,12 +681,12 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
                     <div className="flex-1 overflow-y-auto min-h-0">
                       <table className="border-collapse w-full table-fixed">
                         <thead className="sticky top-0 bg-[#f3f3f3] z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
-                          <tr className="h-6 text-zinc-500 text-left text-[9px] select-none">
-                            <th className="border-r border-b border-zinc-200 px-3 font-semibold w-16">Date</th>
-                            <th className="border-r border-b border-zinc-200 px-2 font-semibold text-center w-12">Day</th>
-                            <th className="border-r border-b border-zinc-200 px-3 font-semibold w-24">Status</th>
-                            <th className="border-r border-b border-zinc-200 px-3 font-semibold w-24">Remarks</th>
-                            <th className="border-b border-zinc-200 px-3 font-semibold text-right w-20">OT Hours</th>
+                          <tr className="h-6 text-slate-500 text-left text-[9px] select-none">
+                            <th className="border-r border-b border-slate-200 px-3 font-semibold w-16">Date</th>
+                            <th className="border-r border-b border-slate-200 px-2 font-semibold text-center w-12">Day</th>
+                            <th className="border-r border-b border-slate-200 px-3 font-semibold w-24">Status</th>
+                            <th className="border-r border-b border-slate-200 px-3 font-semibold w-24">Remarks</th>
+                            <th className="border-b border-slate-200 px-3 font-semibold text-right w-20">OT Hours</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -717,23 +717,23 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
                             const remarks = getDayRemarks(selectedEmp, dayNum);
                             
                             return (
-                              <tr key={i} className="h-6 hover:bg-zinc-50 transition-colors">
-                                <td className="border-r border-b border-zinc-200 px-3 text-zinc-600 font-medium">
+                              <tr key={i} className="h-6 hover:bg-indigo-50/30 transition-colors">
+                                <td className="border-r border-b border-slate-200 px-3 text-slate-600 font-medium">
                                   {String(dayNum).padStart(2, '0')}/{String(m).padStart(2, '0')}
                                 </td>
-                                <td className={`border-r border-b border-zinc-200 px-2 text-center font-medium ${dayName === 'Sun' ? 'text-rose-500 font-bold bg-rose-50/20' : 'text-zinc-500'}`}>
+                                <td className={`border-r border-b border-slate-200 px-2 text-center font-medium ${dayName === 'Sun' ? 'text-rose-500 font-bold bg-rose-50/20' : 'text-slate-500'}`}>
                                   {dayName}
                                 </td>
-                                <td className={`border-r border-b border-zinc-200 px-2 font-semibold text-[9px] truncate`} title={status.name}>
+                                <td className={`border-r border-b border-slate-200 px-2 font-semibold text-[9px] truncate`} title={status.name}>
                                   <span className={`inline-block px-1 py-0.5 rounded text-[8px] leading-none uppercase ${status.color}`}>
                                     {status.char}
                                   </span>
-                                  <span className="ml-1 text-zinc-500 font-normal">{status.name}</span>
+                                  <span className="ml-1 text-slate-500 font-normal">{status.name}</span>
                                 </td>
-                                <td className="border-r border-b border-zinc-200 px-3 text-zinc-600 font-medium truncate" title={remarks}>
+                                <td className="border-r border-b border-slate-200 px-3 text-slate-600 font-medium truncate" title={remarks}>
                                   {remarks}
                                 </td>
-                                <td className={`border-b border-zinc-200 px-3 text-right font-semibold ${otDay ? 'bg-amber-50/50 text-amber-700 font-bold' : 'text-zinc-300'}`}>
+                                <td className={`border-b border-slate-200 px-3 text-right font-semibold ${otDay ? 'bg-amber-50/50 text-amber-700 font-bold' : 'text-slate-300'}`}>
                                   {otDay ? `${Number(otDay.hours).toFixed(1)} hrs` : '-'}
                                 </td>
                               </tr>
@@ -745,23 +745,23 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
                   </div>
 
                   {/* Excel Legend */}
-                  <div className="flex gap-2 flex-wrap text-[9px] text-zinc-500 pt-1 font-sans justify-center shrink-0">
+                  <div className="flex gap-2 flex-wrap text-[9px] text-slate-500 pt-1 font-sans justify-center shrink-0">
                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-green-50 text-green-600 font-bold border border-green-100/50 flex items-center justify-center text-[8px]">P</span> Present</span>
                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-rose-50 text-rose-500 font-bold border border-rose-100/50 flex items-center justify-center text-[8px]">L</span> LOP</span>
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-zinc-100 text-zinc-400 font-bold border border-zinc-200/50 flex items-center justify-center text-[8px]">S/H</span> Sun/Hol</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-zinc-100 text-slate-400 font-bold border border-slate-200/50 flex items-center justify-center text-[8px]">S/H</span> Sun/Hol</span>
                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 flex items-center justify-center text-[8px]">SW</span> Sun-Work</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-zinc-400 text-[11px] italic">Select a member to view attendance sheet</div>
+              <div className="flex-1 flex items-center justify-center text-slate-400 text-[11px] italic">Select a member to view attendance sheet</div>
             )}
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t border-zinc-200 bg-white flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-md border border-zinc-300 transition-colors">Cancel</button>
-          <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+        <div className="px-5 py-4 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-indigo-50/40 rounded-md border border-slate-300 transition-colors">Cancel</button>
+          <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-slate-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
             {saveMutation.isPending && <RefreshCw size={12} className="animate-spin" />}
             Save Changes
           </button>
@@ -775,7 +775,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState(''); const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef(null);
   const filtered = useMemo(() => employees.filter(e => e.name.toLowerCase().includes(searchTerm.toLowerCase())), [employees, searchTerm]);
   useEffect(() => { const handleClickOutside = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false); }; document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }, []);
-  return (<div className="relative w-full" ref={dropdownRef}><div className="w-full h-7 border border-zinc-200 rounded-sm px-2 flex items-center justify-between bg-zinc-50 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors" onClick={() => setIsOpen(!isOpen)}><span className="text-[11px] font-semibold text-zinc-900 capitalize">{employees.find(e => e.id === selectedId)?.name?.toLowerCase() || 'Search staff...'}</span><ChevronDown size={10} className="text-zinc-400" /></div>{isOpen && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-lg shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-150"><input autoFocus type="text" className="w-full h-8 border border-zinc-100 rounded-md px-2 text-[11px] mb-1 focus:outline-none focus:ring-1 focus:ring-zinc-200" placeholder="Type name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /><div className="max-h-60 overflow-auto">{filtered.map(e => (<button key={e.id} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-indigo-50 hover:text-indigo-700 rounded-md capitalize font-medium text-zinc-700 transition-colors" onClick={() => { onSelect(e.id); setIsOpen(false); }}>{e.name.toLowerCase()}</button>))}</div></div>)}</div>)
+  return (<div className="relative w-full" ref={dropdownRef}><div className="w-full h-7 border border-slate-200 rounded-sm px-2 flex items-center justify-between bg-slate-50 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors" onClick={() => setIsOpen(!isOpen)}><span className="text-[11px] font-semibold text-slate-900 capitalize">{employees.find(e => e.id === selectedId)?.name?.toLowerCase() || 'Search staff...'}</span><ChevronDown size={10} className="text-slate-400" /></div>{isOpen && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-150"><input autoFocus type="text" className="w-full h-8 border border-slate-100 rounded-md px-2 text-[11px] mb-1 focus:outline-none focus:ring-1 focus:ring-indigo-200" placeholder="Type name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /><div className="max-h-60 overflow-auto">{filtered.map(e => (<button key={e.id} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-indigo-50 hover:text-indigo-700 rounded-md capitalize font-medium text-slate-700 transition-colors" onClick={() => { onSelect(e.id); setIsOpen(false); }}>{e.name.toLowerCase()}</button>))}</div></div>)}</div>)
 }
 
 // --- MAIN COMPONENT ---
@@ -1919,7 +1919,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         <>
           {row.lop}
           {row.lopDates?.length > 0 && (
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
               <span className="text-red-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {row.lopDates.join(', ')}
             </span>
           )}
@@ -1967,7 +1967,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         <>
           {row.sunW}
           {row.sunWDates?.length > 0 && (
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
               <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {row.sunWDates.join(', ')}
             </span>
           )}
@@ -1987,7 +1987,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         <>
           {row.holW}
           {row.holWDates?.length > 0 && (
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
               <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {row.holWDates.join(', ')}
             </span>
           )}
@@ -2178,7 +2178,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       if (color === 'amber') return 'border-amber-100/50';
       if (color === 'emerald') return 'border-emerald-100/50';
       if (color === 'red') return 'border-red-100/50';
-      return 'border-zinc-100';
+      return 'border-slate-100';
     }
     if (type === 'text') {
       if (color === 'green') return 'text-white';
@@ -2186,7 +2186,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       if (color === 'red') return 'text-rose-600';
       if (color === 'purple') return 'text-purple-900';
       if (color === 'blue') return 'text-blue-900';
-      return 'text-zinc-700';
+      return 'text-slate-700';
     }
     return '';
   }
@@ -2713,10 +2713,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           </div>
         </div>
         
-        <div className="flex-1 overflow-auto border border-zinc-200 rounded-lg shadow-sm">
+        <div className="flex-1 overflow-auto border border-slate-200 rounded-lg shadow-sm">
           <table className="w-full text-left border-collapse text-[11px]">
             <thead>
-              <tr className="bg-slate-50 h-10 border-b border-zinc-200 font-semibold text-slate-600">
+              <tr className="bg-slate-100/70 h-10 border-b border-slate-200 font-bold text-slate-600">
                 <th className="px-4 py-2 uppercase tracking-wider">Payroll Period</th>
                 <th className="px-4 py-2 uppercase tracking-wider">Date Range</th>
                 <th className="px-4 py-2 uppercase tracking-wider text-center">Headcount</th>
@@ -2726,7 +2726,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 <th className="px-4 py-2 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200">
+            <tbody className="divide-y divide-slate-200">
               {lockedRuns.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
@@ -2736,18 +2736,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
               ) : lockedRuns.map(run => {
                 const lockHistory = run.history?.find(h => h.action === 'locked') || {};
                 return (
-                  <tr key={run.id} className="hover:bg-slate-50 transition-colors h-12">
-                    <td className="px-4 font-bold text-slate-900 border-b border-zinc-200">{formatMonthDisplay(run.month)}</td>
-                    <td className="px-4 text-slate-600 border-b border-zinc-200">{formatDateDDMMYYYY(run.startDate)} to {formatDateDDMMYYYY(run.endDate)}</td>
-                    <td className="px-4 text-center font-bold text-slate-700 border-b border-zinc-200">{run.totalHeadcount}</td>
-                    <td className="px-4 text-right font-black text-slate-900 border-b border-zinc-200">{formatINR(run.totalNet)}</td>
-                    <td className="px-4 text-center font-bold text-indigo-600 border-b border-zinc-200">{lockHistory.performedBy || 'System'}</td>
-                    <td className="px-4 text-center text-slate-400 border-b border-zinc-200">
+                  <tr key={run.id} className="hover:bg-indigo-50/30 transition-colors h-12">
+                    <td className="px-4 font-bold text-slate-900 border-b border-slate-200">{formatMonthDisplay(run.month)}</td>
+                    <td className="px-4 text-slate-600 border-b border-slate-200">{formatDateDDMMYYYY(run.startDate)} to {formatDateDDMMYYYY(run.endDate)}</td>
+                    <td className="px-4 text-center font-bold text-slate-700 font-mono tabular-nums border-b border-slate-200">{run.totalHeadcount}</td>
+                    <td className="px-4 text-right font-black text-slate-900 font-mono tabular-nums border-b border-slate-200">{formatINR(run.totalNet)}</td>
+                    <td className="px-4 text-center font-bold text-indigo-600 border-b border-slate-200">{lockHistory.performedBy || 'System'}</td>
+                    <td className="px-4 text-center text-slate-400 border-b border-slate-200">
                       {lockHistory.timestamp?.toDate 
                         ? new Date(lockHistory.timestamp.toDate()).toLocaleDateString()
                         : (lockHistory.timestamp ? new Date(lockHistory.timestamp).toLocaleDateString() : '-')}
                     </td>
-                    <td className="px-4 text-right border-b border-zinc-200">
+                    <td className="px-4 text-right border-b border-slate-200">
                       <button 
                         onClick={() => {
                           setSelectedPastRunId(run.id);
@@ -2837,14 +2837,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             <div className="flex gap-4 items-end shrink-0 mb-2 mt-1">
               <div className="flex items-center gap-1">
                 <button onClick={() => navigateEmployee('prev')} disabled={!selectedEmp || sortedEmployees.findIndex(e => e.id === selectedEmp) <= 0}
-                  className="h-7 w-7 flex items-center justify-center border border-zinc-200 rounded-sm text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                  className="h-7 w-7 flex items-center justify-center border border-slate-200 rounded-sm text-slate-400 hover:text-slate-900 hover:bg-indigo-50/30 transition-colors disabled:opacity-30 disabled:pointer-events-none">
                   <ChevronLeft size={14} />
                 </button>
                 <div className="w-48">
                   <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
                 </div>
                 <button onClick={() => navigateEmployee('next')} disabled={!selectedEmp || sortedEmployees.findIndex(e => e.id === selectedEmp) >= sortedEmployees.length - 1}
-                  className="h-7 w-7 flex items-center justify-center border border-zinc-200 rounded-sm text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                  className="h-7 w-7 flex items-center justify-center border border-slate-200 rounded-sm text-slate-400 hover:text-slate-900 hover:bg-indigo-50/30 transition-colors disabled:opacity-30 disabled:pointer-events-none">
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -2873,18 +2873,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 <button onClick={() => {
                   const now = new Date()
                   setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-                }} className="mt-1 text-[10px] font-medium text-zinc-400 hover:text-zinc-900 transition-colors w-full text-left">This Month</button>
+                }} className="mt-1 text-[10px] font-medium text-slate-400 hover:text-slate-900 transition-colors w-full text-left">This Month</button>
               </div>
               <div className="flex gap-2">
                 <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-4 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
                   {loading ? <RefreshCw size={12} className="animate-spin" /> : (generated && <CheckCircle2 size={12} />)}
                   {loading ? 'Generating...' : (generated ? 'Advice Generated' : 'Generate')}
                 </button>
-                <button onClick={handleDownloadAllZipped} disabled={downloadAllLoading || !attendanceSummaryData.length} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-900 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 active:scale-95 transition-all flex items-center gap-2">
+                <button onClick={handleDownloadAllZipped} disabled={downloadAllLoading || !attendanceSummaryData.length} className="h-7 px-4 border border-slate-200 bg-white text-slate-900 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-50/30 active:scale-95 transition-all flex items-center gap-2">
                   {downloadAllLoading ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
                   {downloadAllLoading ? 'Processing...' : 'Download All (ZIP)'}
                 </button>
-                <button onClick={handleOpenGmail} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all flex items-center gap-2">
+                <button onClick={handleOpenGmail} className="h-7 px-4 border border-slate-200 bg-white text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-50/30 hover:text-slate-900 active:scale-95 transition-all flex items-center gap-2">
                   <Mail size={12} /> Send to Mail
                 </button>
               </div>
@@ -2892,24 +2892,24 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             {slipData && (
               <div className="flex-1 overflow-hidden flex gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex-1 min-w-0 bg-white rounded-[24px] overflow-hidden flex flex-col h-full print-area" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
-                  <div className="flex justify-end gap-2 p-3 no-print shrink-0"><button onClick={() => window.print()} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> Print</button><button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> PDF</button></div>
+                  <div className="flex justify-end gap-2 p-3 no-print shrink-0"><button onClick={() => window.print()} className="h-7 bg-white border border-slate-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-indigo-50/30"><Download size={12}/> Print</button><button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-7 bg-white border border-slate-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-indigo-50/30"><Download size={12}/> PDF</button></div>
                   <div className="p-8 bg-white overflow-auto flex-1 border-[3px] border-zinc-900 rounded-[24px] m-4">
-                    <div className="border-b border-zinc-200 pb-4 mb-6 flex justify-between items-start">
+                    <div className="border-b border-slate-200 pb-4 mb-6 flex justify-between items-start">
                       <div className="flex items-center gap-4">
                         {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain" />}
                         <h1 className="text-2xl font-black uppercase tracking-tight text-blue-600">{user?.orgName}</h1>
                       </div>
                       <div className="text-right">
-                        <h2 className="text-lg font-normal uppercase italic text-zinc-500">Salary Slip</h2>
-                        <p className="text-[9px] font-normal text-zinc-600 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-100 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
+                        <h2 className="text-lg font-normal uppercase italic text-slate-500">Salary Slip</h2>
+                        <p className="text-[9px] font-normal text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-12 gap-y-0.5 mb-6">
                       <div className="space-y-0.5">
-                        {[{l:'Staff Name',v:slipData.employee?.name},{l:'Employee ID',v:slipData.employee?.empCode},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'DOJ',v:formatDateDDMMYYYY(slipData.employee?.joinedDate)},{l:'Total days',v:slipData.totalMonthDays},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                        {[{l:'Staff Name',v:slipData.employee?.name},{l:'Employee ID',v:slipData.employee?.empCode},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'DOJ',v:formatDateDDMMYYYY(slipData.employee?.joinedDate)},{l:'Total days',v:slipData.totalMonthDays},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-slate-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-slate-900 uppercase">{r.v}</span></div>))}
                       </div>
                       <div className="space-y-0.5">
-                        {[{l:'Total worked days',v:slipData.workedDaysCount},{l:'Leave',v:slipData.lopDays || 0},{l:'No. of Holidays',v:slipData.holidayCount || 0},{l:'Sunday Worked',v:slipData.sundayWorkedCount},{l:'Holiday Worked',v:slipData.holidayWorkedCount},{l:'Total Pay days',v:slipData.paidDays},{l:'OT hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                        {[{l:'Total worked days',v:slipData.workedDaysCount},{l:'Leave',v:slipData.lopDays || 0},{l:'No. of Holidays',v:slipData.holidayCount || 0},{l:'Sunday Worked',v:slipData.sundayWorkedCount},{l:'Holiday Worked',v:slipData.holidayWorkedCount},{l:'Total Pay days',v:slipData.paidDays},{l:'OT hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-slate-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-slate-900 uppercase">{r.v}</span></div>))}
                       </div>
                     </div>
                     <div className="border border-zinc-900 rounded-lg overflow-hidden mb-6">
@@ -2961,11 +2961,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         </div>
                       </div>
                     </div>
-                    <div className="text-center pt-4 border-t border-dashed border-zinc-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div><p className="text-[10px] italic text-zinc-500 mt-3 uppercase tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</p></div>
+                    <div className="text-center pt-4 border-t border-dashed border-slate-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-slate-50 border border-slate-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-slate-900">{formatINR(slipData.netPay)}</div><p className="text-[10px] italic text-slate-500 mt-3 uppercase tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</p></div>
                   </div>
                 </div>
-                <div className="w-[340px] shrink-0 bg-white border border-zinc-200 rounded-[24px] overflow-hidden flex flex-col h-full shadow-sm">
-                  <div className="p-4 bg-zinc-50 border-b border-zinc-100 font-bold uppercase text-[11px] tracking-[0.1em] text-zinc-600">Period Summary</div>
+                <div className="w-[340px] shrink-0 bg-white border border-slate-200 rounded-[24px] overflow-hidden flex flex-col h-full shadow-sm">
+                  <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold uppercase text-[11px] tracking-[0.1em] text-slate-600">Period Summary</div>
                   <div className="p-5 flex-1 overflow-auto space-y-8">
                     <div className="space-y-4">
                       <div className="flex flex-col gap-1.5 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
@@ -2994,24 +2994,24 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                     <div className="space-y-3">
                       <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Monthly Vouchers</span>
-                      <div className="border border-zinc-100 rounded-xl overflow-hidden shadow-sm">
+                      <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                         <table className="w-full text-left text-[10px]">
                           <thead>
-                            <tr className="bg-zinc-50/50 text-slate-400 uppercase font-black tracking-tighter border-b border-zinc-100">
+                            <tr className="bg-slate-50/50 text-slate-400 uppercase font-black tracking-tighter border-b border-slate-100">
                               <th className="p-2.5 font-bold">Date</th>
                               <th className="p-2.5 font-bold">Type</th>
                               <th className="p-2.5 text-right font-bold">Amount</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-50 bg-white">
+                          <tbody className="divide-y divide-slate-100 bg-white">
                             {advExpRows.length === 0 ? (
                               <tr><td colSpan={3} className="py-8 text-center text-slate-300 uppercase font-bold text-[9px] tracking-widest italic bg-white">No vouchers found</td></tr>
                             ) : (
                               advExpRows.map((r, i) => (
-                                <tr key={i} className="hover:bg-zinc-50 transition-colors">
-                                  <td className="p-2.5 font-medium text-slate-500 border-b border-zinc-200">{formatDateDDMMYYYY(r.date)}</td>
-                                  <td className="p-2.5 border-b border-zinc-200"><span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${r.type==='Advance'?'bg-red-50 text-red-600 border-red-100':'bg-green-50 text-green-600 border-green-100'}`}>{r.type}</span></td>
-                                  <td className="p-2.5 text-right font-black text-zinc-900 border-b border-zinc-200">{formatINR(r.amount)}</td>
+                                <tr key={i} className="hover:bg-indigo-50/30 transition-colors">
+                                  <td className="p-2.5 font-medium text-slate-500 border-b border-slate-200">{formatDateDDMMYYYY(r.date)}</td>
+                                  <td className="p-2.5 border-b border-slate-200"><span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${r.type==='Advance'?'bg-red-50 text-red-600 border-red-100':'bg-green-50 text-green-600 border-green-100'}`}>{r.type}</span></td>
+                                  <td className="p-2.5 text-right font-black text-slate-900 border-b border-slate-200">{formatINR(r.amount)}</td>
                                 </tr>
                               ))
                             )}
@@ -3046,7 +3046,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
                           isActive
                             ? 'text-indigo-600 bg-indigo-50/50 font-bold'
-                            : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
+                            : 'text-slate-500 font-medium hover:text-slate-900 hover:bg-indigo-50/40/50'
                         }`}
                       >
                         {t.l}
@@ -3060,7 +3060,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       className={`px-3 py-1.5 flex items-center gap-1 text-[13px] rounded-md transition-colors outline-none cursor-pointer ${
                         payrollSubTab === 'history' || ['variable', 'sandwich'].includes(summarySubTab)
                           ? 'text-indigo-600 bg-indigo-50/50 font-bold'
-                          : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
+                          : 'text-slate-500 font-medium hover:text-slate-900 hover:bg-indigo-50/40/50'
                       }`}
                     >
                       <span>
@@ -3074,7 +3074,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       </span>
                       <ChevronDown size={14} className="opacity-50" />
                     </button>
-                    <div className="absolute left-0 top-full mt-1 w-44 bg-white border border-zinc-200/70 rounded-lg shadow-lg hidden group-hover:block z-[100] py-1">
+                    <div className="absolute left-0 top-full mt-1 w-44 bg-white border border-slate-200/70 rounded-lg shadow-lg hidden group-hover:block z-[100] py-1">
                       <button 
                         type="button"
                         onClick={() => {
@@ -3085,7 +3085,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
                           payrollSubTab === 'current' && !['variable', 'sandwich'].includes(summarySubTab)
                             ? 'font-bold text-indigo-600 bg-indigo-50/50'
-                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                            : 'font-medium text-slate-600 hover:bg-indigo-50/40 hover:text-slate-900'
                         }`}
                       >
                         <span>Active Run</span>
@@ -3103,7 +3103,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
                           payrollSubTab === 'history'
                             ? 'font-bold text-indigo-600 bg-indigo-50/50'
-                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                            : 'font-medium text-slate-600 hover:bg-indigo-50/40 hover:text-slate-900'
                         }`}
                       >
                         <span>History</span>
@@ -3112,7 +3112,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         )}
                       </button>
 
-                      <div className="border-t border-zinc-100 my-1"></div>
+                      <div className="border-t border-slate-100 my-1"></div>
 
                       <button 
                         type="button"
@@ -3123,7 +3123,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
                           payrollSubTab === 'current' && summarySubTab === 'variable'
                             ? 'font-bold text-indigo-600 bg-indigo-50/50'
-                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                            : 'font-medium text-slate-600 hover:bg-indigo-50/40 hover:text-slate-900'
                         }`}
                       >
                         <span>Vouchers</span>
@@ -3141,7 +3141,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         className={`w-full text-left px-3 py-1.5 text-[13px] flex items-center justify-between transition-colors ${
                           payrollSubTab === 'current' && summarySubTab === 'sandwich'
                             ? 'font-bold text-indigo-600 bg-indigo-50/50'
-                            : 'font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                            : 'font-medium text-slate-600 hover:bg-indigo-50/40 hover:text-slate-900'
                         }`}
                       >
                         <span>Sandwich Rule</span>
@@ -3181,7 +3181,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 <div className="flex items-center gap-1.5 ml-2">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Workflow:</span>
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
-                      activeRun.status === 'draft' ? 'bg-zinc-50 text-zinc-500 border-zinc-200' :
+                      activeRun.status === 'draft' ? 'bg-slate-50 text-slate-500 border-slate-200' :
                       activeRun.status === 'review' ? 'bg-amber-50 text-amber-600 border-amber-200' :
                       activeRun.status === 'approved' ? 'bg-blue-50 text-blue-600 border-blue-200' :
                       'bg-emerald-50 text-emerald-600 border-emerald-200'
@@ -3211,7 +3211,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 )}
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-zinc-50/30">
+            <div className="flex-1 overflow-auto bg-slate-50/30">
               {payrollSubTab === 'history' && !selectedPastRunId ? (
                 renderHistoryTab()
               ) : payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
@@ -3274,10 +3274,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     </div>
                   ) : summarySubTab === 'variable' ? (
                 <div className="h-full flex flex-col bg-white px-4 pb-4 pt-1.5">
-                  <div className="flex justify-between items-start mb-6 border-b border-zinc-200 pb-4">
+                  <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
                     <div>
-                      <h2 className="text-base font-semibold text-zinc-900">Variable Pay Entry</h2>
-                      <p className="text-[11px] text-zinc-600 mt-0.5">Add Food, Convenience & Bonus allowances for specific employees & dates</p>
+                      <h2 className="text-base font-semibold text-slate-900">Variable Pay Entry</h2>
+                      <p className="text-[11px] text-slate-600 mt-0.5">Add Food, Convenience & Bonus allowances for specific employees & dates</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200 gap-2">
@@ -3347,7 +3347,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         </button>
                       )}
 
-                      <button onClick={() => setShowAddVariable(true)} className="h-9 px-4 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+                      <button onClick={() => setShowAddVariable(true)} className="h-9 px-4 bg-slate-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
                         <Plus size={14} /> Add Entry
                       </button>
                     </div>
@@ -3355,39 +3355,39 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   
                   <div className="flex-1 overflow-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-white z-10 border-b border-zinc-200">
+                      <thead className="sticky top-0 z-10 bg-slate-100/70 border-b border-slate-200">
                         <tr className="h-10">
                           {variableViewGroup === 'individual' ? (
                             <>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Employee</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Date</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Food (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Convenience (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Bonus (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Total (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-emerald-600 text-center">Settled?</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Actions</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Date</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Food (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Convenience (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Bonus (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Total (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Settled?</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Actions</th>
                             </>
                           ) : variableViewGroup === 'staff' ? (
                             <>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Employee Name</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-center">Entries</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-emerald-600">Outside Payroll (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-indigo-600">In Salary (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right font-black">Grand Total (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee Name</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Entries</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Outside Payroll (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">In Salary (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Grand Total (₹)</th>
                             </>
                           ) : (
                             <>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Date</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-center">Staff Count</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-emerald-600">Outside Payroll (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-indigo-600">In Salary (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right font-black">Daily Total (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Date</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Staff Count</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Outside Payroll (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">In Salary (₹)</th>
+                              <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Daily Total (₹)</th>
                             </>
                           )}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-200">
+                      <tbody className="divide-y divide-slate-200">
                         {(() => {
                           const filtered = (monthlyVariableSums || [])
                             .filter(v => {
@@ -3416,8 +3416,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               };
                               return (
                                 <React.Fragment key={id}>
-                                  <tr className="hover:bg-zinc-100 cursor-pointer group" onClick={toggle}>
-                                    <td className="px-4 py-3 font-semibold text-zinc-900 border-b border-zinc-200">
+                                  <tr className="hover:bg-indigo-50/40 cursor-pointer group" onClick={toggle}>
+                                    <td className="px-4 py-3 font-semibold text-slate-900 border-b border-slate-200">
                                       <div className="flex items-center gap-2">
                                         <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                           <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
@@ -3425,18 +3425,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         {g.name}
                                       </div>
                                     </td>
-                                    <td className="px-4 text-center text-xs text-slate-500 font-bold border-b border-zinc-200">{g.count} logs</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20 border-b border-zinc-200">{g.settled.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20 border-b border-zinc-200">{g.inSalary.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[13px] font-black text-slate-900 border-b border-zinc-200">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-center text-xs text-slate-500 font-bold font-mono border-b border-slate-200">{g.count} logs</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 font-mono tabular-nums bg-emerald-50/20 border-b border-slate-200">{g.settled.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 font-mono tabular-nums bg-indigo-50/20 border-b border-slate-200">{g.inSalary.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-slate-900 font-mono tabular-nums border-b border-slate-200">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
                                   </tr>
                                   {isExpanded && g.entries.sort((a,b) => b.date.localeCompare(a.date)).map(v => (
                                     <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
-                                      <td className="px-10 py-2 text-[11px] text-slate-500 font-medium italic border-b border-zinc-200">Entry Detail</td>
-                                      <td className="px-4 text-[12px] text-slate-600 font-mono border-b border-zinc-200">{formatDateDDMMYYYY(v.date)}</td>
-                                      <td className={`px-4 text-right text-[11px] font-bold ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
-                                      <td className={`px-4 text-right text-[11px] font-bold ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
-                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400 border-b border-zinc-200">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                                      <td className="px-10 py-2 text-[11px] text-slate-500 font-medium italic border-b border-slate-200">Entry Detail</td>
+                                      <td className="px-4 text-[12px] text-slate-600 font-mono border-b border-slate-200">{formatDateDDMMYYYY(v.date)}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold font-mono tabular-nums ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold font-mono tabular-nums ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
+                                      <td className="px-4 text-right text-[11px] font-bold font-mono tabular-nums text-slate-400 border-b border-slate-200">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
                                     </tr>
                                   ))}
                                 </React.Fragment>
@@ -3463,8 +3463,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               };
                               return (
                                 <React.Fragment key={d}>
-                                  <tr className="hover:bg-zinc-100 cursor-pointer group" onClick={toggle}>
-                                    <td className="px-4 py-3 font-semibold text-zinc-900 border-b border-zinc-200">
+                                  <tr className="hover:bg-indigo-50/40 cursor-pointer group" onClick={toggle}>
+                                    <td className="px-4 py-3 font-semibold text-slate-900 border-b border-slate-200">
                                       <div className="flex items-center gap-2">
                                         <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                           <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
@@ -3472,18 +3472,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         {formatDateDDMMYYYY(g.date)}
                                       </div>
                                     </td>
-                                    <td className="px-4 text-center text-xs text-slate-500 font-bold border-b border-zinc-200">{g.count} staff</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20 border-b border-zinc-200">{g.settled.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20 border-b border-zinc-200">{g.inSalary.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[13px] font-black text-slate-900 border-b border-zinc-200">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-center text-xs text-slate-500 font-bold font-mono border-b border-slate-200">{g.count} staff</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 font-mono tabular-nums bg-emerald-50/20 border-b border-slate-200">{g.settled.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 font-mono tabular-nums bg-indigo-50/20 border-b border-slate-200">{g.inSalary.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-slate-900 font-mono tabular-nums border-b border-slate-200">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
                                   </tr>
                                   {isExpanded && g.entries.sort((a,b) => a.employeeName.localeCompare(b.employeeName)).map(v => (
                                     <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
-                                      <td className="px-10 py-2 text-[12px] text-slate-900 font-semibold border-b border-zinc-200">{v.employeeName}</td>
-                                      <td className="px-4 text-[11px] text-slate-400 uppercase font-bold italic text-center border-b border-zinc-200">Individual Log</td>
-                                      <td className={`px-4 text-right text-[11px] font-bold ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
-                                      <td className={`px-4 text-right text-[11px] font-bold ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
-                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400 border-b border-zinc-200">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                                      <td className="px-10 py-2 text-[12px] text-slate-900 font-semibold border-b border-slate-200">{v.employeeName}</td>
+                                      <td className="px-4 text-[11px] text-slate-400 uppercase font-bold italic text-center border-b border-slate-200">Individual Log</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold font-mono tabular-nums ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold font-mono tabular-nums ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
+                                      <td className="px-4 text-right text-[11px] font-bold font-mono tabular-nums text-slate-400 border-b border-slate-200">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
                                     </tr>
                                   ))}
                                 </React.Fragment>
@@ -3510,14 +3510,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             };
 
                             return (
-                              <tr key={v.id} className={`hover:bg-zinc-100 ${Object.keys(draft).length > 0 ? 'bg-amber-50/50' : ''}`}>
-                                <td className="px-4 py-2 border-b border-zinc-200">
-                                  <span className="text-[13px] font-semibold text-zinc-900">{v.employeeName}</span>
+                              <tr key={v.id} className={`hover:bg-indigo-50/40 ${Object.keys(draft).length > 0 ? 'bg-amber-50/50' : ''}`}>
+                                <td className="px-4 py-2 border-b border-slate-200">
+                                  <span className="text-[13px] font-semibold text-slate-900">{v.employeeName}</span>
                                 </td>
-                                <td className="px-4 border-b border-zinc-200">
-                                  <span className="text-[12px] text-zinc-600 font-mono">{formatDateDDMMYYYY(v.date)}</span>
+                                <td className="px-4 border-b border-slate-200">
+                                  <span className="text-[12px] text-slate-600 font-mono">{formatDateDDMMYYYY(v.date)}</span>
                                 </td>
-                                <td className="px-4 text-right border-b border-zinc-200">
+                                <td className="px-4 text-right border-b border-slate-200">
                                   <input 
                                     type="number" 
                                     value={food} 
@@ -3525,7 +3525,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
                                   />
                                 </td>
-                                <td className="px-4 text-right border-b border-zinc-200">
+                                <td className="px-4 text-right border-b border-slate-200">
                                   <input 
                                     type="number" 
                                     value={convenience} 
@@ -3533,7 +3533,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
                                   />
                                 </td>
-                                <td className="px-4 text-right border-b border-zinc-200">
+                                <td className="px-4 text-right border-b border-slate-200">
                                   <input 
                                     type="number" 
                                     value={bonus} 
@@ -3541,8 +3541,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
                                   />
                                 </td>
-                                <td className="px-4 text-right text-[12px] font-bold text-indigo-600 border-b border-zinc-200">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
-                                <td className="px-4 text-center border-b border-zinc-200">
+                                <td className="px-4 text-right text-[12px] font-bold text-indigo-600 font-mono tabular-nums border-b border-slate-200">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-center border-b border-slate-200">
                                   <button 
                                     onClick={() => handleCellEdit('isSettled', !isSettled)}
                                     className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter transition-all duration-300 border ${
@@ -3554,11 +3554,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     {isSettled ? 'Paid GPay' : 'In Salary'}
                                   </button>
                                 </td>
-                                <td className="px-4 text-right border-b border-zinc-200">
+                                <td className="px-4 text-right border-b border-slate-200">
                                   <div className="flex justify-end gap-2">
                                     <button 
                                       onClick={() => setEditingVariable(v)}
-                                      className="p-1 text-zinc-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                      className="p-1 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                                     >
                                       <Edit2 size={14} />
                                     </button>
@@ -3566,7 +3566,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       if (confirm('Delete this entry?')) {
                                         deleteVariableMutation.mutate(v.id)
                                       }
-                                    }} className="p-1 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                    }} className="p-1 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                                       <Trash2 size={14} />
                                     </button>
                                   </div>
@@ -3575,7 +3575,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             )
                           }) : (
                             <tr>
-                              <td colSpan={8} className="px-4 py-12 text-center text-[12px] text-zinc-600">
+                              <td colSpan={8} className="px-4 py-12 text-center text-[12px] text-slate-500">
                                 No variable pay entries yet. Click "Add Entry" to add Food, Convenience or Bonus for employees.
                               </td>
                             </tr>
@@ -3587,13 +3587,13 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                   {editingVariable && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-zinc-200 overflow-hidden">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 bg-indigo-50">
+                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-slate-200 overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-indigo-50">
                           <div>
-                            <h3 className="text-sm font-black uppercase text-zinc-900 tracking-tight">Edit Variable Entry</h3>
+                            <h3 className="text-sm font-black uppercase text-slate-900 tracking-tight">Edit Variable Entry</h3>
                             <p className="text-[10px] text-indigo-600 font-bold uppercase">{editingVariable.employeeName} • {formatDateDDMMYYYY(editingVariable.date)}</p>
                           </div>
-                          <button onClick={() => setEditingVariable(null)} className="p-1 text-zinc-600 hover:bg-white rounded"><X size={16} /></button>
+                          <button onClick={() => setEditingVariable(null)} className="p-1 text-slate-600 hover:bg-white rounded"><X size={16} /></button>
                         </div>
                         <div className="p-5 space-y-4">
                           <div className="grid grid-cols-1 gap-4">
@@ -3603,7 +3603,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="number" 
                                 value={editingVariable.food}
                                 onChange={e => setEditingVariable({...editingVariable, food: e.target.value})}
-                                className="w-full h-10 px-3 border border-zinc-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
                             </div>
                             <div className="space-y-1">
@@ -3612,7 +3612,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="number" 
                                 value={editingVariable.convenience}
                                 onChange={e => setEditingVariable({...editingVariable, convenience: e.target.value})}
-                                className="w-full h-10 px-3 border border-zinc-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
                             </div>
                             <div className="space-y-1">
@@ -3621,7 +3621,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="number" 
                                 value={editingVariable.bonus}
                                 onChange={e => setEditingVariable({...editingVariable, bonus: e.target.value})}
-                                className="w-full h-10 px-3 border border-zinc-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
                             </div>
                             <div className="pt-4 border-t border-gray-100">
@@ -3652,8 +3652,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             </div>
                           </div>
                         </div>
-                        <div className="px-5 py-4 border-t border-zinc-200 bg-gray-50 flex justify-end gap-3">
-                          <button onClick={() => setEditingVariable(null)} className="px-4 py-2 text-[10px] font-black uppercase text-zinc-600 hover:bg-gray-100 rounded-md border border-zinc-300">Cancel</button>
+                        <div className="px-5 py-4 border-t border-slate-200 bg-gray-50 flex justify-end gap-3">
+                          <button onClick={() => setEditingVariable(null)} className="px-4 py-2 text-[10px] font-black uppercase text-slate-600 hover:bg-gray-100 rounded-md border border-slate-300">Cancel</button>
                           <button 
                             onClick={() => {
                               saveVariablesMutation.mutate({ [editingVariable.employeeId]: editingVariable });
@@ -3670,16 +3670,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                   {showAddVariable && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-3xl border border-zinc-200 max-h-[90vh] flex flex-col">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 shrink-0">
+                      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-3xl border border-slate-200 max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
                           <div>
-                            <h3 className="text-sm font-semibold text-zinc-900">Variable Pay Entry</h3>
-                            <p className="text-[11px] text-zinc-600 mt-0.5">Add Food, Convenience & Bonus for multiple employees</p>
+                            <h3 className="text-sm font-semibold text-slate-900">Variable Pay Entry</h3>
+                            <p className="text-[11px] text-slate-600 mt-0.5">Add Food, Convenience & Bonus for multiple employees</p>
                           </div>
-                          <button onClick={() => setShowAddVariable(false)} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded"><X size={16} /></button>
+                          <button onClick={() => setShowAddVariable(false)} className="p-1 text-slate-600 hover:bg-indigo-50/40 rounded"><X size={16} /></button>
                         </div>
                         
-                        <div className="px-5 py-4 border-b border-zinc-200 bg-gray-50 shrink-0 space-y-4">
+                        <div className="px-5 py-4 border-b border-slate-200 bg-gray-50 shrink-0 space-y-4">
                           {/* Row 1: Date Selection */}
                           <div className="flex gap-6 items-end">
                             <div className="w-44">
@@ -3688,7 +3688,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="date" 
                                 value={newVariable.date}
                                 onChange={e => setNewVariable({...newVariable, date: e.target.value})}
-                                className="w-full h-9 px-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold shadow-sm"
+                                className="w-full h-9 px-3 border border-slate-300 rounded-lg text-[13px] text-slate-900 focus:outline-none focus:border-indigo-500 font-bold shadow-sm"
                               />
                             </div>
                             <div className="flex items-center gap-2 h-9 pb-1">
@@ -3710,7 +3710,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   type="date" 
                                   value={newVariable.endDate}
                                   onChange={e => setNewVariable({...newVariable, endDate: e.target.value})}
-                                  className="w-full h-9 px-3 border border-indigo-200 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-indigo-50/30 shadow-sm"
+                                  className="w-full h-9 px-3 border border-indigo-200 rounded-lg text-[13px] text-slate-900 focus:outline-none focus:border-indigo-500 font-bold bg-indigo-50/30 shadow-sm"
                                 />
                               </div>
                             )}
@@ -3730,7 +3730,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     type="number" 
                                     value={newVariable.food}
                                     onChange={e => setNewVariable({...newVariable, food: e.target.value})}
-                                    className="w-full h-9 pl-6 pr-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    className="w-full h-9 pl-6 pr-3 border border-slate-300 rounded-lg text-[13px] text-slate-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                     placeholder="Food"
                                   />
                                   <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Food</div>
@@ -3741,7 +3741,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     type="number" 
                                     value={newVariable.convenience}
                                     onChange={e => setNewVariable({...newVariable, convenience: e.target.value})}
-                                    className="w-full h-9 pl-6 pr-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    className="w-full h-9 pl-6 pr-3 border border-slate-300 rounded-lg text-[13px] text-slate-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                     placeholder="Conv."
                                   />
                                   <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Conv.</div>
@@ -3752,7 +3752,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     type="number" 
                                     value={newVariable.bonus}
                                     onChange={e => setNewVariable({...newVariable, bonus: e.target.value})}
-                                    className="w-full h-9 pl-6 pr-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    className="w-full h-9 pl-6 pr-3 border border-slate-300 rounded-lg text-[13px] text-slate-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                     placeholder="Bonus"
                                   />
                                   <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Bonus</div>
@@ -3788,9 +3788,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                         <div className="flex-1 overflow-auto p-5">
                           <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 bg-white z-10 border-b border-zinc-200">
+                            <thead className="sticky top-0 z-10 bg-slate-100/70 border-b border-slate-200">
                               <tr className="h-9">
-                                <th className="px-3 font-semibold text-[11px] text-zinc-600 w-8">
+                                <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider w-8">
                                   <input 
                                     type="checkbox" 
                                     checked={newVariable.selectedAll}
@@ -3802,16 +3802,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="rounded border-gray-300"
                                   />
                                 </th>
-                                <th className="px-3 font-semibold text-[11px] text-zinc-600">Employee</th>
-                                <th className="px-3 font-semibold text-[11px] text-zinc-600 text-right">Food (₹)</th>
-                                <th className="px-3 font-semibold text-[11px] text-zinc-600 text-right">Convenience (₹)</th>
-                                <th className="px-3 font-semibold text-[11px] text-zinc-600 text-right">Bonus (₹)</th>
+                                <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee</th>
+                                <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Food (₹)</th>
+                                <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Convenience (₹)</th>
+                                <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Bonus (₹)</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-200">
+                            <tbody className="divide-y divide-slate-200">
                               {sortedEmployees.map(emp => (
-                                <tr key={emp.id} className="hover:bg-zinc-100">
-                                  <td className="px-3 py-2 border-b border-zinc-200">
+                                <tr key={emp.id} className="hover:bg-indigo-50/40">
+                                  <td className="px-3 py-2 border-b border-slate-200">
                                     <input 
                                       type="checkbox" 
                                       checked={newVariable.selectedEmps?.includes(emp.id)}
@@ -3825,8 +3825,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       className="rounded border-gray-300"
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{emp.name}</td>
-                                  <td className="px-3 py-2 text-right border-b border-zinc-200">
+                                  <td className="px-3 py-2 text-[13px] font-medium text-slate-900 border-b border-slate-200">{emp.name}</td>
+                                  <td className="px-3 py-2 text-right border-b border-slate-200">
                                     <input 
                                       type="number" 
                                       value={newVariable.empData?.[emp.id]?.food ?? newVariable.food}
@@ -3834,11 +3834,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         ...newVariable,
                                         empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], food: e.target.value}}
                                       })}
-                                      className="w-20 h-7 px-2 text-right text-[12px] border border-zinc-300 rounded focus:outline-none focus:border-zinc-900"
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-slate-300 rounded focus:outline-none focus:border-indigo-500"
                                       placeholder={newVariable.food || '0'}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-right border-b border-zinc-200">
+                                  <td className="px-3 py-2 text-right border-b border-slate-200">
                                     <input 
                                       type="number" 
                                       value={newVariable.empData?.[emp.id]?.convenience ?? newVariable.convenience}
@@ -3846,11 +3846,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         ...newVariable,
                                         empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], convenience: e.target.value}}
                                       })}
-                                      className="w-20 h-7 px-2 text-right text-[12px] border border-zinc-300 rounded focus:outline-none focus:border-zinc-900"
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-slate-300 rounded focus:outline-none focus:border-indigo-500"
                                       placeholder={newVariable.convenience || '0'}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-right border-b border-zinc-200">
+                                  <td className="px-3 py-2 text-right border-b border-slate-200">
                                     <input 
                                       type="number" 
                                       value={newVariable.empData?.[emp.id]?.bonus ?? newVariable.bonus}
@@ -3858,7 +3858,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         ...newVariable,
                                         empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], bonus: e.target.value}}
                                       })}
-                                      className="w-20 h-7 px-2 text-right text-[12px] border border-zinc-300 rounded focus:outline-none focus:border-zinc-900"
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-slate-300 rounded focus:outline-none focus:border-indigo-500"
                                       placeholder={newVariable.bonus || '0'}
                                     />
                                   </td>
@@ -3868,15 +3868,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                           </table>
                         </div>
 
-                        <div className="px-5 py-4 border-t border-zinc-200 bg-gray-50 flex justify-between items-center shrink-0">
-                          <span className="text-[11px] text-zinc-600">
+                        <div className="px-5 py-4 border-t border-slate-200 bg-gray-50 flex justify-between items-center shrink-0">
+                          <span className="text-[11px] text-slate-600">
                             {newVariable.selectedEmps?.length || 0} employees selected
                           </span>
                           <div className="flex gap-3">
                             <button onClick={() => {
                               setShowAddVariable(false)
                               setNewVariable({ employeeId: '', date: '', food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
-                            }} className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-gray-100 rounded-md border border-zinc-300">Cancel</button>
+                            }} className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-gray-100 rounded-md border border-slate-300">Cancel</button>
                             <button 
                               onClick={() => {
                                 if (!newVariable.date) {
@@ -3904,7 +3904,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 setNewVariable({ employeeId: '', date: '', food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
                               }}
                               disabled={saveVariablesMutation.isPending}
-                              className="px-4 py-2 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black"
+                              className="px-4 py-2 bg-slate-900 text-white rounded-md text-xs font-medium hover:bg-black"
                             >
                               {saveVariablesMutation.isPending ? 'Saving...' : 'Save for Selected'}
                             </button>
@@ -3920,10 +3920,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   <div className="mb-6">
                     <div className="mb-4 flex justify-between items-end">
                       <div>
-                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Sandwich Rule</h2>
+                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight">Sandwich Rule</h2>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Detect Sundays/Holidays sandwiched between absences, then apply manually.</p>
                         <label className="inline-flex items-center gap-1.5 mt-2 cursor-pointer">
-                          <input type="checkbox" checked={sandwichIncludeFuture} onChange={e => setSandwichIncludeFuture(e.target.checked)} className="w-3 h-3 rounded border-zinc-300 text-indigo-600" />
+                          <input type="checkbox" checked={sandwichIncludeFuture} onChange={e => setSandwichIncludeFuture(e.target.checked)} className="w-3 h-3 rounded border-slate-300 text-indigo-600" />
                           <span className="text-[10px] font-bold text-slate-500 uppercase">Include future dates</span>
                         </label>
                       </div>
@@ -3963,33 +3963,33 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Click "Detect" to find sandwich days</p>
                       </div>
                     ) : (
-                      <div className="border border-zinc-200 rounded-sm overflow-hidden shadow-sm">
+                      <div className="border border-slate-200 rounded-sm overflow-hidden shadow-sm">
                         <table className="w-full border-collapse">
-                          <thead className="bg-zinc-50 font-['Raleway']">
-                            <tr className="h-8 border-b border-zinc-200">
-                              <th className="px-3 border-r border-zinc-200 text-left w-10 bg-zinc-50"><input type="checkbox" checked={selectedSandwichDays.size === detectedSandwiches.length} onChange={(e) => {
+                          <thead className="bg-slate-100/70">
+                            <tr className="h-8 border-b border-slate-200">
+                              <th className="px-3 border-r border-slate-200 text-left w-10 bg-slate-50"><input type="checkbox" checked={selectedSandwichDays.size === detectedSandwiches.length} onChange={(e) => {
                                 if (e.target.checked) setSelectedSandwichDays(new Set(detectedSandwiches.map(s => `${s.empId}_${s.date}`)));
                                 else setSelectedSandwichDays(new Set());
-                              }} className="w-3 h-3 rounded border-zinc-300" /></th>
-                              <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
-                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Sandwich Date</th>
-                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Type</th>
-                              <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Financial Impact</th>
+                              }} className="w-3 h-3 rounded border-slate-300" /></th>
+                              <th className="px-3 border-r border-slate-200/60 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider">Staff Name</th>
+                              <th className="px-3 border-r border-slate-200/60 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">Sandwich Date</th>
+                              <th className="px-3 border-r border-slate-200/60 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">Type</th>
+                              <th className="px-3 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">Financial Impact</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-200 bg-white">
+                          <tbody className="divide-y divide-slate-200 bg-white">
                             {detectedSandwiches.map(s => (
                               <tr key={`${s.empId}_${s.date}`} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                                <td className="px-3 border-r border-zinc-100 border-b border-zinc-200"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
+                                <td className="px-3 border-r border-slate-100 border-b border-slate-200"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
                                   const next = new Set(selectedSandwichDays);
                                   if (next.has(`${s.empId}_${s.date}`)) next.delete(`${s.empId}_${s.date}`);
                                   else next.add(`${s.empId}_${s.date}`);
                                   setSelectedSandwichDays(next);
-                                }} className="w-3 h-3 rounded border-zinc-300" /></td>
-                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px] border-b border-zinc-200">{s.empName}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600 border-b border-zinc-200">{formatDateDDMMYYYY(s.date)}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center border-b border-zinc-200"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
-                                <td className="px-3 text-center text-rose-600 font-black text-[11px] border-b border-zinc-200">+1 Day LOP</td>
+                                }} className="w-3 h-3 rounded border-slate-300" /></td>
+                                <td className="px-3 border-r border-slate-100 font-bold text-slate-900 uppercase text-[11px] border-b border-slate-200">{s.empName}</td>
+                                <td className="px-3 border-r border-slate-100 text-center font-mono text-[11px] font-bold text-slate-600 border-b border-slate-200">{formatDateDDMMYYYY(s.date)}</td>
+                                <td className="px-3 border-r border-slate-100 text-center border-b border-slate-200"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
+                                <td className="px-3 text-center text-rose-600 font-black text-[11px] border-b border-slate-200">+1 Day LOP</td>
                               </tr>
                             ))}
                           </tbody>
@@ -4001,18 +4001,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   {/* Manual Add Modal */}
                   {showManualSandwichModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-zinc-200">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-amber-50 rounded-t-lg">
+                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-slate-200">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-amber-50 rounded-t-lg">
                           <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">Add Sandwich Rule</h3>
-                          <button onClick={() => setShowManualSandwichModal(false)} className="p-1 hover:bg-zinc-100 rounded"><X size={16} className="text-zinc-500" /></button>
+                          <button onClick={() => setShowManualSandwichModal(false)} className="p-1 hover:bg-indigo-50/40 rounded"><X size={16} className="text-slate-500" /></button>
                         </div>
                         <div className="p-4 space-y-4">
                           <div>
-                            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Employee</label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Employee</label>
                             <select 
                               value={manualSandwichEntry.employeeId}
                               onChange={e => setManualSandwichEntry({...manualSandwichEntry, employeeId: e.target.value})}
-                              className="w-full h-9 px-3 border border-zinc-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
+                              className="w-full h-9 px-3 border border-slate-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
                             >
                               <option value="">Select Employee</option>
                               {sortedEmployees.map(emp => (
@@ -4021,16 +4021,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Date</label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Date</label>
                             <input 
                               type="date" 
                               value={manualSandwichEntry.date}
                               onChange={e => setManualSandwichEntry({...manualSandwichEntry, date: e.target.value})}
-                              className="w-full h-9 px-3 border border-zinc-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
+                              className="w-full h-9 px-3 border border-slate-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Type</label>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Type</label>
                             <div className="flex gap-3">
                               <label className="flex items-center gap-2 cursor-pointer">
                                 <input 
@@ -4057,10 +4057,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             </div>
                           </div>
                         </div>
-                        <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50 rounded-b-lg flex justify-end gap-2">
+                        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 rounded-b-lg flex justify-end gap-2">
                           <button 
                             onClick={() => setShowManualSandwichModal(false)}
-                            className="px-4 py-2 text-xs font-bold uppercase text-zinc-600 hover:bg-zinc-100 rounded-md"
+                            className="px-4 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-indigo-50/40 rounded-md"
                           >
                             Cancel
                           </button>
@@ -4080,7 +4080,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                       <div>
-                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Applied History</h2>
+                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight">Applied History</h2>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Record of processed sandwich deductions.</p>
                       </div>
                       <div className="w-64">
@@ -4088,28 +4088,28 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       </div>
                     </div>
                     {isHistoryLoading || !employees.length ? <div className="py-20 text-center"><Spinner /></div> : (
-                      <div className="flex-1 overflow-auto border border-zinc-200 rounded-sm shadow-sm">
+                      <div className="flex-1 overflow-auto border border-slate-200 rounded-sm shadow-sm">
                         <table className="w-full border-collapse">
-                          <thead className="sticky top-0 bg-zinc-50 font-['Raleway'] shadow-sm z-10">
-                            <tr className="h-8 border-b border-zinc-200">
-                              <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
-                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Date</th>
-                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-24">Type</th>
-                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-40">Applied On</th>
-                              <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-16">Action</th>
+                          <thead className="sticky top-0 z-10 bg-slate-100/70 shadow-sm">
+                            <tr className="h-8 border-b border-slate-200">
+                              <th className="px-3 border-r border-slate-200/60 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider">Staff Name</th>
+                              <th className="px-3 border-r border-slate-200/60 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">Date</th>
+                              <th className="px-3 border-r border-slate-200/60 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-24">Type</th>
+                              <th className="px-3 border-r border-slate-200/60 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-40">Applied On</th>
+                              <th className="px-3 text-center text-[11px] font-bold text-slate-600 uppercase tracking-wider w-16">Action</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-200 bg-white">
+                          <tbody className="divide-y divide-slate-200 bg-white">
                             {filteredHistory.length === 0 ? (
                               <tr><td colSpan={5} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
                             ) : filteredHistory.map(h => (
                               <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px] border-b border-zinc-200">{(() => {
+                                <td className="px-3 border-r border-slate-100 font-bold text-slate-900 uppercase text-[11px] border-b border-slate-200">{(() => {
                                   const emp = employees.find(e => e.id === h.employeeId);
                                   return emp?.name || h.employeeName || 'Unknown staff';
                                 })()}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600 border-b border-zinc-200">{formatDateDDMMYYYY(h.date)}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center border-b border-zinc-200">
+                                <td className="px-3 border-r border-slate-100 text-center font-mono text-[11px] font-bold text-slate-600 border-b border-slate-200">{formatDateDDMMYYYY(h.date)}</td>
+                                <td className="px-3 border-r border-slate-100 text-center border-b border-slate-200">
                                   {(() => {
                                     const dateObj = h.date ? new Date(h.date) : null;
                                     const isSunday = dateObj && dateObj.getDay() === 0;
@@ -4122,14 +4122,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     );
                                   })()}
                                 </td>
-                                <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase border-b border-zinc-200">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
-                                <td className="px-3 text-center border-b border-zinc-200">
+                                <td className="px-3 border-r border-slate-100 text-center text-slate-400 text-[10px] font-bold uppercase border-b border-slate-200">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
+                                <td className="px-3 text-center border-b border-slate-200">
                                   <button 
                                     onClick={() => {
                                       setSelectedHistoryItem(h);
                                       setShowFallbackModal(true);
                                     }}
-                                    className="p-1 text-zinc-300 hover:text-rose-600 transition-all"
+                                    className="p-1 text-slate-300 hover:text-rose-600 transition-all"
                                   >
                                     <Trash2 size={12} />
                                   </button>
@@ -4234,7 +4234,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     </thead>
                     <tbody>
                       {filteredAttendanceSummaryData.map((e, idx)=>(
-                        <tr key={e.id} className={`border-b border-slate-200 h-[36px] transition-colors hover:bg-blue-50/50 group`}>
+                        <tr key={e.id} className={`border-b border-slate-200 h-[36px] transition-colors hover:bg-indigo-50/50 group`}>
                           {visibleDetailedSummaryColumns.map(c=>(
                             <td key={c.id} style={{
                               left: c.leftOffset
@@ -4242,7 +4242,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               ['sno', 'empNo', 'days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
                               ['name', 'designation', 'salaryCtc', 'net'].includes(c.id) ? 'text-left' : 'text-right'
                             } ${
-                              c.leftOffset !== undefined ? 'sticky z-20 bg-white group-hover:bg-blue-50' : ''
+                              c.leftOffset !== undefined ? 'sticky z-20 bg-white group-hover:bg-indigo-50' : ''
                             } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[12px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : c.id === 'paidDays' ? 'font-bold text-[11px]' : 'font-medium')}`}>
                               {c.id === 'name' ? (
                                 <div className="truncate w-full" title={e.name}>{renderDetailedCell(c.id, e)}</div>
@@ -4253,9 +4253,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       ))}
                     </tbody>
                     <tfoot className="sticky bottom-0 z-30 font-raleway shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
-                      <tr className="bg-zinc-900 text-white font-black h-12">
+                      <tr className="bg-slate-900 text-white font-black h-12">
                         <td colSpan={visibleDetailedSummaryColumns.length - 1} className="px-6 text-right uppercase tracking-[0.3em] text-[11px] border-r-2 border-zinc-800">Gross Organization Payout for {formatMonthDisplay(summaryMonth)}</td>
-                        <td className="px-2 text-left bg-green-600 text-[15px] tabular-nums border-l-2 border-green-700 font-black border-b border-zinc-200">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, e) => sum + (e.salary?.net || 0), 0))}</td>
+                        <td className="px-2 text-left bg-green-600 text-[15px] tabular-nums border-l-2 border-green-700 font-black border-b border-slate-200">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, e) => sum + (e.salary?.net || 0), 0))}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -4393,10 +4393,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             const thisMonth = new Date().toISOString().slice(0, 7)
                             const monthOverride = loanOverrides.find(o => o.loanId === l.id && o.month === thisMonth)
                             return (
-                              <tr key={l.id} className="hover:bg-slate-50 transition-colors h-11 group">
+                              <tr key={l.id} className="hover:bg-indigo-50/30 transition-colors h-11 group">
                                 <td className="px-4 text-sm font-semibold text-slate-800">{l.employeeName}</td>
-                                <td className="px-4 text-right text-sm font-mono text-slate-700">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                                <td className="px-4 text-right text-sm font-mono text-emerald-600 font-semibold">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-right text-sm font-mono tabular-nums text-slate-700">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-right text-sm font-mono tabular-nums text-emerald-600 font-semibold">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
                                 <td className="px-4 text-center">
                                   {monthOverride ? (
                                     monthOverride.skip
@@ -4533,11 +4533,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   const showRow = !loanHistoryFilter.month || m.month === loanHistoryFilter.month
                                   if (!showRow) return null
                                   return (
-                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-slate-50 ${m.isCurrentMonth ? 'bg-amber-50/50' : ''}`}>
+                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-indigo-50/30 ${m.isCurrentMonth ? 'bg-amber-50/50' : ''}`}>
                                       <td className="px-4 text-sm font-semibold text-slate-800">{l.employeeName}</td>
-                                      <td className="px-4 text-xs font-mono text-slate-600">{m.month}</td>
-                                      <td className="px-4 text-right text-xs font-mono text-slate-600">{monthlyEMI.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 text-right text-sm font-mono font-semibold text-slate-800">{paid.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-xs font-mono tabular-nums text-slate-600">{m.month}</td>
+                                      <td className="px-4 text-right text-xs font-mono tabular-nums text-slate-600">{monthlyEMI.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-sm font-mono tabular-nums font-semibold text-slate-800">{paid.toLocaleString('en-IN')}</td>
                                       <td className="px-4 text-center">
                                         {m.override?.skip ? (
                                           <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">Skipped</span>
@@ -4549,7 +4549,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                           <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">Pending</span>
                                         )}
                                       </td>
-                                      <td className="px-4 text-right text-sm font-mono font-bold text-slate-900">{Math.max(0, balance).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-sm font-mono tabular-nums font-bold text-slate-900">{Math.max(0, balance).toLocaleString('en-IN')}</td>
                                     </tr>
                                   )
                                 })
@@ -4725,7 +4725,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                           const isAlreadyDeductedInPast = adv.deductionMonth && adv.deductionMonth < summaryMonth
 
                           return (
-                            <tr key={adv.id} className="hover:bg-slate-50/70 transition-colors">
+                            <tr key={adv.id} className="hover:bg-indigo-50/30 transition-colors">
                               <td className="px-3.5 py-2.5 text-xs text-slate-700 font-body whitespace-nowrap">
                                 <div className="font-semibold text-slate-800">{adv.date || '—'}</div>
                                 {isNextMonthPre && (
@@ -4742,10 +4742,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               </td>
                               <td className="px-3.5 py-2.5 text-xs text-slate-500 font-body max-w-[200px] truncate" title={adv.reason || adv.remarks || ''}>
                                 {adv.reason || adv.remarks || '—'}
-                              </td>
-                              <td className="px-3.5 py-2.5 text-right text-xs font-bold text-slate-900 font-body whitespace-nowrap font-mono">
-                                ₹{Number(adv.amount || 0).toLocaleString('en-IN')}
-                              </td>
+                              </td><td className="px-3.5 py-2.5 text-right text-xs font-bold text-slate-900 font-mono tabular-nums whitespace-nowrap">₹{Number(adv.amount || 0).toLocaleString('en-IN')}</td>
                               <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
                                 {isDeducting ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 font-body">

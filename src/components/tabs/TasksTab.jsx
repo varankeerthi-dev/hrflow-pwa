@@ -34,7 +34,9 @@ import {
   List,
   ChevronLeft,
   ChevronRight,
-  CheckSquare
+  CheckSquare,
+  Sparkles,
+  ChevronUp
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -48,6 +50,9 @@ import ChecklistView from '../../modules/checklist/components/ChecklistView'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import TaskChecklistBuilder from '../tasks/TaskChecklistBuilder'
+import AssignUserPicker from '../tasks/AssignUserPicker'
+import { parseNaturalDate } from '../../lib/dateUtils'
+import { createDefaultChecklistItem, createDefaultSubtask, ensureItemIds } from '../../lib/taskUtils'
 
 const STATUSES = [
   { 
@@ -133,6 +138,9 @@ export default function TasksTab({ defaultSubTab }) {
   })
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDescription, setShowDescription] = useState(false)
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
+  const [detectedDateInfo, setDetectedDateInfo] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [selectedReminder, setSelectedReminder] = useState(null)
@@ -176,6 +184,8 @@ export default function TasksTab({ defaultSubTab }) {
   // Slide-over drawer for task editing
   const [showSideDrawer, setShowSideDrawer] = useState(false)
   const [drawerTask, setDrawerTask] = useState(null)
+  const [expandedChecklists, setExpandedChecklists] = useState({})
+  const [expandedSubtasks, setExpandedSubtasks] = useState({})
   
   // Table inline editing
   const [editingTableCell, setEditingTableCell] = useState(null) // {taskId, field}
@@ -235,7 +245,8 @@ export default function TasksTab({ defaultSubTab }) {
     buzzer: false,
     repeat: { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
     reminder: { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
-    checklists: []
+    checklists: [],
+    subtasks: []
   })
   
   const [newReminder, setNewReminder] = useState({
@@ -354,6 +365,13 @@ export default function TasksTab({ defaultSubTab }) {
     })
   }, [employees])
 
+  const [addAssigneeSearch, setAddAssigneeSearch] = useState('')
+  const filteredAddAssignees = useMemo(() => {
+    if (!addAssigneeSearch.trim()) return taskEmployees
+    const q = addAssigneeSearch.toLowerCase().trim()
+    return taskEmployees.filter(emp => emp.name?.toLowerCase().includes(q))
+  }, [taskEmployees, addAssigneeSearch])
+
   const filteredMentions = useMemo(() => {
     if (!mentionState.active) return []
     const q = mentionState.query.toLowerCase()
@@ -381,8 +399,16 @@ export default function TasksTab({ defaultSubTab }) {
 
     if (targetId) {
       setInlineInputs({ ...inlineInputs, [targetId]: value })
-    } else if (field === 'title' || field === 'description') {
-      setNewTask({ ...newTask, [field]: value })
+    } else if (field === 'title') {
+      const parsed = parseNaturalDate(value)
+      if (parsed) {
+        setNewTask(prev => ({ ...prev, title: value, dueDate: parsed.date }))
+        setDetectedDateInfo({ label: parsed.label, date: parsed.date })
+      } else {
+        setNewTask(prev => ({ ...prev, title: value }))
+      }
+    } else if (field === 'description') {
+      setNewTask(prev => ({ ...prev, [field]: value }))
     }
   }
 
@@ -450,7 +476,8 @@ export default function TasksTab({ defaultSubTab }) {
         buzzer: !!newTask.buzzer,
         repeat: newTask.repeat || { enabled: false },
         reminder: newTask.reminder || { enabled: false },
-        checklists: newTask.checklists || [],
+        checklists: ensureItemIds(newTask.checklists || [], 'cl'),
+        subtasks: ensureItemIds(newTask.subtasks || [], 'st'),
         isPersonal: isIdea ? false : (activeTab === 'personal'),
         category: isIdea ? 'idea' : 'task'
       })
@@ -463,7 +490,8 @@ export default function TasksTab({ defaultSubTab }) {
         buzzer: false,
         repeat: { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
         reminder: { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
-        checklists: []
+        checklists: [],
+        subtasks: []
       })
     } catch (err) {
       console.error('Failed to create task:', err)
@@ -491,7 +519,8 @@ export default function TasksTab({ defaultSubTab }) {
       buzzer: !!task.buzzer,
       repeat: task.repeat || { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
       reminder: task.reminder || { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
-      checklists: Array.isArray(task.checklists) ? task.checklists : []
+      checklists: Array.isArray(task.checklists) ? task.checklists : [],
+      subtasks: Array.isArray(task.subtasks) ? task.subtasks : []
     })
     setShowEditModal(true)
   }
@@ -516,7 +545,8 @@ export default function TasksTab({ defaultSubTab }) {
         buzzer: !!editingTask.buzzer,
         repeat: editingTask.repeat || { enabled: false },
         reminder: editingTask.reminder || { enabled: false },
-        checklists: editingTask.checklists || []
+        checklists: editingTask.checklists || [],
+        subtasks: editingTask.subtasks || []
       })
       setShowEditModal(false)
       setEditingTask(null)
@@ -719,7 +749,12 @@ export default function TasksTab({ defaultSubTab }) {
 
   // Side drawer functions
   const openSideDrawer = (task) => {
-    setDrawerTask(task)
+    setDrawerTask({
+      ...task,
+      assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : [],
+      checklists: ensureItemIds(Array.isArray(task.checklists) ? task.checklists : [], 'cl'),
+      subtasks: ensureItemIds(Array.isArray(task.subtasks) ? task.subtasks : [], 'st')
+    })
     setShowSideDrawer(true)
   }
 
@@ -731,11 +766,208 @@ export default function TasksTab({ defaultSubTab }) {
   const handleDrawerSave = async () => {
     if (!drawerTask) return
     try {
-      await updateTask(drawerTask.id, drawerTask)
+      await updateTask(drawerTask.id, {
+        ...drawerTask,
+        checklists: ensureItemIds(drawerTask.checklists || [], 'cl'),
+        subtasks: ensureItemIds(drawerTask.subtasks || [], 'st')
+      })
       closeSideDrawer()
     } catch (err) {
       console.error('Failed to update task:', err)
       alert('Failed to save changes')
+    }
+  }
+
+  // Card Inline Checklist & Subtask Handlers
+  const handleToggleCardChecklist = async (task, checkId, idx, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.checklists)) return
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        return {
+          ...item,
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          completed: !item.completed
+        }
+      }
+      return item
+    })
+    try {
+      await updateTask(task.id, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to toggle checklist item:', err)
+    }
+  }
+
+  const handleToggleAllCardChecklists = async (task, markCompleted, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.checklists)) return
+    const updatedChecklists = task.checklists.map((item, i) => ({
+      ...item,
+      id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+      completed: markCompleted
+    }))
+    try {
+      await updateTask(task.id, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to toggle all checklists:', err)
+    }
+  }
+
+  const handleUpdateCardChecklistResponse = async (task, checkId, idx, field, value) => {
+    if (!task || !Array.isArray(task.checklists)) return
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        const updated = {
+          ...item,
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          [field]: value
+        }
+        // Auto-complete if valid response is selected/entered:
+        if (field === 'dropdownResponse') {
+          updated.completed = Boolean(value && value.trim())
+        } else if (field === 'textResponse') {
+          if (value && value.trim()) {
+            updated.completed = true
+          }
+        }
+        return updated
+      }
+      return item
+    })
+    try {
+      await updateTask(task.id, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to update card checklist response:', err)
+    }
+  }
+
+  const handleToggleCardChecklistOption = async (task, checkId, idx, optionLabel, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.checklists)) return
+
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        let currentSelected = []
+        if (Array.isArray(item.selectedOptions)) {
+          currentSelected = [...item.selectedOptions]
+        } else if (typeof item.dropdownResponse === 'string' && item.dropdownResponse.trim()) {
+          currentSelected = item.dropdownResponse.split(',').map(s => s.trim()).filter(Boolean)
+        }
+
+        const exists = currentSelected.includes(optionLabel)
+        const nextSelected = exists 
+          ? currentSelected.filter(val => val !== optionLabel) 
+          : [...currentSelected, optionLabel]
+
+        return {
+          ...item,
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          selectedOptions: nextSelected,
+          dropdownResponse: nextSelected.join(', '),
+          completed: nextSelected.length > 0
+        }
+      }
+      return item
+    })
+
+    try {
+      await updateTask(task.id, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to toggle option check:', err)
+    }
+  }
+
+  const handleToggleAllCardChecklistOptions = async (task, checkId, idx, markAll, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.checklists)) return
+
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget && Array.isArray(item.dropdownConfig?.options)) {
+        const nextSelected = markAll ? item.dropdownConfig.options.map(o => o.label).filter(Boolean) : []
+        return {
+          ...item,
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          selectedOptions: nextSelected,
+          dropdownResponse: nextSelected.join(', '),
+          completed: nextSelected.length > 0
+        }
+      }
+      return item
+    })
+
+    try {
+      await updateTask(task.id, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to toggle all options:', err)
+    }
+  }
+
+  const handleToggleCardSubtask = async (task, subtaskId, idx, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.subtasks)) return
+    const updatedSubtasks = task.subtasks.map((item, i) => {
+      const isTarget = (subtaskId && item?.id && item.id === subtaskId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        return {
+          ...item,
+          id: item.id || `st_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          completed: !item.completed
+        }
+      }
+      return item
+    })
+    try {
+      await updateTask(task.id, { subtasks: updatedSubtasks })
+    } catch (err) {
+      console.error('Failed to toggle subtask:', err)
+    }
+  }
+
+  const handleToggleAllCardSubtasks = async (task, markCompleted, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.subtasks)) return
+    const updatedSubtasks = task.subtasks.map((item, i) => ({
+      ...item,
+      id: item.id || `st_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+      completed: markCompleted
+    }))
+    try {
+      await updateTask(task.id, { subtasks: updatedSubtasks })
+    } catch (err) {
+      console.error('Failed to toggle all subtasks:', err)
+    }
+  }
+
+  const handleToggleCardSubtaskChecklist = async (task, subtaskId, checkId, subtaskIdx, checkIdx, e) => {
+    e?.stopPropagation?.()
+    if (!task || !Array.isArray(task.subtasks)) return
+    const updatedSubtasks = task.subtasks.map((st, sIdx) => {
+      const isSubtask = (subtaskId && st?.id && st.id === subtaskId) || (typeof subtaskIdx === 'number' && sIdx === subtaskIdx)
+      if (isSubtask && Array.isArray(st.checklists)) {
+        const updatedCl = st.checklists.map((c, cIdx) => {
+          const isCheck = (checkId && c?.id && c.id === checkId) || (typeof checkIdx === 'number' && cIdx === checkIdx)
+          if (isCheck) {
+            return {
+              ...c,
+              id: c.id || `sc_${Date.now()}_${cIdx}_${Math.random().toString(36).substring(2, 6)}`,
+              completed: !c.completed
+            }
+          }
+          return c
+        })
+        return { ...st, checklists: updatedCl }
+      }
+      return st
+    })
+    try {
+      await updateTask(task.id, { subtasks: updatedSubtasks })
+    } catch (err) {
+      console.error('Failed to toggle subtask checklist item:', err)
     }
   }
 
@@ -880,7 +1112,7 @@ export default function TasksTab({ defaultSubTab }) {
                           e.dataTransfer.effectAllowed = 'move'
                         }}
                         onDragEnd={() => setDraggedTaskId(null)}
-                        onClick={() => openEditModal(task)}
+                        onClick={() => openSideDrawer(task)}
                         className={`bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all duration-150 cursor-pointer group relative ${
                           isCurrentDragging ? 'opacity-40 scale-[0.98] border-blue-400' : ''
                         } ${isAnimating ? 'animate-pulse scale-95' : ''}`}
@@ -998,6 +1230,50 @@ export default function TasksTab({ defaultSubTab }) {
                                   )}
                                   <span className="truncate max-w-[170px]">{task.clientName || task.clientType}</span>
                                 </span>
+                              </div>
+                            )}
+
+                            {/* Subtasks & Checklist indicators on card */}
+                            {((Array.isArray(task.subtasks) && task.subtasks.length > 0) || (Array.isArray(task.checklists) && task.checklists.length > 0)) && (
+                              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                                {Array.isArray(task.subtasks) && task.subtasks.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setExpandedSubtasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))
+                                    }}
+                                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer ${
+                                      task.subtasks.filter(s => s.completed).length === task.subtasks.length
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/70'
+                                    }`}
+                                    title="View & complete sub-tasks inline"
+                                  >
+                                    <List size={10} />
+                                    <span>{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} Subtasks</span>
+                                    {expandedSubtasks[task.id] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                  </button>
+                                )}
+                                {Array.isArray(task.checklists) && task.checklists.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setExpandedChecklists(prev => ({ ...prev, [task.id]: !prev[task.id] }))
+                                    }}
+                                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer ${
+                                      task.checklists.filter(c => c.completed).length === task.checklists.length
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100/70'
+                                    }`}
+                                    title="View & check checklist items inline"
+                                  >
+                                    <CheckSquare size={10} />
+                                    <span>{task.checklists.filter(c => c.completed).length}/{task.checklists.length} Checklist</span>
+                                    {expandedChecklists[task.id] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                  </button>
+                                )}
                               </div>
                             )}
 
@@ -1161,6 +1437,333 @@ export default function TasksTab({ defaultSubTab }) {
                             </div>
                           </div>
                         </div>
+
+                        {/* Expandable Inline Sub-tasks Drawer */}
+                        {expandedSubtasks[task.id] && Array.isArray(task.subtasks) && task.subtasks.length > 0 && (
+                          <div 
+                            className="mt-3 pt-2.5 border-t border-slate-100 space-y-2 animate-fadeIn"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 font-heading">
+                              <span className="flex items-center gap-1"><List size={11} className="text-blue-600" /> SUB-TASKS</span>
+                              <div className="flex items-center gap-2">
+                                <span>{task.subtasks.filter(s => s.completed).length} of {task.subtasks.length}</span>
+                                {task.subtasks.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const allDone = task.subtasks.every(s => s.completed)
+                                      handleToggleAllCardSubtasks(task, !allDone, e)
+                                    }}
+                                    className="text-[10px] text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-2 cursor-pointer"
+                                  >
+                                    {task.subtasks.every(s => s.completed) ? 'Unmark all' : 'Mark all done'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {task.subtasks.map((st, idx) => (
+                                <div 
+                                  key={st.id || idx} 
+                                  className="p-2 bg-slate-50/80 border border-slate-200/90 rounded-lg space-y-1 text-xs"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div 
+                                      className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none group"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleToggleCardSubtask(task, st.id, idx, e)
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={!!st.completed}
+                                        onChange={(e) => {
+                                          e.stopPropagation()
+                                          handleToggleCardSubtask(task, st.id, idx, e)
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                                      />
+                                      <span className={`text-[11px] font-medium truncate transition-colors ${
+                                        st.completed ? 'line-through text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
+                                      }`}>
+                                        {st.title || `Sub-task #${idx + 1}`}
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleToggleCardSubtask(task, st.id, idx, e)
+                                      }}
+                                      className={`text-[9px] px-2 py-0.5 rounded font-semibold shrink-0 cursor-pointer border transition-colors ${
+                                        st.completed 
+                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200/70' 
+                                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {st.completed ? '✓ Completed' : 'To Do'}
+                                    </button>
+                                  </div>
+
+                                  {/* Subtask's checklist items */}
+                                  {Array.isArray(st.checklists) && st.checklists.length > 0 && (
+                                    <div className="pl-3 pt-1 space-y-1 border-t border-slate-200/50 mt-1">
+                                      {st.checklists.map((sc, scIdx) => (
+                                        <div 
+                                          key={sc.id || scIdx} 
+                                          className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-600 select-none group"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleToggleCardSubtaskChecklist(task, st.id, sc.id, idx, scIdx, e)
+                                          }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={!!sc.completed}
+                                            onChange={(e) => {
+                                              e.stopPropagation()
+                                              handleToggleCardSubtaskChecklist(task, st.id, sc.id, idx, scIdx, e)
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                                          />
+                                          <span className={`transition-colors ${sc.completed ? 'line-through text-slate-400' : 'text-slate-700 group-hover:text-emerald-700'}`}>
+                                            {sc.title}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Expandable Inline Checklist Drawer */}
+                        {expandedChecklists[task.id] && Array.isArray(task.checklists) && task.checklists.length > 0 && (
+                          <div 
+                            className="mt-3 pt-2.5 border-t border-slate-100 space-y-2 animate-fadeIn"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 font-heading uppercase tracking-wider">
+                              <span className="flex items-center gap-1.5"><CheckSquare size={11} className="text-emerald-600" /> Checklist & Validations</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-700 font-mono tabular-nums">{task.checklists.filter(c => c.completed).length}/{task.checklists.length}</span>
+                                {task.checklists.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const allDone = task.checklists.every(c => c.completed)
+                                      handleToggleAllCardChecklists(task, !allDone, e)
+                                    }}
+                                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-semibold underline underline-offset-2 cursor-pointer normal-case tracking-normal"
+                                  >
+                                    {task.checklists.every(c => c.completed) ? 'Uncheck all' : 'Check all'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {task.checklists.map((item, idx) => (
+                                <div 
+                                  key={item.id || idx} 
+                                  className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1.5 text-xs shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                                >
+                                  {/* Header row: Checkbox, Title & Status Badge */}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div 
+                                      className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none group"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleToggleCardChecklist(task, item.id, idx, e)
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={!!item.completed}
+                                        onChange={(e) => {
+                                          e.stopPropagation()
+                                          handleToggleCardChecklist(task, item.id, idx, e)
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-4 h-4 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                                      />
+                                      <span className={`text-[11px] font-medium truncate transition-colors ${
+                                        item.completed ? 'line-through text-slate-400' : 'text-slate-800 group-hover:text-emerald-700'
+                                      }`}>
+                                        {item.title || `Checklist item #${idx + 1}`}
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleToggleCardChecklist(task, item.id, idx, e)
+                                      }}
+                                      className={`text-[9px] px-2 py-0.5 rounded-md font-semibold shrink-0 cursor-pointer border transition-all ${
+                                        item.completed 
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                                      }`}
+                                    >
+                                      {item.completed ? '✓ Done' : '○ To do'}
+                                    </button>
+                                  </div>
+
+                                  {/* Validation chips */}
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.required && (
+                                      <span className="text-[8px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200">
+                                        Required
+                                      </span>
+                                    )}
+                                    {item.validations?.text && <span className="text-[8px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md border border-slate-200">Manual text</span>}
+                                    {item.validations?.dropdown && <span className="text-[8px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-200">Dropdown</span>}
+                                    {item.validations?.image && <span className="text-[8px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Photo</span>}
+                                    {item.validations?.file && <span className="text-[8px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">File</span>}
+                                  </div>
+
+                                  {/* Manual Typing text input */}
+                                  {item.validations?.text && (
+                                    <div className="space-y-0.5 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                                      <label className="text-[9px] font-medium text-slate-500 block uppercase tracking-wider">
+                                        Response
+                                      </label>
+                                      <input
+                                        type="text"
+                                        defaultValue={item.textResponse || ''}
+                                        onBlur={(e) => handleUpdateCardChecklistResponse(task, item.id, idx, 'textResponse', e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            handleUpdateCardChecklistResponse(task, item.id, idx, 'textResponse', e.currentTarget.value)
+                                          }
+                                        }}
+                                        placeholder="Type response, findings or notes..."
+                                        className="h-7 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-body transition-all"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Dropdown Options with a Checkbox for EACH Option */}
+                                  {item.validations?.dropdown && Array.isArray(item.dropdownConfig?.options) && item.dropdownConfig.options.length > 0 ? (
+                                    (() => {
+                                      let currentSelected = []
+                                      if (Array.isArray(item.selectedOptions)) {
+                                        currentSelected = item.selectedOptions
+                                      } else if (typeof item.dropdownResponse === 'string' && item.dropdownResponse.trim()) {
+                                        currentSelected = item.dropdownResponse.split(',').map(s => s.trim()).filter(Boolean)
+                                      }
+
+                                      return (
+                                        <div className="space-y-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
+                                          <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                            <span className="flex items-center gap-1.5 font-heading">
+                                              <List size={11} className="text-emerald-600" />
+                                              <span>Options <span className="text-emerald-700 font-mono">{currentSelected.length}/{item.dropdownConfig.options.length}</span></span>
+                                            </span>
+                                            {item.dropdownConfig.options.length > 1 && (
+                                              <div className="flex items-center gap-1.5">
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    const allLabels = item.dropdownConfig.options.map(o => o.label).filter(Boolean)
+                                                    const allDone = allLabels.length > 0 && allLabels.every(l => currentSelected.includes(l))
+                                                    handleToggleAllCardChecklistOptions(task, item.id, idx, !allDone, e)
+                                                  }}
+                                                  className="text-[9px] text-emerald-600 hover:text-emerald-800 font-semibold underline underline-offset-2 cursor-pointer normal-case tracking-normal"
+                                                >
+                                                  {item.dropdownConfig.options.map(o => o.label).filter(Boolean).every(l => currentSelected.includes(l)) ? 'Uncheck all' : 'Check all'}
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Checkbox for EACH option */}
+                                          <div className="space-y-0.5 bg-white rounded-lg border border-slate-200 p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                                            {item.dropdownConfig.options.map((opt, optIdx) => {
+                                              const optLabel = opt.label || `Option ${optIdx + 1}`
+                                              const isChecked = currentSelected.includes(optLabel) || (opt.id && currentSelected.includes(opt.id))
+                                              return (
+                                                <div
+                                                  key={opt.id || optIdx}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleToggleCardChecklistOption(task, item.id, idx, optLabel, e)
+                                                  }}
+                                                  className={`flex items-center justify-between px-2 py-1.5 rounded-lg border text-xs cursor-pointer transition-all select-none group ${
+                                                    isChecked
+                                                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                                                      : 'bg-white border-slate-200/70 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                                                  }`}
+                                                >
+                                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isChecked}
+                                                      onChange={(e) => {
+                                                        e.stopPropagation()
+                                                        handleToggleCardChecklistOption(task, item.id, idx, optLabel, e)
+                                                      }}
+                                                      onClick={(e) => e.stopPropagation()}
+                                                      className="w-3.5 h-3.5 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                                                    />
+                                                    <span className={`text-[11px] truncate transition-colors ${
+                                                      isChecked ? 'font-semibold text-emerald-800' : 'text-slate-800 group-hover:text-emerald-700'
+                                                    }`}>
+                                                      {optLabel}
+                                                    </span>
+                                                  </div>
+
+                                                  <span
+                                                    className={`text-[8px] px-1.5 py-0.5 rounded-md font-bold shrink-0 border transition-all ${
+                                                      isChecked
+                                                        ? 'bg-emerald-600 text-white border-emerald-600'
+                                                        : 'bg-white text-slate-400 border-slate-200 group-hover:border-slate-300'
+                                                    }`}
+                                                  >
+                                                    {isChecked ? '✓ Done' : '○ To do'}
+                                                  </span>
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        </div>
+                                      )
+                                    })()
+                                  ) : item.validations?.dropdown ? (
+                                    <div className="space-y-0.5 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                                      <label className="text-[9px] font-medium text-slate-600 block">
+                                        📋 Select option:
+                                      </label>
+                                      <select
+                                        value={item.dropdownResponse || ''}
+                                        onChange={(e) => {
+                                          e.stopPropagation()
+                                          handleUpdateCardChecklistResponse(task, item.id, idx, 'dropdownResponse', e.target.value)
+                                        }}
+                                        className="h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer font-body"
+                                      >
+                                        <option value="">-- Choose option --</option>
+                                        {item.dropdownConfig?.options?.map(opt => (
+                                          <option key={opt.id} value={opt.label}>{opt.label}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </article>
                     )
                   })}
@@ -2352,241 +2955,349 @@ export default function TasksTab({ defaultSubTab }) {
         isOpen={showAddModal} 
         onClose={() => setShowAddModal(false)}
         title="Create New Task"
-        size="4xl"
+        size="3xl"
       >
-        <form onSubmit={handleCreateTask} className="p-6 space-y-5 font-body">
-          {/* Multi-Assignee Selector - FIRST ENTRY */}
-          <div>
-            <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Assign To</label>
-            <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
-              {taskEmployees.map(emp => {
-                const isSelected = newTask.assignedTo?.includes(emp.id)
-                return (
-                  <button
-                    key={emp.id}
-                    type="button"
-                    onClick={() => {
-                      const current = newTask.assignedTo || []
-                      const updated = isSelected 
-                        ? current.filter(id => id !== emp.id)
-                        : [...current, emp.id]
-                      setNewTask({ ...newTask, assignedTo: updated })
-                    }}
-                    className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body ${
-                      isSelected 
-                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[8px] font-bold font-mono flex items-center justify-center">
-                      {getInitials(emp.name)}
-                    </div>
-                    <span>{emp.name}</span>
-                    {isSelected && <Check size={12} className="text-blue-600" />}
-                  </button>
-                )
-              })}
-              {taskEmployees.length === 0 && (
-                <p className="text-xs text-slate-400 italic py-1">No employees found</p>
-              )}
-            </div>
-          </div>
+        <form onSubmit={handleCreateTask} className="flex flex-col h-full bg-white relative">
+          <div className="flex-1 p-6 space-y-5 font-body pb-6 overflow-y-auto">
+            {/* 1. Assign User (First Entry - Inline 2-Row Selection) */}
+            {!newTask.isPersonal ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-800 font-body">
+                    Assign To <span className="text-rose-500">*</span>
+                  </label>
+                  {newTask.assignedTo?.length > 0 && (
+                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      {newTask.assignedTo.length} selected
+                    </span>
+                  )}
+                </div>
 
-          {/* Title & Description */}
-          <div className="space-y-4">
-            <div className="relative">
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Task Title</label>
-              <input
-                type="text"
-                required
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-heading font-semibold"
-                placeholder="What needs to be done?"
-                value={newTask.title}
-                onChange={e => handleTextChange('title', e.target.value)}
-                autoFocus
-              />
-              {mentionState.active && mentionState.targetField === 'title' && !mentionState.targetId && <MentionList />}
-            </div>
+                {/* Inline Search Bar */}
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search team members..."
+                    value={addAssigneeSearch}
+                    onChange={(e) => setAddAssigneeSearch(e.target.value)}
+                    className="h-9 w-full pl-8 pr-8 rounded-md border border-slate-200 bg-slate-50/60 px-3 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                  />
+                  {addAssigneeSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setAddAssigneeSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
 
-            <div className="relative">
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Description</label>
-              <textarea
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all min-h-[85px] resize-y placeholder:text-slate-400 text-slate-800 font-body"
-                placeholder="Add description or context... (type @ to mention a team member)"
-                value={newTask.description}
-                onChange={e => handleTextChange('description', e.target.value)}
-              />
-              {mentionState.active && mentionState.targetField === 'description' && !mentionState.targetId && <MentionList />}
-            </div>
-          </div>
-
-          {/* Properties Grid: Priority, Status, Due Date, Notes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Priority Selector */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Priority</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'normal', label: 'Normal', dot: 'bg-slate-400', activeCls: 'bg-blue-50 text-blue-700 border-blue-300' },
-                  { id: 'high', label: 'High', dot: 'bg-amber-500', activeCls: 'bg-amber-50 text-amber-700 border-amber-300' },
-                  { id: 'urgent', label: 'Urgent', dot: 'bg-red-500', activeCls: 'bg-red-50 text-red-700 border-red-300' }
-                ].map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setNewTask({ ...newTask, priority: p.id })}
-                    className={`h-9 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading ${
-                      newTask.priority === p.id 
-                        ? `${p.activeCls} shadow-xs font-bold`
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
-                    {p.label}
-                  </button>
-                ))}
+                {/* Two-row selection pills container */}
+                <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
+                  {filteredAddAssignees.map(emp => {
+                    const isSelected = newTask.assignedTo?.includes(emp.id)
+                    return (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => {
+                          const current = newTask.assignedTo || []
+                          const updated = isSelected 
+                            ? current.filter(id => id !== emp.id)
+                            : [...current, emp.id]
+                          setNewTask({ ...newTask, assignedTo: updated })
+                        }}
+                        className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body cursor-pointer ${
+                          isSelected 
+                            ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${
+                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {getInitials(emp.name)}
+                        </div>
+                        <span className="truncate max-w-[140px]">{emp.name}</span>
+                        {isSelected && <Check size={12} className="text-blue-600 shrink-0" />}
+                      </button>
+                    )
+                  })}
+                  {filteredAddAssignees.length === 0 && (
+                    <p className="text-xs text-slate-400 italic py-1 w-full text-center">No matching team members</p>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-lg flex items-center gap-2.5 text-xs text-blue-800 font-body">
+                <User size={15} className="text-blue-600 shrink-0" />
+                <span>Personal task — automatically assigned to you.</span>
+              </div>
+            )}
 
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Status</label>
-              <select
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
-                value={newTask.status}
-                onChange={e => setNewTask({ ...newTask, status: e.target.value })}
-              >
-                {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
-            </div>
-
-            {/* Due Date */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Due Date</label>
+            {/* 2. Task Title & Description Toggle */}
+            <div className="space-y-2">
               <div className="relative">
-                <DatePicker
-                  selected={newTask.dueDate}
-                  onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
-                  placeholderText="Select date (optional)"
-                  dateFormat="MMM d, yyyy"
-                />
-                <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-              </div>
-            </div>
-
-            {/* Internal Notes */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Internal Notes</label>
-              <input
-                type="text"
-                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
-                placeholder="Quick notes (internal only)"
-                value={newTask.notes}
-                onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Client Tracking */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-            <div className="bg-slate-50/60 px-3.5 py-2 border-b border-slate-200/80 flex items-center justify-between">
-              <h5 className="text-xs font-semibold text-slate-700 uppercase tracking-wider font-heading flex items-center gap-2">
-                <User size={13} className="text-slate-400" />
-                Client Tracking
-              </h5>
-              <span className="text-[11px] font-medium text-slate-400 italic font-body">Optional</span>
-            </div>
-            
-            <div className="p-3.5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Name</label>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Task Title <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                  required
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-heading font-semibold"
+                  placeholder="What needs to be done?"
+                  value={newTask.title}
+                  onChange={e => handleTextChange('title', e.target.value)}
+                  autoFocus
+                />
+                {mentionState.active && mentionState.targetField === 'title' && !mentionState.targetId && <MentionList />}
+              </div>
+
+              {/* Auto-detected Date Chip */}
+              {detectedDateInfo && (
+                <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium animate-fadeIn">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-600 shrink-0" />
+                    <span>Auto-scheduled: <strong>{detectedDateInfo.label}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetectedDateInfo(null)}
+                    className="text-indigo-400 hover:text-indigo-700 p-0.5 cursor-pointer"
+                    title="Dismiss"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              {/* Description (Optional) Toggle */}
+              <div className="pt-0.5">
+                {!showDescription && !newTask.description ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDescription(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors py-1 cursor-pointer font-heading"
+                  >
+                    <FileText size={14} />
+                    <span>+ Description (optional)</span>
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-slate-800 font-body">
+                        Description <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newTask.description) setShowDescription(false)
+                        }}
+                        className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer font-body"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <textarea
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all min-h-[85px] resize-y placeholder:text-slate-400 text-slate-800 font-body"
+                        placeholder="Add description or context... (type @ to mention a team member)"
+                        value={newTask.description}
+                        onChange={e => handleTextChange('description', e.target.value)}
+                      />
+                      {mentionState.active && mentionState.targetField === 'description' && !mentionState.targetId && <MentionList />}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Due Date & Time Picker (Optional) */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-800 font-body">
+                  Due Date & Time <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                {newTask.dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTask({ ...newTask, dueDate: null })
+                      setDetectedDateInfo(null)
+                    }}
+                    className="text-xs font-medium text-rose-500 hover:text-rose-600 cursor-pointer font-body"
+                  >
+                    Clear date
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <DatePicker
+                  selected={newTask.dueDate ? (newTask.dueDate.toDate ? newTask.dueDate.toDate() : new Date(newTask.dueDate)) : null}
+                  onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
+                  showTimeSelect
+                  timeIntervals={15}
+                  timeFormat="hh:mm aa"
+                  dateFormat="MMM d, yyyy h:mm aa"
+                  wrapperClassName="w-full"
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 pr-10 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer shadow-2xs"
+                  placeholderText="Select date & time (optional)"
+                />
+                <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+              </div>
+            </div>
+
+            {/* 4. Client Tracking (Hidden from UI per user request, code preserved) */}
+            {/*
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+              <div className="bg-slate-50/60 px-3.5 py-2 border-b border-slate-200/80 flex items-center justify-between">
+                <h5 className="text-xs font-semibold text-slate-700 uppercase tracking-wider font-heading flex items-center gap-2">
+                  <User size={13} className="text-slate-400" />
+                  Client Tracking
+                </h5>
+                <span className="text-[11px] font-medium text-slate-400 italic font-body">Optional</span>
+              </div>
+              <div className="p-3.5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <input
+                  type="text"
                   placeholder="e.g. John Doe"
                   value={newTask.clientName}
                   onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Type</label>
-                <div className="flex gap-2">
-                  {CLIENT_TYPES.map(type => (
-                    <button
-                      key={type.id}
-                      type="button"
-                      onClick={() => setNewTask({ ...newTask, clientType: newTask.clientType === type.id ? null : type.id })}
-                      className={`h-9 flex-1 rounded-md text-xs font-medium transition-all border flex items-center justify-center ${
-                        newTask.clientType === type.id 
-                          ? `${type.bgColor} ${type.borderColor} ${type.color} font-semibold shadow-xs`
-                          : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                      }`}
-                      title={type.label}
-                    >
-                      {type.icon}
-                    </button>
-                  ))}
+            </div>
+            */}
+
+            {/* 5. Personal Task & Mark as Idea Switches */}
+            <div className="flex items-center gap-6 py-1">
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={newTask.isPersonal}
+                    onChange={e => setNewTask({ ...newTask, isPersonal: e.target.checked })}
+                  />
+                  <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5 shadow-xs"></div>
                 </div>
-              </div>
+                <span className="text-xs font-medium text-slate-700 group-hover:text-slate-900 transition-colors font-body">Personal Task</span>
+              </label>
+
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={newTask.category === 'idea'}
+                    onChange={e => setNewTask({ ...newTask, category: e.target.checked ? 'idea' : 'task' })}
+                  />
+                  <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-amber-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5 shadow-xs"></div>
+                </div>
+                <span className="text-xs font-medium text-slate-700 group-hover:text-slate-900 transition-colors font-body">Mark as Idea</span>
+              </label>
+            </div>
+
+            {/* 6. Buzzer, Repeat, Reminder & Checklist Section */}
+            <div className="pt-2 border-t border-slate-200">
+              <TaskChecklistBuilder
+                buzzer={newTask.buzzer}
+                onBuzzerChange={(buzzer) => setNewTask({ ...newTask, buzzer })}
+                repeat={newTask.repeat}
+                onRepeatChange={(repeat) => setNewTask({ ...newTask, repeat })}
+                reminder={newTask.reminder}
+                onReminderChange={(reminder) => setNewTask({ ...newTask, reminder })}
+                checklists={newTask.checklists}
+                onChecklistsChange={(checklists) => setNewTask({ ...newTask, checklists })}
+                subtasks={newTask.subtasks}
+                onSubtasksChange={(subtasks) => setNewTask({ ...newTask, subtasks })}
+                employees={taskEmployees}
+              />
+            </div>
+
+            {/* Collapsible Advanced Options: Priority, Status, Internal Notes */}
+            <div className="pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                className="w-full flex items-center justify-between py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors font-heading cursor-pointer"
+              >
+                <span>Priority, Status & Notes</span>
+                {showAdvancedOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+
+              {showAdvancedOptions && (
+                <div className="space-y-4 pt-3 pb-1 animate-fadeIn">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Priority */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Priority</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'normal', label: 'Normal', dot: 'bg-slate-400', activeCls: 'bg-blue-50 text-blue-700 border-blue-300' },
+                          { id: 'high', label: 'High', dot: 'bg-amber-500', activeCls: 'bg-amber-50 text-amber-700 border-amber-300' },
+                          { id: 'urgent', label: 'Urgent', dot: 'bg-red-500', activeCls: 'bg-red-50 text-red-700 border-red-300' }
+                        ].map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setNewTask({ ...newTask, priority: p.id })}
+                            className={`h-9 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading ${
+                              newTask.priority === p.id 
+                                ? `${p.activeCls} shadow-xs font-bold`
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Status</label>
+                      <select
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
+                        value={newTask.status}
+                        onChange={e => setNewTask({ ...newTask, status: e.target.value })}
+                      >
+                        {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Internal Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Internal Notes</label>
+                    <input
+                      type="text"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                      placeholder="Quick notes (internal only)"
+                      value={newTask.notes}
+                      onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Toggles */}
-          <div className="flex items-center gap-6 py-1">
-            <label className="flex items-center gap-2.5 cursor-pointer group">
-              <div className="relative flex items-center">
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
-                  checked={newTask.isPersonal}
-                  onChange={e => setNewTask({ ...newTask, isPersonal: e.target.checked })}
-                />
-                <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5 shadow-xs"></div>
-              </div>
-              <span className="text-xs font-medium text-slate-700 group-hover:text-slate-900 transition-colors font-body">Personal Task</span>
-            </label>
-
-            <label className="flex items-center gap-2.5 cursor-pointer group">
-              <div className="relative flex items-center">
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
-                  checked={newTask.category === 'idea'}
-                  onChange={e => setNewTask({ ...newTask, category: e.target.checked ? 'idea' : 'task' })}
-                />
-                <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-amber-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5 shadow-xs"></div>
-              </div>
-              <span className="text-xs font-medium text-slate-700 group-hover:text-slate-900 transition-colors font-body">Mark as Idea</span>
-            </label>
-          </div>
-
-          {/* Buzzer, Repeat, Reminder & Checklist Section */}
-          <div className="pt-2 border-t border-slate-200">
-            <TaskChecklistBuilder
-              buzzer={newTask.buzzer}
-              onBuzzerChange={(buzzer) => setNewTask({ ...newTask, buzzer })}
-              repeat={newTask.repeat}
-              onRepeatChange={(repeat) => setNewTask({ ...newTask, repeat })}
-              reminder={newTask.reminder}
-              onReminderChange={(reminder) => setNewTask({ ...newTask, reminder })}
-              checklists={newTask.checklists}
-              onChecklistsChange={(checklists) => setNewTask({ ...newTask, checklists })}
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+          {/* 7. Modal Footer - Sticky at bottom */}
+          <div className="sticky bottom-0 left-0 right-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-white/95 backdrop-blur-xs z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
-              className="h-9 px-4 border border-slate-200 text-slate-700 rounded-md text-sm font-semibold font-heading hover:bg-slate-50 transition-colors"
+              className="h-9 px-4 border border-slate-200 text-slate-700 rounded-md text-sm font-semibold font-heading hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all"
+              disabled={!newTask.title.trim()}
+              className="h-9 px-6 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all cursor-pointer"
             >
               Create Task
             </button>
@@ -2710,9 +3421,10 @@ export default function TasksTab({ defaultSubTab }) {
                 <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Due Date</label>
                 <div className="relative">
                   <DatePicker
-                    selected={editingTask.dueDate}
+                    selected={editingTask.dueDate ? (editingTask.dueDate.toDate ? editingTask.dueDate.toDate() : new Date(editingTask.dueDate)) : null}
                     onChange={(date) => setEditingTask({ ...editingTask, dueDate: date })}
-                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
+                    wrapperClassName="w-full"
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 pr-10 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer shadow-2xs"
                     placeholderText="Select date (optional)"
                     dateFormat="MMM d, yyyy"
                   />
@@ -2817,6 +3529,9 @@ export default function TasksTab({ defaultSubTab }) {
                 onReminderChange={(reminder) => setEditingTask({ ...editingTask, reminder })}
                 checklists={editingTask.checklists}
                 onChecklistsChange={(checklists) => setEditingTask({ ...editingTask, checklists })}
+                subtasks={editingTask.subtasks}
+                onSubtasksChange={(subtasks) => setEditingTask({ ...editingTask, subtasks })}
+                employees={taskEmployees}
               />
             </div>
 
@@ -2952,9 +3667,10 @@ export default function TasksTab({ defaultSubTab }) {
                 <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Due Date</label>
                 <div className="relative">
                   <DatePicker
-                    selected={drawerTask.dueDate}
+                    selected={drawerTask.dueDate ? (drawerTask.dueDate.toDate ? drawerTask.dueDate.toDate() : new Date(drawerTask.dueDate)) : null}
                     onChange={(date) => setDrawerTask({ ...drawerTask, dueDate: date })}
-                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
+                    wrapperClassName="w-full"
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 pr-10 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer shadow-2xs"
                     dateFormat="MMM d, yyyy"
                     placeholderText="Select date (optional)"
                   />
@@ -2997,6 +3713,575 @@ export default function TasksTab({ defaultSubTab }) {
                     <p className="text-xs text-slate-400 italic py-1">No employees found</p>
                   )}
                 </div>
+              </div>
+
+              {/* 1. CHECKLIST & VALIDATIONS SECTION */}
+              <div className="space-y-3 pt-3 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 font-heading flex items-center gap-1.5">
+                      <CheckSquare size={14} className="text-emerald-600" />
+                      <span>Checklist & Validations</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400">Mark as done or provide response</p>
+                  </div>
+                  {Array.isArray(drawerTask.checklists) && drawerTask.checklists.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono tabular-nums">
+                        {drawerTask.checklists.filter(c => c.completed).length}/{drawerTask.checklists.length}
+                      </span>
+                      {drawerTask.checklists.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allDone = drawerTask.checklists.every(c => c.completed)
+                            setDrawerTask({
+                              ...drawerTask,
+                              checklists: drawerTask.checklists.map(c => ({ ...c, completed: !allDone }))
+                            })
+                          }}
+                          className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 underline cursor-pointer"
+                        >
+                          {drawerTask.checklists.every(c => c.completed) ? 'Uncheck all' : 'Check all'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {(!drawerTask.checklists || drawerTask.checklists.length === 0) ? (
+                  <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center">
+                    <p className="text-xs text-slate-400 italic mb-1.5">No checklist validations added yet</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newItem = createDefaultChecklistItem(`Validation #1`)
+                        setDrawerTask({ ...drawerTask, checklists: [newItem] })
+                      }}
+                      className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors inline-flex items-center gap-1 cursor-pointer font-heading"
+                    >
+                      <Plus size={13} />
+                      <span>Add Checklist Field</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {drawerTask.checklists.map((item, idx) => (
+                      <div key={item.id || idx} className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!item.completed}
+                              onChange={() => {
+                                const updated = drawerTask.checklists.map((c, i) => i === idx ? { ...c, completed: !c.completed } : c)
+                                setDrawerTask({ ...drawerTask, checklists: updated })
+                              }}
+                              className="w-4 h-4 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={item.title || ''}
+                              onChange={(e) => {
+                                const updated = drawerTask.checklists.map((c, i) => i === idx ? { ...c, title: e.target.value } : c)
+                                setDrawerTask({ ...drawerTask, checklists: updated })
+                              }}
+                              placeholder="Checklist field title"
+                              className={`w-full text-xs font-semibold bg-transparent border-0 p-0 focus:ring-0 ${
+                                item.completed ? 'line-through text-slate-400' : 'text-slate-800'
+                              }`}
+                            />
+                          </label>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = drawerTask.checklists.map((c, i) => i === idx ? { ...c, completed: !c.completed } : c)
+                                setDrawerTask({ ...drawerTask, checklists: updated })
+                              }}
+                              className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition-all border cursor-pointer ${
+                                item.completed
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                              }`}
+                            >
+                              {item.completed ? '✓ Done' : '○ To do'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = drawerTask.checklists.filter((_, i) => i !== idx)
+                                setDrawerTask({ ...drawerTask, checklists: updated })
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                              title="Delete checklist item"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Validation badges */}
+                        <div className="flex flex-wrap gap-1">
+                          {item.required && <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200">Required</span>}
+                          {item.validations?.text && <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md border border-slate-200">Manual text</span>}
+                          {item.validations?.dropdown && <span className="text-[9px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-200">Dropdown</span>}
+                          {item.validations?.image && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Photo</span>}
+                          {item.validations?.file && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">File</span>}
+                          {item.validations?.video && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Video</span>}
+                          {item.validations?.audio && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Audio</span>}
+                          {item.validations?.geoTag && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Location</span>}
+                        </div>
+
+                        {/* Manual typing */}
+                        {item.validations?.text && (
+                          <div className="space-y-1 pt-1">
+                            <label className="text-[9px] font-medium text-slate-500 block uppercase tracking-wider">Response</label>
+                            <input
+                              type="text"
+                              value={item.textResponse || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                const updated = drawerTask.checklists.map((c, i) => i === idx ? { 
+                                  ...c, 
+                                  textResponse: val,
+                                  completed: val && val.trim() ? true : c.completed
+                                } : c)
+                                setDrawerTask({ ...drawerTask, checklists: updated })
+                              }}
+                              placeholder="Type response, findings or notes..."
+                              className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-body transition-all"
+                            />
+                          </div>
+                        )}
+
+                        {/* Dropdown Options with a Checkbox for EACH Option */}
+                        {item.validations?.dropdown && Array.isArray(item.dropdownConfig?.options) && item.dropdownConfig.options.length > 0 ? (
+                          (() => {
+                            let currentSelected = []
+                            if (Array.isArray(item.selectedOptions)) {
+                              currentSelected = item.selectedOptions
+                            } else if (typeof item.dropdownResponse === 'string' && item.dropdownResponse.trim()) {
+                              currentSelected = item.dropdownResponse.split(',').map(s => s.trim()).filter(Boolean)
+                            }
+
+                            const toggleDrawerOption = (optLabel) => {
+                              const exists = currentSelected.includes(optLabel)
+                              const nextSelected = exists
+                                ? currentSelected.filter(v => v !== optLabel)
+                                : [...currentSelected, optLabel]
+                              const updated = drawerTask.checklists.map((c, i) => i === idx ? {
+                                ...c,
+                                selectedOptions: nextSelected,
+                                dropdownResponse: nextSelected.join(', '),
+                                completed: nextSelected.length > 0
+                              } : c)
+                              setDrawerTask({ ...drawerTask, checklists: updated })
+                            }
+
+                            return (
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                  <span className="flex items-center gap-1.5 font-heading">
+                                    <List size={12} className="text-emerald-600" />
+                                    <span>Options <span className="text-emerald-700 font-mono">{currentSelected.length}/{item.dropdownConfig.options.length}</span></span>
+                                  </span>
+                                  {item.dropdownConfig.options.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const allLabels = item.dropdownConfig.options.map(o => o.label).filter(Boolean)
+                                        const allDone = allLabels.length > 0 && allLabels.every(l => currentSelected.includes(l))
+                                        const nextSelected = !allDone ? allLabels : []
+                                        const updated = drawerTask.checklists.map((c, i) => i === idx ? {
+                                          ...c,
+                                          selectedOptions: nextSelected,
+                                          dropdownResponse: nextSelected.join(', '),
+                                          completed: nextSelected.length > 0
+                                        } : c)
+                                        setDrawerTask({ ...drawerTask, checklists: updated })
+                                      }}
+                                      className="text-[9px] text-emerald-600 hover:text-emerald-800 font-semibold underline underline-offset-2 cursor-pointer normal-case tracking-normal"
+                                    >
+                                      {item.dropdownConfig.options.map(o => o.label).filter(Boolean).every(l => currentSelected.includes(l)) ? 'Uncheck all' : 'Check all'}
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="space-y-0.5 bg-white rounded-lg border border-slate-200 p-2 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                                  {item.dropdownConfig.options.map((opt, optIdx) => {
+                                    const optLabel = opt.label || `Option ${optIdx + 1}`
+                                    const isChecked = currentSelected.includes(optLabel) || (opt.id && currentSelected.includes(opt.id))
+                                    return (
+                                      <div
+                                        key={opt.id || optIdx}
+                                        onClick={() => toggleDrawerOption(optLabel)}
+                                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-all select-none group ${
+                                          isChecked
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-medium'
+                                            : 'bg-white border-slate-200/70 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                          <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => toggleDrawerOption(optLabel)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-3.5 h-3.5 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                                          />
+                                          <span className={`text-xs truncate transition-colors ${
+                                            isChecked ? 'font-semibold text-emerald-800' : 'text-slate-800 group-hover:text-emerald-700'
+                                          }`}>
+                                            {optLabel}
+                                          </span>
+                                        </div>
+
+                                        <span
+                                          className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold shrink-0 border transition-all ${
+                                            isChecked
+                                              ? 'bg-emerald-600 text-white border-emerald-600'
+                                              : 'bg-white text-slate-400 border-slate-200 group-hover:border-slate-300'
+                                          }`}
+                                        >
+                                          {isChecked ? '✓ Done' : '○ To do'}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })()
+                        ) : item.validations?.dropdown ? (
+                          <div className="space-y-1 pt-1">
+                            <label className="text-[10px] font-medium text-slate-600 block">📋 Select option:</label>
+                            <select
+                              value={item.dropdownResponse || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                const updated = drawerTask.checklists.map((c, i) => i === idx ? { 
+                                  ...c, 
+                                  dropdownResponse: val,
+                                  completed: Boolean(val && val.trim())
+                                } : c)
+                                setDrawerTask({ ...drawerTask, checklists: updated })
+                              }}
+                              className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer font-body"
+                            >
+                              <option value="">-- Choose option --</option>
+                              {item.dropdownConfig?.options?.map(opt => (
+                                <option key={opt.id} value={opt.label}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newItem = createDefaultChecklistItem(`Validation #${(drawerTask.checklists || []).length + 1}`)
+                        setDrawerTask({ ...drawerTask, checklists: [...(drawerTask.checklists || []), newItem] })
+                      }}
+                      className="text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-heading pt-1"
+                    >
+                      <Plus size={13} />
+                      <span>Add another checklist field</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. SUB-TASKS SECTION */}
+              <div className="space-y-3 pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 font-heading flex items-center gap-1.5">
+                      <List size={14} className="text-blue-600" />
+                      <span>Sub Tasks</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400">Child tasks with assignees, dates, reminders & checklists</p>
+                  </div>
+                  {Array.isArray(drawerTask.subtasks) && drawerTask.subtasks.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        {drawerTask.subtasks.filter(s => s.completed).length} / {drawerTask.subtasks.length} Completed
+                      </span>
+                      {drawerTask.subtasks.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allDone = drawerTask.subtasks.every(s => s.completed)
+                            setDrawerTask({
+                              ...drawerTask,
+                              subtasks: drawerTask.subtasks.map(s => ({ ...s, completed: !allDone }))
+                            })
+                          }}
+                          className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+                        >
+                          {drawerTask.subtasks.every(s => s.completed) ? 'Unmark all' : 'Mark all done'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {(!drawerTask.subtasks || drawerTask.subtasks.length === 0) ? (
+                  <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center">
+                    <p className="text-xs text-slate-400 italic mb-1.5">No sub-tasks for this task</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newItem = createDefaultSubtask(`Sub Task #1`)
+                        setDrawerTask({ ...drawerTask, subtasks: [newItem] })
+                      }}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer font-heading"
+                    >
+                      <Plus size={13} />
+                      <span>Add First Sub Task</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {drawerTask.subtasks.map((st, idx) => {
+                      const subAssignees = Array.isArray(st.assignedTo) ? st.assignedTo : st.assignedTo ? [st.assignedTo] : []
+                      return (
+                        <div key={st.id || idx} className="p-3.5 bg-slate-50/80 border border-slate-200/90 rounded-xl space-y-3 shadow-2xs">
+                          {/* Header: Sub Task #, Status & Delete */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800 font-heading">
+                              Sub Task #{idx + 1}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, completed: !s.completed } : s)
+                                  setDrawerTask({ ...drawerTask, subtasks: updated })
+                                }}
+                                className={`text-[10px] px-2 py-0.5 rounded font-semibold transition-colors border cursor-pointer ${
+                                  st.completed
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {st.completed ? '✓ Completed' : 'To Do'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = drawerTask.subtasks.filter((_, i) => i !== idx)
+                                  setDrawerTask({ ...drawerTask, subtasks: updated })
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                                title="Delete sub-task"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Subtask Checkbox & Title */}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={!!st.completed}
+                              onChange={() => {
+                                const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, completed: !s.completed } : s)
+                                setDrawerTask({ ...drawerTask, subtasks: updated })
+                              }}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={st.title || ''}
+                              onChange={(e) => {
+                                const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, title: e.target.value } : s)
+                                setDrawerTask({ ...drawerTask, subtasks: updated })
+                              }}
+                              placeholder="Sub-task title: What needs to be done?"
+                              className={`w-full text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs ${
+                                st.completed ? 'line-through text-slate-400' : ''
+                              }`}
+                            />
+                          </div>
+
+                          {/* Subtask Assignee selector */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-semibold text-slate-700 font-heading flex items-center gap-1">
+                                <User size={12} className="text-slate-500" />
+                                <span>Assignee</span>
+                              </label>
+                              {subAssignees.length > 0 && (
+                                <span className="text-[10px] text-blue-600 font-semibold">{subAssignees.length} selected</span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-white rounded-lg border border-slate-200">
+                              {taskEmployees.map(emp => {
+                                const isAssigned = subAssignees.includes(emp.id)
+                                return (
+                                  <button
+                                    key={emp.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedAssignees = isAssigned
+                                        ? subAssignees.filter(id => id !== emp.id)
+                                        : [...subAssignees, emp.id]
+                                      const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, assignedTo: updatedAssignees } : s)
+                                      setDrawerTask({ ...drawerTask, subtasks: updated })
+                                    }}
+                                    className={`h-6 px-1.5 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 border cursor-pointer ${
+                                      isAssigned
+                                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 rounded-full text-[7px] font-bold flex items-center justify-center shrink-0 ${
+                                      isAssigned ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                                    }`}>
+                                      {getInitials(emp.name)}
+                                    </div>
+                                    <span className="truncate max-w-[90px]">{emp.name}</span>
+                                    {isAssigned && <Check size={9} className="text-blue-600 shrink-0" />}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Due Date & Reminder */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[11px] font-semibold text-slate-700 font-heading block mb-1">
+                                Due Date & Time
+                              </label>
+                              <div className="relative">
+                                <DatePicker
+                                  selected={st.dueDate ? (st.dueDate.toDate ? st.dueDate.toDate() : new Date(st.dueDate)) : null}
+                                  onChange={(date) => {
+                                    const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, dueDate: date } : s)
+                                    setDrawerTask({ ...drawerTask, subtasks: updated })
+                                  }}
+                                  showTimeSelect
+                                  timeIntervals={15}
+                                  dateFormat="MMM d, yyyy h:mm aa"
+                                  wrapperClassName="w-full"
+                                  className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+                                  placeholderText="Sub-task due date"
+                                />
+                                <CalendarIcon size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[11px] font-semibold text-slate-700 font-heading block mb-1">
+                                Reminder
+                              </label>
+                              <div className="flex items-center gap-2 h-8 px-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={!!st.reminder?.enabled}
+                                    onChange={(e) => {
+                                      const updated = drawerTask.subtasks.map((s, i) => i === idx ? {
+                                        ...s,
+                                        reminder: { ...(s.reminder || {}), enabled: e.target.checked }
+                                      } : s)
+                                      setDrawerTask({ ...drawerTask, subtasks: updated })
+                                    }}
+                                  />
+                                  <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
+                                </label>
+                                <span className="text-[11px] text-slate-600 font-body">Alert assignee</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Sub-task's own checklist items */}
+                          <div className="pt-1.5 border-t border-slate-200/70">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-semibold text-slate-700 font-heading flex items-center gap-1">
+                                <CheckSquare size={12} className="text-emerald-600" />
+                                <span>Sub-task Checklist ({st.checklists?.length || 0})</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newCl = { id: 'sc_' + Date.now(), title: '', completed: false }
+                                  const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: [...(s.checklists || []), newCl] } : s)
+                                  setDrawerTask({ ...drawerTask, subtasks: updated })
+                                }}
+                                className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5 cursor-pointer font-heading"
+                              >
+                                <Plus size={11} />
+                                <span>Add item</span>
+                              </button>
+                            </div>
+
+                            {st.checklists?.length > 0 && (
+                              <div className="space-y-1.5">
+                                {st.checklists.map((sc, scIdx) => (
+                                  <div key={sc.id || scIdx} className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!sc.completed}
+                                      onChange={() => {
+                                        const updatedCl = st.checklists.map((c, i) => i === scIdx ? { ...c, completed: !c.completed } : c)
+                                        const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: updatedCl } : s)
+                                        setDrawerTask({ ...drawerTask, subtasks: updated })
+                                      }}
+                                      className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Checklist item title..."
+                                      value={sc.title || ''}
+                                      onChange={(e) => {
+                                        const updatedCl = st.checklists.map((c, i) => i === scIdx ? { ...c, title: e.target.value } : c)
+                                        const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: updatedCl } : s)
+                                        setDrawerTask({ ...drawerTask, subtasks: updated })
+                                      }}
+                                      className={`flex-1 text-xs text-slate-800 placeholder:text-slate-400 border-0 bg-transparent p-0 focus:ring-0 ${
+                                        sc.completed ? 'line-through text-slate-400' : ''
+                                      }`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedCl = st.checklists.filter((_, i) => i !== scIdx)
+                                        const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: updatedCl } : s)
+                                        setDrawerTask({ ...drawerTask, subtasks: updated })
+                                      }}
+                                      className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newItem = createDefaultSubtask(`Sub Task #${(drawerTask.subtasks || []).length + 1}`)
+                        setDrawerTask({ ...drawerTask, subtasks: [...(drawerTask.subtasks || []), newItem] })
+                      }}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-heading pt-1"
+                    >
+                      <Plus size={13} />
+                      <span>Add another sub-task</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             

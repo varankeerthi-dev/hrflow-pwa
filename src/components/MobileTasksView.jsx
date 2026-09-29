@@ -23,7 +23,17 @@ import {
   Check,
   Bell,
   RotateCw,
-  FileText
+  FileText,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  List,
+  CheckSquare,
+  Video,
+  Mic,
+  Image as ImageIcon,
+  MapPin,
+  Type
 } from 'lucide-react'
 import { format, isToday, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns'
 import DatePicker from 'react-datepicker'
@@ -31,6 +41,9 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 import Modal from './ui/Modal'
 import TaskChecklistBuilder from './tasks/TaskChecklistBuilder'
+import AssignUserPicker from './tasks/AssignUserPicker'
+import { parseNaturalDate } from '../lib/dateUtils'
+import { createDefaultChecklistItem, createDefaultSubtask, ensureItemIds } from '../lib/taskUtils'
 
 const STATUSES = [
   { id: 'To Do', label: 'To Do', icon: Circle, color: 'text-gray-400', bg: 'bg-gray-50' },
@@ -81,6 +94,9 @@ export default function MobileTasksView() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showTaskDetail, setShowTaskDetail] = useState(null)
   const [assigneeSearch, setAssigneeSearch] = useState('')
+  const [showDescription, setShowDescription] = useState(false)
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
+  const [detectedDateInfo, setDetectedDateInfo] = useState(null)
   
   // Idea modal
   const [showIdeaModal, setShowIdeaModal] = useState(false)
@@ -90,7 +106,7 @@ export default function MobileTasksView() {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    dueDate: new Date(),
+    dueDate: null,
     priority: 'normal',
     status: 'To Do',
     assignedTo: [],
@@ -102,7 +118,8 @@ export default function MobileTasksView() {
     buzzer: false,
     repeat: { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
     reminder: { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
-    checklists: []
+    checklists: [],
+    subtasks: []
   })
 
   const taskEmployees = useMemo(() => {
@@ -119,12 +136,30 @@ export default function MobileTasksView() {
     return taskEmployees.filter(emp => emp.name?.toLowerCase().includes(q))
   }, [taskEmployees, assigneeSearch])
 
+  const handleTitleChange = (e) => {
+    const value = e.target.value
+    const parsed = parseNaturalDate(value)
+    if (parsed) {
+      setNewTask(prev => ({
+        ...prev,
+        title: value,
+        dueDate: parsed.date
+      }))
+      setDetectedDateInfo({ label: parsed.label, date: parsed.date })
+    } else {
+      setNewTask(prev => ({
+        ...prev,
+        title: value
+      }))
+    }
+  }
+
   const openAddTaskModal = (date = null) => {
     const isPersonalTab = activeTab === 'personal'
     setNewTask({
       title: '',
       description: '',
-      dueDate: date || new Date(),
+      dueDate: date || null,
       priority: 'normal',
       status: 'To Do',
       assignedTo: isPersonalTab && user?.uid ? [user.uid] : [],
@@ -136,9 +171,13 @@ export default function MobileTasksView() {
       buzzer: false,
       repeat: { enabled: false, frequency: 'daily', interval: 1, daysOfWeek: [], endDate: null },
       reminder: { enabled: false, timing: 'at_due_date', customDate: null, alertType: 'notification' },
-      checklists: []
+      checklists: [],
+      subtasks: []
     })
     setAssigneeSearch('')
+    setShowDescription(false)
+    setDetectedDateInfo(null)
+    setShowAdvancedOptions(false)
     setShowAddModal(true)
   }
 
@@ -180,6 +219,185 @@ export default function MobileTasksView() {
     await updateTask(taskId, { status: newStatus })
   }
 
+  const handleToggleSubtask = async (taskId, subtaskId, idx, e) => {
+    e?.stopPropagation()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.subtasks)) return
+    const updatedSubtasks = task.subtasks.map((item, i) => {
+      const isTarget = (subtaskId && item?.id && item.id === subtaskId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        return { 
+          ...item, 
+          id: item.id || `st_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          completed: !item.completed 
+        }
+      }
+      return item
+    })
+    await updateTask(taskId, { subtasks: updatedSubtasks })
+  }
+
+  const handleToggleAllSubtasks = async (taskId, markCompleted, e) => {
+    e?.stopPropagation()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.subtasks)) return
+    const updatedSubtasks = task.subtasks.map((item, i) => ({
+      ...item,
+      id: item.id || `st_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+      completed: markCompleted
+    }))
+    await updateTask(taskId, { subtasks: updatedSubtasks })
+  }
+
+  const handleToggleChecklist = async (taskId, checkId, idx, e) => {
+    e?.stopPropagation()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.checklists)) return
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        return { 
+          ...item, 
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          completed: !item.completed 
+        }
+      }
+      return item
+    })
+    await updateTask(taskId, { checklists: updatedChecklists })
+  }
+
+  const handleToggleAllChecklists = async (taskId, markCompleted, e) => {
+    e?.stopPropagation()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.checklists)) return
+    const updatedChecklists = task.checklists.map((item, i) => ({
+      ...item,
+      id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+      completed: markCompleted
+    }))
+    await updateTask(taskId, { checklists: updatedChecklists })
+  }
+
+  const handleUpdateChecklistResponse = async (taskId, checkId, idx, field, value) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.checklists)) return
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        const updated = { 
+          ...item, 
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          [field]: value 
+        }
+        if (field === 'dropdownResponse') {
+          updated.completed = Boolean(value && value.trim())
+        } else if (field === 'textResponse') {
+          if (value && value.trim()) {
+            updated.completed = true
+          }
+        }
+        return updated
+      }
+      return item
+    })
+    try {
+      await updateTask(taskId, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to update checklist response:', err)
+    }
+  }
+
+  const handleToggleChecklistOption = async (taskId, checkId, idx, optionLabel, e) => {
+    e?.stopPropagation?.()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.checklists)) return
+
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget) {
+        let currentSelected = []
+        if (Array.isArray(item.selectedOptions)) {
+          currentSelected = [...item.selectedOptions]
+        } else if (typeof item.dropdownResponse === 'string' && item.dropdownResponse.trim()) {
+          currentSelected = item.dropdownResponse.split(',').map(s => s.trim()).filter(Boolean)
+        }
+
+        const exists = currentSelected.includes(optionLabel)
+        const nextSelected = exists 
+          ? currentSelected.filter(val => val !== optionLabel) 
+          : [...currentSelected, optionLabel]
+
+        return {
+          ...item,
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          selectedOptions: nextSelected,
+          dropdownResponse: nextSelected.join(', '),
+          completed: nextSelected.length > 0
+        }
+      }
+      return item
+    })
+
+    try {
+      await updateTask(taskId, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to toggle option check:', err)
+    }
+  }
+
+  const handleToggleAllChecklistOptions = async (taskId, checkId, idx, markAll, e) => {
+    e?.stopPropagation?.()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.checklists)) return
+
+    const updatedChecklists = task.checklists.map((item, i) => {
+      const isTarget = (checkId && item?.id && item.id === checkId) || (typeof idx === 'number' && i === idx)
+      if (isTarget && Array.isArray(item.dropdownConfig?.options)) {
+        const nextSelected = markAll ? item.dropdownConfig.options.map(o => o.label).filter(Boolean) : []
+        return {
+          ...item,
+          id: item.id || `cl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          selectedOptions: nextSelected,
+          dropdownResponse: nextSelected.join(', '),
+          completed: nextSelected.length > 0
+        }
+      }
+      return item
+    })
+
+    try {
+      await updateTask(taskId, { checklists: updatedChecklists })
+    } catch (err) {
+      console.error('Failed to toggle all options:', err)
+    }
+  }
+
+  const handleToggleSubtaskChecklist = async (taskId, subtaskId, checkId, subtaskIdx, checkIdx, e) => {
+    e?.stopPropagation()
+    const task = tasks.find(t => t.id === taskId)
+    if (!task || !Array.isArray(task.subtasks)) return
+    const updatedSubtasks = task.subtasks.map((st, sIdx) => {
+      const isSubtask = (subtaskId && st?.id && st.id === subtaskId) || (typeof subtaskIdx === 'number' && sIdx === subtaskIdx)
+      if (isSubtask && Array.isArray(st.checklists)) {
+        const updatedCl = st.checklists.map((c, cIdx) => {
+          const isCheck = (checkId && c?.id && c.id === checkId) || (typeof checkIdx === 'number' && cIdx === checkIdx)
+          if (isCheck) {
+            return {
+              ...c,
+              id: c.id || `sc_${Date.now()}_${cIdx}_${Math.random().toString(36).substring(2, 6)}`,
+              completed: !c.completed
+            }
+          }
+          return c
+        })
+        return { ...st, checklists: updatedCl }
+      }
+      return st
+    })
+    await updateTask(taskId, { subtasks: updatedSubtasks })
+  }
+
   const handleAddTask = async (e) => {
     e.preventDefault()
     if (!newTask.title.trim()) return
@@ -198,7 +416,8 @@ export default function MobileTasksView() {
         buzzer: !!newTask.buzzer,
         repeat: newTask.repeat || { enabled: false },
         reminder: newTask.reminder || { enabled: false },
-        checklists: newTask.checklists || [],
+        checklists: ensureItemIds(newTask.checklists || [], 'cl'),
+        subtasks: ensureItemIds(newTask.subtasks || [], 'st'),
         isPersonal: !!newTask.isPersonal,
         category: newTask.category || 'task'
       })
@@ -316,6 +535,15 @@ export default function MobileTasksView() {
                 onClick={() => setShowTaskDetail(task)}
                 onComplete={handleTaskComplete}
                 getAssigneeInfo={getAssigneeInfo}
+                employees={taskEmployees}
+                onToggleSubtask={handleToggleSubtask}
+                onToggleAllSubtasks={handleToggleAllSubtasks}
+                onToggleChecklist={handleToggleChecklist}
+                onToggleAllChecklists={handleToggleAllChecklists}
+                onUpdateChecklistResponse={handleUpdateChecklistResponse}
+                onToggleChecklistOption={handleToggleChecklistOption}
+                onToggleAllChecklistOptions={handleToggleAllChecklistOptions}
+                onToggleSubtaskChecklist={handleToggleSubtaskChecklist}
               />
             ))
           )}
@@ -738,13 +966,15 @@ export default function MobileTasksView() {
         title="New Task"
         size="2xl"
       >
-        <form onSubmit={handleAddTask} className="flex flex-col h-full bg-white">
-          <div className="flex-1 p-4 space-y-4 overflow-y-auto font-body">
-            {/* Assign To (Multi-Assignee with Search) - FIRST ENTRY */}
+        <form onSubmit={handleAddTask} className="flex flex-col h-full bg-white relative">
+          <div className="flex-1 p-4 space-y-4 overflow-y-auto font-body pb-6">
+            {/* 1. Assign User (First Entry - Inline 2-Row Selection) */}
             {!newTask.isPersonal ? (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-slate-800 font-body">Assign To</label>
+                  <label className="block text-xs font-semibold text-slate-700 font-heading">
+                    Assign To <span className="text-rose-500">*</span>
+                  </label>
                   {newTask.assignedTo?.length > 0 && (
                     <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                       {newTask.assignedTo.length} selected
@@ -773,7 +1003,7 @@ export default function MobileTasksView() {
                   )}
                 </div>
 
-                {/* Chips Container */}
+                {/* Two-row selection pills container */}
                 <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50/50 border border-slate-200 rounded-xl min-h-[44px] max-h-36 overflow-y-auto">
                   {filteredAssignees.map(emp => {
                     const isSelected = newTask.assignedTo?.includes(emp.id)
@@ -816,97 +1046,116 @@ export default function MobileTasksView() {
               </div>
             )}
 
-            {/* Task Name */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Task Title *</label>
-              <input
-                type="text"
-                placeholder="What needs to be done?"
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all font-body"
-                value={newTask.title}
-                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Description</label>
-              <textarea
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all min-h-[72px] resize-y placeholder:text-slate-400 text-slate-800 font-body"
-                placeholder="Add description, instructions, or notes..."
-                value={newTask.description}
-                onChange={e => setNewTask({ ...newTask, description: e.target.value })}
-              />
-            </div>
-
-            {/* Priority & Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Priority */}
+            {/* 2. Task Title & Description Toggle */}
+            <div className="space-y-2">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Priority</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {PRIORITIES.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setNewTask({ ...newTask, priority: p.id })}
-                      className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading cursor-pointer ${
-                        newTask.priority === p.id 
-                          ? `${p.color} font-bold shadow-2xs`
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${p.dot}`} />
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Status</label>
-                <select
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
-                  value={newTask.status}
-                  onChange={e => setNewTask({ ...newTask, status: e.target.value })}
-                >
-                  {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Due Date & Internal Notes */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Due Date */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Due Date</label>
-                <div className="relative">
-                  <DatePicker
-                    selected={newTask.dueDate ? (newTask.dueDate.toDate ? newTask.dueDate.toDate() : new Date(newTask.dueDate)) : null}
-                    onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
-                    placeholderText="Select due date"
-                    dateFormat="MMM d, yyyy"
-                  />
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-              </div>
-
-              {/* Internal Notes */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Internal Notes</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-heading">
+                  Task Title<span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
-                  placeholder="Quick note (internal only)"
-                  value={newTask.notes}
-                  onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+                  placeholder="What needs to be done?"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all font-body shadow-2xs"
+                  value={newTask.title}
+                  onChange={handleTitleChange}
                 />
+              </div>
+
+              {/* Auto-detected Date Chip */}
+              {detectedDateInfo && (
+                <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium animate-fadeIn">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-600 shrink-0" />
+                    <span>Auto-scheduled: <strong>{detectedDateInfo.label}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetectedDateInfo(null)}
+                    className="text-indigo-400 hover:text-indigo-700 p-0.5 cursor-pointer"
+                    title="Dismiss"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              {/* Description (Optional) Toggle */}
+              <div className="pt-0.5">
+                {!showDescription && !newTask.description ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDescription(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors py-1 cursor-pointer font-heading"
+                  >
+                    <FileText size={14} />
+                    <span>+ Description (optional)</span>
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-700 font-heading">
+                        Description <span className="text-slate-400 font-normal font-body">(optional)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newTask.description) setShowDescription(false)
+                        }}
+                        className="text-[11px] text-slate-400 hover:text-slate-600 cursor-pointer font-body"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    <textarea
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all min-h-[72px] resize-y placeholder:text-slate-400 text-slate-800 font-body shadow-2xs"
+                      placeholder="Add description, instructions, or notes..."
+                      value={newTask.description}
+                      onChange={e => setNewTask({ ...newTask, description: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Client Tracking */}
+            {/* 3. Due Date & Time Picker (Optional) */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 font-heading">
+                  Due Date & Time <span className="text-slate-400 font-normal font-body">(optional)</span>
+                </label>
+                {newTask.dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTask({ ...newTask, dueDate: null })
+                      setDetectedDateInfo(null)
+                    }}
+                    className="text-[11px] font-medium text-rose-500 hover:text-rose-600 cursor-pointer font-body"
+                  >
+                    Clear date
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <DatePicker
+                  selected={newTask.dueDate ? (newTask.dueDate.toDate ? newTask.dueDate.toDate() : new Date(newTask.dueDate)) : null}
+                  onChange={(date) => {
+                    setNewTask({ ...newTask, dueDate: date })
+                  }}
+                  showTimeSelect
+                  timeIntervals={15}
+                  timeFormat="hh:mm aa"
+                  dateFormat="MMM d, yyyy h:mm aa"
+                  wrapperClassName="w-full"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pr-10 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer shadow-2xs"
+                  placeholderText="Select due date & time"
+                />
+                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+              </div>
+            </div>
+
+            {/* 4. Client Tracking (Hidden from UI per user request, code and state preserved) */}
+            {/*
             <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
               <div className="bg-slate-50/80 px-3 py-2 border-b border-slate-200/80 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider font-heading flex items-center gap-1.5">
@@ -915,45 +1164,18 @@ export default function MobileTasksView() {
                 </span>
                 <span className="text-[10px] font-medium text-slate-400 italic font-body">Optional</span>
               </div>
-              
               <div className="p-3 space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Name</label>
-                  <input
-                    type="text"
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
-                    placeholder="e.g. Acme Corp / John Doe"
-                    value={newTask.clientName || ''}
-                    onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Type</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {CLIENT_TYPES.map(type => {
-                      const isSelected = newTask.clientType === type.id
-                      return (
-                        <button
-                          key={type.id}
-                          type="button"
-                          onClick={() => setNewTask({ ...newTask, clientType: isSelected ? null : type.id })}
-                          className={`h-9 rounded-lg text-xs font-medium transition-all border flex items-center justify-center gap-1 cursor-pointer font-body ${
-                            isSelected 
-                              ? `${type.bgColor} ${type.borderColor} ${type.color} font-bold shadow-2xs`
-                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span>{type.icon}</span>
-                          <span>{type.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <input
+                  type="text"
+                  placeholder="Client name"
+                  value={newTask.clientName || ''}
+                  onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
+                />
               </div>
             </div>
+            */}
 
-            {/* Toggles */}
+            {/* 5. Personal Task & Mark as Idea Switches */}
             <div className="flex items-center gap-6 py-1">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <div className="relative flex items-center">
@@ -989,7 +1211,7 @@ export default function MobileTasksView() {
               </label>
             </div>
 
-            {/* Buzzer, Repeat, Reminder & Checklist Section */}
+            {/* 6. Buzzer, Repeat, Reminder & Checklist Section (Image 2 layout) */}
             <div className="pt-2 border-t border-slate-200">
               <TaskChecklistBuilder
                 buzzer={newTask.buzzer}
@@ -1000,12 +1222,77 @@ export default function MobileTasksView() {
                 onReminderChange={(reminder) => setNewTask({ ...newTask, reminder })}
                 checklists={newTask.checklists}
                 onChecklistsChange={(checklists) => setNewTask({ ...newTask, checklists })}
+                subtasks={newTask.subtasks}
+                onSubtasksChange={(subtasks) => setNewTask({ ...newTask, subtasks })}
+                employees={taskEmployees}
               />
+            </div>
+
+            {/* Collapsible Advanced Options: Priority, Status, Notes */}
+            <div className="pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                className="w-full flex items-center justify-between py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors font-heading cursor-pointer"
+              >
+                <span>Priority, Status & Notes</span>
+                {showAdvancedOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+
+              {showAdvancedOptions && (
+                <div className="space-y-3.5 pt-2 pb-1 animate-fadeIn">
+                  {/* Priority */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Priority</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {PRIORITIES.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setNewTask({ ...newTask, priority: p.id })}
+                          className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading cursor-pointer ${
+                            newTask.priority === p.id 
+                              ? `${p.color} font-bold shadow-2xs`
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${p.dot}`} />
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Status</label>
+                    <select
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
+                      value={newTask.status}
+                      onChange={e => setNewTask({ ...newTask, status: e.target.value })}
+                    >
+                      {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Internal Notes */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Internal Notes</label>
+                    <input
+                      type="text"
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                      placeholder="Quick note (internal only)"
+                      value={newTask.notes}
+                      onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
-          {/* Modal Footer */}
-          <div className="p-3.5 sm:p-4 border-t border-slate-200 bg-white flex gap-3 shrink-0">
+          {/* 7. Modal Footer - Sticky at the bottom */}
+          <div className="sticky bottom-0 left-0 right-0 p-3.5 sm:p-4 border-t border-slate-200 bg-white flex gap-3 shrink-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
@@ -1131,69 +1418,450 @@ export default function MobileTasksView() {
 }
 
 // Task Item Component
-function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
+function TaskItem({ 
+  task, 
+  onClick, 
+  onComplete, 
+  getAssigneeInfo, 
+  employees = [],
+  onToggleSubtask, 
+  onToggleAllSubtasks,
+  onToggleChecklist, 
+  onToggleAllChecklists,
+  onUpdateChecklistResponse, 
+  onToggleChecklistOption,
+  onToggleAllChecklistOptions,
+  onToggleSubtaskChecklist 
+}) {
   const assignees = getAssigneeInfo(task.assignedTo)
   const isCompleted = task.status === 'Completed'
-  
+  const [showSubtasks, setShowSubtasks] = useState(false)
+  const [showChecklist, setShowChecklist] = useState(false)
+
+  const subtasks = Array.isArray(task.subtasks) ? task.subtasks : []
+  const checklists = Array.isArray(task.checklists) ? task.checklists : []
+  const completedSubtasksCount = subtasks.filter(s => s.completed).length
+  const completedChecklistsCount = checklists.filter(c => c.completed).length
+
   return (
     <div
       onClick={onClick}
-      className={`flex items-start gap-3 p-3 bg-white border border-gray-100 rounded-xl active:bg-gray-50 transition-colors cursor-pointer ${isCompleted ? 'opacity-60' : ''}`}
+      className={`flex flex-col p-3 bg-white border border-gray-100 rounded-xl active:bg-gray-50/70 transition-colors cursor-pointer ${isCompleted ? 'opacity-65' : ''}`}
     >
-      <button 
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          onComplete(task.id, e)
-        }}
-        className={`mt-0.5 flex-shrink-0 cursor-pointer ${isCompleted ? 'text-emerald-500' : 'text-gray-300 hover:text-emerald-500 transition-colors'}`}
-        title="Toggle task completion"
-      >
-        {isCompleted ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-      </button>
-      
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-          {task.title}
-        </p>
+      <div className="flex items-start gap-3">
+        <button 
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onComplete(task.id, e)
+          }}
+          className={`mt-0.5 flex-shrink-0 cursor-pointer ${isCompleted ? 'text-emerald-500' : 'text-gray-300 hover:text-emerald-500 transition-colors'}`}
+          title="Toggle task completion"
+        >
+          {isCompleted ? <CheckCircle2 size={22} /> : <Circle size={22} />}
+        </button>
         
-        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-          {task.dueDate && (
-            <span className={`text-xs ${isToday(task.dueDate.toDate?.() || new Date(task.dueDate)) ? 'text-rose-500 font-semibold' : 'text-gray-500'}`}>
-              {format(task.dueDate.toDate?.() || new Date(task.dueDate), 'MMM d')}
-            </span>
-          )}
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium ${isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+            {task.title}
+          </p>
           
-          {task.priority !== 'normal' && (
-            <span className={`text-xs ${task.priority === 'urgent' ? 'text-rose-500' : 'text-amber-500'}`} title={`Priority: ${task.priority}`}>
-              <Flag size={12} />
-            </span>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            {task.dueDate && (
+              <span className={`text-xs ${isToday(task.dueDate.toDate?.() || new Date(task.dueDate)) ? 'text-rose-500 font-semibold' : 'text-gray-500'}`}>
+                {format(task.dueDate.toDate?.() || new Date(task.dueDate), 'MMM d')}
+              </span>
+            )}
+            
+            {task.priority !== 'normal' && (
+              <span className={`text-xs ${task.priority === 'urgent' ? 'text-rose-500' : 'text-amber-500'}`} title={`Priority: ${task.priority}`}>
+                <Flag size={12} />
+              </span>
+            )}
 
-          {task.clientType && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80">
-              {task.clientType === 'order' ? '📦 Order' : task.clientType === 'complaint' ? '⚠️ Complaint' : '📞 Follow-up'}
-            </span>
-          )}
+            {task.clientType && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80">
+                {task.clientType === 'order' ? '📦 Order' : task.clientType === 'complaint' ? '⚠️ Complaint' : '📞 Follow-up'}
+              </span>
+            )}
 
-          {Array.isArray(task.checklists) && task.checklists.length > 0 && (
-            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded flex items-center gap-0.5">
-              <span>☑</span>
-              <span>{task.checklists.filter(c => c.completed).length}/{task.checklists.length}</span>
-            </span>
-          )}
-          
-          {assignees.length > 0 && (
-            <div className="flex -space-x-1 ml-auto">
-              {assignees.slice(0, 3).map(emp => (
-                <div key={emp.id} className="w-4 h-4 rounded-full bg-emerald-100 border border-white flex items-center justify-center text-[7px] font-bold text-emerald-600">
-                  {emp.name.charAt(0).toUpperCase()}
-                </div>
-              ))}
-            </div>
-          )}
+            {/* Sub-tasks Badge */}
+            {subtasks.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowSubtasks(!showSubtasks)
+                }}
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors border cursor-pointer ${
+                  completedSubtasksCount === subtasks.length
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/70'
+                }`}
+                title="View subtasks"
+              >
+                <List size={11} />
+                <span>{completedSubtasksCount}/{subtasks.length} Sub-tasks</span>
+                {showSubtasks ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              </button>
+            )}
+
+            {/* Checklist / Validations Badge */}
+            {checklists.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowChecklist(!showChecklist)
+                }}
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors border cursor-pointer ${
+                  completedChecklistsCount === checklists.length
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100/70'
+                }`}
+                title="View checklist validations"
+              >
+                <CheckSquare size={11} />
+                <span>{completedChecklistsCount}/{checklists.length} Checklist</span>
+                {showChecklist ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              </button>
+            )}
+            
+            {assignees.length > 0 && (
+              <div className="flex -space-x-1 ml-auto">
+                {assignees.slice(0, 3).map(emp => (
+                  <div key={emp.id} className="w-4 h-4 rounded-full bg-emerald-100 border border-white flex items-center justify-center text-[7px] font-bold text-emerald-600">
+                    {emp.name.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Expandable Inline Sub-tasks Drawer */}
+      {showSubtasks && subtasks.length > 0 && (
+        <div 
+          className="mt-3 pt-2.5 border-t border-slate-100 space-y-2 animate-fadeIn"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 font-heading">
+            <span className="flex items-center gap-1"><List size={12} className="text-blue-600" /> SUB-TASKS</span>
+            <div className="flex items-center gap-2">
+              <span>{completedSubtasksCount} of {subtasks.length} completed</span>
+              {subtasks.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleAllSubtasks?.(task.id, completedSubtasksCount < subtasks.length, e)
+                  }}
+                  className="text-[10px] text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-2 cursor-pointer"
+                >
+                  {completedSubtasksCount === subtasks.length ? 'Unmark all' : 'Mark all done'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {subtasks.map((st, idx) => {
+              const stAssignees = getAssigneeInfo(st.assignedTo)
+              return (
+                <div 
+                  key={st.id || idx} 
+                  className="p-2.5 bg-slate-50/80 border border-slate-200/90 rounded-xl space-y-1.5 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none">
+                      <input
+                        type="checkbox"
+                        checked={!!st.completed}
+                        onChange={(e) => onToggleSubtask?.(task.id, st.id, idx, e)}
+                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                      />
+                      <span className={`text-xs font-medium truncate ${st.completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                        {st.title || `Sub-task #${idx + 1}`}
+                      </span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={(e) => onToggleSubtask?.(task.id, st.id, idx, e)}
+                      className={`text-[10px] px-2 py-0.5 rounded font-semibold shrink-0 cursor-pointer border ${
+                        st.completed 
+                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {st.completed ? '✓ Completed' : 'To Do'}
+                    </button>
+                  </div>
+
+                  {/* Subtask Meta: Assignees, Due Date, Reminder */}
+                  <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-500 pt-0.5">
+                    {stAssignees.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-400">Assigned:</span>
+                        <div className="flex -space-x-1">
+                          {stAssignees.map(a => (
+                            <span key={a.id} className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 font-bold text-[8px] flex items-center justify-center ring-1 ring-white" title={a.name}>
+                              {a.name?.charAt(0).toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {st.dueDate && (
+                      <span className="flex items-center gap-1">
+                        <Calendar size={10} className="text-slate-400" />
+                        <span>{format(st.dueDate.toDate?.() || new Date(st.dueDate), 'MMM d, h:mm a')}</span>
+                      </span>
+                    )}
+                    {st.reminder?.enabled && (
+                      <span className="flex items-center gap-0.5 text-amber-600" title="Reminder enabled">
+                        <Bell size={10} />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Subtask's own checklist items */}
+                  {Array.isArray(st.checklists) && st.checklists.length > 0 && (
+                    <div className="pl-4 pt-1 space-y-1 border-t border-slate-200/50 mt-1">
+                      {st.checklists.map((sc, scIdx) => (
+                        <label key={sc.id || scIdx} className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-600 select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!sc.completed}
+                            onChange={(e) => onToggleSubtaskChecklist?.(task.id, st.id, sc.id, idx, scIdx, e)}
+                            className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                          />
+                          <span className={sc.completed ? 'line-through text-slate-400' : 'text-slate-700'}>
+                            {sc.title}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Expandable Inline Checklist / Validations Drawer */}
+      {showChecklist && checklists.length > 0 && (
+        <div 
+          className="mt-3 pt-2.5 border-t border-slate-100 space-y-2 animate-fadeIn"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 font-heading uppercase tracking-wider">
+            <span className="flex items-center gap-1.5"><CheckSquare size={12} className="text-emerald-600" /> Checklist & Validations</span>
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-700 font-mono tabular-nums">{completedChecklistsCount}/{checklists.length}</span>
+              {checklists.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleAllChecklists?.(task.id, completedChecklistsCount < checklists.length, e)
+                  }}
+                  className="text-[10px] text-emerald-600 hover:text-emerald-800 font-semibold underline underline-offset-2 cursor-pointer normal-case tracking-normal"
+                >
+                  {completedChecklistsCount === checklists.length ? 'Uncheck all' : 'Check all'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {checklists.map((item, idx) => (
+              <div 
+                key={item.id || idx} 
+                className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-2 text-xs shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+              >
+                {/* Header row: Checkbox, Title & Status Badge */}
+                <div className="flex items-center justify-between gap-2">
+                  <div 
+                    className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none group"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onToggleChecklist?.(task.id, item.id, idx, e)
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!item.completed}
+                      onChange={(e) => {
+                        e.stopPropagation()
+                        onToggleChecklist?.(task.id, item.id, idx, e)
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                    />
+                    <span className={`text-xs font-medium truncate transition-colors ${
+                      item.completed ? 'line-through text-slate-400' : 'text-slate-800 group-hover:text-emerald-700'
+                    }`}>
+                      {item.title || `Checklist item #${idx + 1}`}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onToggleChecklist?.(task.id, item.id, idx, e)
+                    }}
+                    className={`text-[10px] px-2 py-0.5 rounded-md font-semibold shrink-0 cursor-pointer border transition-all ${
+                      item.completed 
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    {item.completed ? '✓ Done' : '○ To do'}
+                  </button>
+                </div>
+
+                {/* Validation chips */}
+                <div className="flex flex-wrap gap-1">
+                  {item.required && (
+                    <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200">
+                      Required
+                    </span>
+                  )}
+                  {item.validations?.text && <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md border border-slate-200">Manual text</span>}
+                  {item.validations?.dropdown && <span className="text-[9px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-200">Dropdown</span>}
+                  {item.validations?.image && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Photo</span>}
+                  {item.validations?.file && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">File</span>}
+                  {item.validations?.video && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Video</span>}
+                  {item.validations?.audio && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Audio</span>}
+                  {item.validations?.geoTag && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Location</span>}
+                </div>
+
+                {/* Manual Typing text input */}
+                {item.validations?.text && (
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[10px] font-medium text-slate-600 block">
+                      ✏️ Manual typing response:
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue={item.textResponse || ''}
+                      onBlur={(e) => onUpdateChecklistResponse?.(task.id, item.id, idx, 'textResponse', e.target.value)}
+                      placeholder="Type response, findings or notes..."
+                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 font-body"
+                    />
+                  </div>
+                )}
+
+                {/* Dropdown Options with a Checkbox for EACH Option */}
+                {item.validations?.dropdown && Array.isArray(item.dropdownConfig?.options) && item.dropdownConfig.options.length > 0 ? (
+                  (() => {
+                    let currentSelected = []
+                    if (Array.isArray(item.selectedOptions)) {
+                      currentSelected = item.selectedOptions
+                    } else if (typeof item.dropdownResponse === 'string' && item.dropdownResponse.trim()) {
+                      currentSelected = item.dropdownResponse.split(',').map(s => s.trim()).filter(Boolean)
+                    }
+
+                    return (
+                      <div className="space-y-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700">
+                          <span className="flex items-center gap-1 font-heading text-slate-600">
+                            <List size={12} className="text-purple-600" />
+                            <span>Options ({currentSelected.length}/{item.dropdownConfig.options.length} done):</span>
+                          </span>
+                          {item.dropdownConfig.options.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const allLabels = item.dropdownConfig.options.map(o => o.label).filter(Boolean)
+                                const allDone = allLabels.length > 0 && allLabels.every(l => currentSelected.includes(l))
+                                onToggleAllChecklistOptions?.(task.id, item.id, idx, !allDone, e)
+                              }}
+                              className="text-[10px] text-purple-600 hover:text-purple-800 font-semibold underline underline-offset-2 cursor-pointer"
+                            >
+                              {item.dropdownConfig.options.map(o => o.label).filter(Boolean).every(l => currentSelected.includes(l)) ? 'Uncheck all' : 'Check all'}
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-1 bg-white rounded-lg border border-slate-200/90 p-1.5 shadow-2xs">
+                          {item.dropdownConfig.options.map((opt, optIdx) => {
+                            const optLabel = opt.label || `Option ${optIdx + 1}`
+                            const isChecked = currentSelected.includes(optLabel) || (opt.id && currentSelected.includes(opt.id))
+                            return (
+                              <div
+                                key={opt.id || optIdx}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onToggleChecklistOption?.(task.id, item.id, idx, optLabel, e)
+                                }}
+                                className={`flex items-center justify-between px-2.5 py-2 rounded-md border text-xs cursor-pointer transition-all select-none group ${
+                                  isChecked
+                                    ? 'bg-purple-50/70 border-purple-200 text-purple-900'
+                                    : 'bg-slate-50/60 border-slate-200/70 text-slate-700 hover:bg-slate-100/70'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      e.stopPropagation()
+                                      onToggleChecklistOption?.(task.id, item.id, idx, optLabel, e)
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer shrink-0"
+                                  />
+                                  <span className={`text-xs truncate transition-colors ${
+                                    isChecked ? 'line-through font-semibold text-purple-900' : 'text-slate-800 group-hover:text-purple-700'
+                                  }`}>
+                                    {optLabel}
+                                  </span>
+                                </div>
+
+                                <span
+                                  className={`text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0 border transition-colors ${
+                                    isChecked
+                                      ? 'bg-purple-600 text-white border-purple-600'
+                                      : 'bg-white text-slate-500 border-slate-200 group-hover:border-slate-300'
+                                  }`}
+                                >
+                                  {isChecked ? '✓ Done' : '○ To do'}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()
+                ) : item.validations?.dropdown ? (
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[10px] font-medium text-slate-600 block">
+                      📋 Select option:
+                    </label>
+                    <select
+                      value={item.dropdownResponse || ''}
+                      onChange={(e) => onUpdateChecklistResponse?.(task.id, item.id, idx, 'dropdownResponse', e.target.value)}
+                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer font-body"
+                    >
+                      <option value="">-- Choose option --</option>
+                      {item.dropdownConfig?.options?.map(opt => (
+                        <option key={opt.id} value={opt.label}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1203,7 +1871,8 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
   const [editedTask, setEditedTask] = useState({
     ...task,
     assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : [],
-    checklists: Array.isArray(task.checklists) ? task.checklists : []
+    checklists: ensureItemIds(Array.isArray(task.checklists) ? task.checklists : [], 'cl'),
+    subtasks: ensureItemIds(Array.isArray(task.subtasks) ? task.subtasks : [], 'st')
   })
 
   const handleSave = async () => {
@@ -1213,33 +1882,154 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
       priority: editedTask.priority,
       assignedTo: editedTask.assignedTo,
       dueDate: editedTask.dueDate,
-      checklists: editedTask.checklists || []
+      checklists: ensureItemIds(editedTask.checklists || [], 'cl'),
+      subtasks: ensureItemIds(editedTask.subtasks || [], 'st')
     })
     onClose()
   }
 
-  const StatusIcon = STATUSES.find(s => s.id === editedTask.status)?.icon || Circle
-  const statusColor = STATUSES.find(s => s.id === editedTask.status)?.color || 'text-gray-400'
+  // --- CHECKLIST / VALIDATIONS HANDLERS ---
+  const toggleChecklist = (idx) => {
+    const updated = (editedTask.checklists || []).map((c, i) => {
+      if (i === idx) return { ...c, completed: !c.completed }
+      return c
+    })
+    setEditedTask({ ...editedTask, checklists: updated })
+  }
+
+  const toggleAllChecklists = (markCompleted) => {
+    const updated = (editedTask.checklists || []).map(c => ({ ...c, completed: markCompleted }))
+    setEditedTask({ ...editedTask, checklists: updated })
+  }
+
+  const handleChecklistFieldChange = (idx, field, value) => {
+    const updated = (editedTask.checklists || []).map((c, i) => {
+      if (i === idx) return { ...c, [field]: value }
+      return c
+    })
+    setEditedTask({ ...editedTask, checklists: updated })
+  }
+
+  const handleAddChecklist = () => {
+    const nextNum = (editedTask.checklists || []).length + 1
+    const newItem = createDefaultChecklistItem(`Validation #${nextNum}`)
+    setEditedTask({
+      ...editedTask,
+      checklists: [...(editedTask.checklists || []), newItem]
+    })
+  }
+
+  const handleRemoveChecklist = (idx) => {
+    const updated = (editedTask.checklists || []).filter((_, i) => i !== idx)
+    setEditedTask({ ...editedTask, checklists: updated })
+  }
+
+  const toggleSubtask = (idx) => {
+    const updated = (editedTask.subtasks || []).map((s, i) => {
+      if (i === idx) return { ...s, completed: !s.completed }
+      return s
+    })
+    setEditedTask({ ...editedTask, subtasks: updated })
+  }
+
+  const toggleAllSubtasks = (markCompleted) => {
+    const updated = (editedTask.subtasks || []).map(s => ({ ...s, completed: markCompleted }))
+    setEditedTask({ ...editedTask, subtasks: updated })
+  }
+
+  const handleSubtaskFieldChange = (idx, field, value) => {
+    const updated = (editedTask.subtasks || []).map((s, i) => {
+      if (i === idx) return { ...s, [field]: value }
+      return s
+    })
+    setEditedTask({ ...editedTask, subtasks: updated })
+  }
+
+  const handleAddSubtask = () => {
+    const nextNum = (editedTask.subtasks || []).length + 1
+    const newItem = createDefaultSubtask(`Sub Task #${nextNum}`)
+    setEditedTask({
+      ...editedTask,
+      subtasks: [...(editedTask.subtasks || []), newItem]
+    })
+  }
+
+  const handleRemoveSubtask = (idx) => {
+    const updated = (editedTask.subtasks || []).filter((_, i) => i !== idx)
+    setEditedTask({ ...editedTask, subtasks: updated })
+  }
+
+  const toggleSubtaskAssignee = (subtaskIdx, empId) => {
+    const current = editedTask.subtasks?.[subtaskIdx]
+    if (!current) return
+    const currentAssignees = Array.isArray(current.assignedTo) ? current.assignedTo : []
+    const updatedAssignees = currentAssignees.includes(empId)
+      ? currentAssignees.filter(id => id !== empId)
+      : [...currentAssignees, empId]
+    handleSubtaskFieldChange(subtaskIdx, 'assignedTo', updatedAssignees)
+  }
+
+  const handleAddSubtaskChecklistItem = (subtaskIdx) => {
+    const current = editedTask.subtasks?.[subtaskIdx]
+    if (!current) return
+    const newClItem = {
+      id: 'sc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      title: '',
+      completed: false
+    }
+    const updatedChecklists = [...(current.checklists || []), newClItem]
+    handleSubtaskFieldChange(subtaskIdx, 'checklists', updatedChecklists)
+  }
+
+  const handleToggleSubtaskChecklistItem = (subtaskIdx, itemIdx) => {
+    const current = editedTask.subtasks?.[subtaskIdx]
+    if (!current || !Array.isArray(current.checklists)) return
+    const updatedChecklists = current.checklists.map((c, i) => i === itemIdx ? { ...c, completed: !c.completed } : c)
+    handleSubtaskFieldChange(subtaskIdx, 'checklists', updatedChecklists)
+  }
+
+  const handleUpdateSubtaskChecklistItem = (subtaskIdx, itemIdx, title) => {
+    const current = editedTask.subtasks?.[subtaskIdx]
+    if (!current || !Array.isArray(current.checklists)) return
+    const updatedChecklists = current.checklists.map((c, i) => i === itemIdx ? { ...c, title } : c)
+    handleSubtaskFieldChange(subtaskIdx, 'checklists', updatedChecklists)
+  }
+
+  const handleRemoveSubtaskChecklistItem = (subtaskIdx, itemIdx) => {
+    const current = editedTask.subtasks?.[subtaskIdx]
+    if (!current || !Array.isArray(current.checklists)) return
+    const updatedChecklists = current.checklists.filter((_, i) => i !== itemIdx)
+    handleSubtaskFieldChange(subtaskIdx, 'checklists', updatedChecklists)
+  }
+
+  const checklists = editedTask.checklists || []
+  const subtasks = editedTask.subtasks || []
+  const completedChecklistsCount = checklists.filter(c => c.completed).length
+  const completedSubtasksCount = subtasks.filter(s => s.completed).length
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <button onClick={onClose} className="p-2 -ml-2 text-gray-500 cursor-pointer">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center">
+      <div className="bg-white w-full sm:w-[460px] sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-hidden animate-in slide-in-from-bottom duration-200 flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0 bg-white">
+          <button onClick={onClose} className="p-2 -ml-2 text-gray-500 hover:text-gray-700 cursor-pointer">
             <X size={20} />
           </button>
+          <h3 className="text-sm font-bold text-slate-900 font-heading">Task Details</h3>
           <button 
             onClick={handleSave}
-            className="text-indigo-600 font-semibold text-sm cursor-pointer"
+            className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold font-heading cursor-pointer shadow-2xs"
           >
             Save
           </button>
         </div>
 
-        <div className="p-4 space-y-5 overflow-y-auto max-h-[calc(90vh-60px)] font-body">
+        {/* Content Body */}
+        <div className="p-4 space-y-5 overflow-y-auto flex-1 font-body">
+          {/* Assignees */}
           <div className="space-y-2">
-            <p className="text-xs text-gray-500 uppercase font-medium">Assigned to</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs text-gray-500 uppercase font-medium font-heading">Assigned to</p>
+            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-slate-50/60 rounded-xl border border-slate-200/80">
               {employees.map(emp => {
                 const isSelected = editedTask.assignedTo.includes(emp.id)
                 return (
@@ -1251,45 +2041,49 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                         : [...editedTask.assignedTo, emp.id]
                       setEditedTask({ ...editedTask, assignedTo: updated })
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
                       isSelected 
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold' 
-                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-2xs' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                      isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                      isSelected ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
                     }`}>
                       {emp.name.charAt(0).toUpperCase()}
                     </div>
-                    {emp.name}
+                    <span>{emp.name}</span>
+                    {isSelected && <Check size={12} className="text-blue-600" />}
                   </button>
                 )
               })}
             </div>
           </div>
 
+          {/* Title */}
           <div>
+            <label className="text-xs text-gray-500 uppercase font-medium font-heading block mb-1">Task Title</label>
             <input
               type="text"
               value={editedTask.title}
               onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
-              className="w-full text-lg font-medium text-gray-900 placeholder-gray-400 border-0 focus:ring-0 p-0 font-heading font-semibold"
+              className="w-full text-base font-semibold text-gray-900 border border-slate-200 rounded-lg p-2.5 focus:border-blue-500 focus:outline-none font-heading"
               placeholder="Task name"
             />
           </div>
 
+          {/* Status */}
           <div className="space-y-2">
-            <p className="text-xs text-gray-500 uppercase font-medium">Status</p>
+            <p className="text-xs text-gray-500 uppercase font-medium font-heading">Status</p>
             <div className="flex flex-wrap gap-2">
               {STATUSES.map(s => (
                 <button
                   key={s.id}
                   onClick={() => setEditedTask({ ...editedTask, status: s.id })}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
                     editedTask.status === s.id 
-                      ? 'bg-gray-900 text-white font-semibold' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200/70'
+                      ? 'bg-gray-900 text-white border-gray-900 font-semibold' 
+                      : 'bg-white border-slate-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <s.icon size={14} className={editedTask.status === s.id ? 'text-white' : s.color} />
@@ -1299,15 +2093,16 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
             </div>
           </div>
 
+          {/* Priority */}
           <div className="space-y-2">
-            <p className="text-xs text-gray-500 uppercase font-medium">Priority</p>
+            <p className="text-xs text-gray-500 uppercase font-medium font-heading">Priority</p>
             <div className="flex gap-2">
               {PRIORITIES.map(p => (
                 <button
                   key={p.id}
                   onClick={() => setEditedTask({ ...editedTask, priority: p.id })}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all border cursor-pointer ${
-                    editedTask.priority === p.id ? p.color : 'bg-white border-gray-200 text-gray-600'
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all border cursor-pointer font-heading ${
+                    editedTask.priority === p.id ? `${p.color} font-bold shadow-2xs` : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   {p.label}
@@ -1316,54 +2111,445 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
             </div>
           </div>
 
-          {/* Subtasks / Checklist Items */}
-          {Array.isArray(editedTask.checklists) && editedTask.checklists.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500 uppercase font-medium">Subtasks / Checklist</p>
-                <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                  {editedTask.checklists.filter(c => c.completed).length} / {editedTask.checklists.length}
-                </span>
+          {/* ========================================================= */}
+          {/* 1. CHECKLIST & VALIDATIONS SECTION                        */}
+          {/* ========================================================= */}
+          <div className="space-y-2.5 pt-2 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-700 uppercase font-bold font-heading flex items-center gap-1.5">
+                  <CheckSquare size={13} className="text-purple-600" />
+                  <span>Checklist & Validations</span>
+                </p>
+                <p className="text-[11px] text-gray-400">Mark as checked or provide manual response</p>
               </div>
-              <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
-                {editedTask.checklists.map((item, idx) => (
-                  <label key={item.id || idx} className="flex items-start gap-2.5 p-1.5 rounded-lg hover:bg-white transition-colors cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={!!item.completed}
-                      onChange={(e) => {
-                        const updated = editedTask.checklists.map((c, i) => i === idx ? { ...c, completed: e.target.checked } : c)
-                        setEditedTask({ ...editedTask, checklists: updated })
-                      }}
-                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className={`text-xs block ${item.completed ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}`}>
-                        {item.title}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-              </div>
+              {checklists.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                    completedChecklistsCount === checklists.length
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-purple-50 text-purple-700 border-purple-200'
+                  }`}>
+                    {completedChecklistsCount} / {checklists.length} Checked
+                  </span>
+                  {checklists.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleAllChecklists(completedChecklistsCount < checklists.length)}
+                      className="text-[10px] text-purple-700 hover:text-purple-900 font-semibold underline cursor-pointer"
+                    >
+                      {completedChecklistsCount === checklists.length ? 'Uncheck all' : 'Check all'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-          )}
 
-          <div className="space-y-2">
-            <p className="text-xs text-gray-500 uppercase font-medium">Due date</p>
-            <DatePicker
-              selected={editedTask.dueDate ? (editedTask.dueDate.toDate ? editedTask.dueDate.toDate() : new Date(editedTask.dueDate)) : null}
-              onChange={(date) => setEditedTask({ ...editedTask, dueDate: date })}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
-              dateFormat="MMM d, yyyy"
-              placeholderText="No due date"
-            />
+            {checklists.length === 0 ? (
+              <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center">
+                <p className="text-xs text-slate-400 italic mb-1.5">No checklist validations added yet</p>
+                <button
+                  type="button"
+                  onClick={handleAddChecklist}
+                  className="text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors inline-flex items-center gap-1 cursor-pointer font-heading"
+                >
+                  <Plus size={14} />
+                  <span>Add Checklist Field</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {checklists.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="p-3 bg-slate-50/90 border border-slate-200 rounded-xl space-y-2.5 transition-all shadow-2xs"
+                  >
+                    {/* Header: Checkbox, Title, Checked badge & Delete */}
+                    <div className="flex items-start justify-between gap-2">
+                      <label className="flex items-start gap-2.5 cursor-pointer flex-1 min-w-0 select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!item.completed}
+                          onChange={() => toggleChecklist(idx)}
+                          className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={item.title || ''}
+                            onChange={(e) => handleChecklistFieldChange(idx, 'title', e.target.value)}
+                            placeholder="Checklist field title"
+                            className={`w-full text-xs font-semibold bg-transparent border-0 p-0 focus:ring-0 ${
+                              item.completed ? 'line-through text-slate-400' : 'text-slate-800'
+                            }`}
+                          />
+                        </div>
+                      </label>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Toggle Checked / Not Checked Button */}
+                        <button
+                          type="button"
+                          onClick={() => toggleChecklist(idx)}
+                          className={`text-[10px] px-2 py-0.5 rounded font-semibold transition-colors border cursor-pointer ${
+                            item.completed 
+                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {item.completed ? '✓ Checked' : '○ Not checked'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveChecklist(idx)}
+                          className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                          title="Remove checklist item"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Validation tags */}
+                    <div className="flex flex-wrap gap-1">
+                      {item.required && (
+                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                          Required
+                        </span>
+                      )}
+                      {item.validations?.text && <span className="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200">Manual text</span>}
+                      {item.validations?.dropdown && <span className="text-[9px] bg-purple-50 text-purple-700 px-1.5 py-0.2 rounded border border-purple-200">Dropdown</span>}
+                      {item.validations?.image && <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">Photo</span>}
+                      {item.validations?.file && <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">File</span>}
+                      {item.validations?.video && <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">Video</span>}
+                      {item.validations?.audio && <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">Audio</span>}
+                      {item.validations?.geoTag && <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">Location</span>}
+                    </div>
+
+                    {/* Manual Typing Field */}
+                    {item.validations?.text && (
+                      <div className="space-y-1 pt-0.5">
+                        <label className="text-[11px] font-medium text-slate-700 block">
+                          ✏️ Manual typing response / notes:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.textResponse || ''}
+                          onChange={(e) => handleChecklistFieldChange(idx, 'textResponse', e.target.value)}
+                          placeholder="Type your response or findings..."
+                          className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs"
+                        />
+                      </div>
+                    )}
+
+                    {/* Dropdown Field */}
+                    {item.validations?.dropdown && (
+                      <div className="space-y-1 pt-0.5">
+                        <label className="text-[11px] font-medium text-slate-700 block">
+                          📋 Select option:
+                        </label>
+                        <select
+                          value={item.dropdownResponse || ''}
+                          onChange={(e) => handleChecklistFieldChange(idx, 'dropdownResponse', e.target.value)}
+                          className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+                        >
+                          <option value="">-- Choose an option --</option>
+                          {item.dropdownConfig?.options?.map(opt => (
+                            <option key={opt.id} value={opt.label}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleAddChecklist}
+                  className="text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-heading pt-1"
+                >
+                  <Plus size={14} />
+                  <span>Add another checklist field</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================= */}
+          {/* 2. SUB-TASKS SECTION                                      */}
+          {/* ========================================================= */}
+          <div className="space-y-2.5 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-700 uppercase font-bold font-heading flex items-center gap-1.5">
+                  <List size={14} className="text-blue-600" />
+                  <span>Sub Tasks</span>
+                </p>
+                <p className="text-[11px] text-gray-400">Child tasks with assignees, dates, reminders & checklists</p>
+              </div>
+              {subtasks.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                    completedSubtasksCount === subtasks.length
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                  }`}>
+                    {completedSubtasksCount} / {subtasks.length} Completed
+                  </span>
+                  {subtasks.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleAllSubtasks(completedSubtasksCount < subtasks.length)}
+                      className="text-[10px] text-blue-700 hover:text-blue-900 font-semibold underline cursor-pointer"
+                    >
+                      {completedSubtasksCount === subtasks.length ? 'Unmark all' : 'Mark all done'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {subtasks.length === 0 ? (
+              <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center">
+                <p className="text-xs text-slate-400 italic mb-1.5">No sub-tasks added yet</p>
+                <button
+                  type="button"
+                  onClick={handleAddSubtask}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer font-heading"
+                >
+                  <Plus size={14} />
+                  <span>Add First Sub Task</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {subtasks.map((st, idx) => {
+                  const subAssignees = Array.isArray(st.assignedTo) ? st.assignedTo : st.assignedTo ? [st.assignedTo] : []
+                  return (
+                    <div
+                      key={st.id || idx}
+                      className="p-3.5 bg-white border border-slate-200/90 rounded-2xl space-y-3 shadow-2xs relative"
+                    >
+                      {/* Header: Sub Task #, Status Badge & Delete */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800 font-heading">
+                          Sub Task #{idx + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleSubtask(idx)}
+                            className={`text-[10px] px-2 py-0.5 rounded font-semibold transition-colors border cursor-pointer ${
+                              st.completed 
+                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            {st.completed ? '✓ Completed' : 'To Do'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubtask(idx)}
+                            className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                            title="Delete sub-task"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Sub-task Checkbox & Title */}
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={!!st.completed}
+                          onChange={() => toggleSubtask(idx)}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={st.title || ''}
+                          onChange={(e) => handleSubtaskFieldChange(idx, 'title', e.target.value)}
+                          placeholder="What needs to be done?"
+                          className={`w-full text-xs font-semibold rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs ${
+                            st.completed ? 'line-through text-slate-400' : ''
+                          }`}
+                        />
+                      </div>
+
+                      {/* Subtask Configuration Box: Assignee, Due Date & Reminder */}
+                      <div className="space-y-2.5 p-2.5 bg-slate-50/70 rounded-xl border border-slate-200/70">
+                        {/* Assignee */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[11px] font-semibold text-slate-700 font-heading flex items-center gap-1">
+                              <User size={12} className="text-slate-500" />
+                              <span>Assignee</span>
+                            </label>
+                            {subAssignees.length > 0 && (
+                              <span className="text-[10px] text-blue-600 font-semibold">{subAssignees.length} selected</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-white rounded-lg border border-slate-200">
+                            {employees.map(emp => {
+                              const isAssigned = subAssignees.includes(emp.id)
+                              return (
+                                <button
+                                  key={emp.id}
+                                  type="button"
+                                  onClick={() => toggleSubtaskAssignee(idx, emp.id)}
+                                  className={`h-6 px-1.5 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 border cursor-pointer ${
+                                    isAssigned
+                                      ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold'
+                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className={`w-3.5 h-3.5 rounded-full text-[7px] font-bold flex items-center justify-center shrink-0 ${
+                                    isAssigned ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                                  }`}>
+                                    {emp.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="truncate max-w-[90px]">{emp.name}</span>
+                                  {isAssigned && <Check size={9} className="text-blue-600 shrink-0" />}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Due Date & Reminder */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-700 font-heading block mb-1">
+                              Due Date & Time
+                            </label>
+                            <div className="relative">
+                              <DatePicker
+                                selected={st.dueDate ? (st.dueDate.toDate ? st.dueDate.toDate() : new Date(st.dueDate)) : null}
+                                onChange={(date) => handleSubtaskFieldChange(idx, 'dueDate', date)}
+                                showTimeSelect
+                                timeIntervals={15}
+                                dateFormat="MMM d, yyyy h:mm aa"
+                                wrapperClassName="w-full"
+                                className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+                                placeholderText="Sub-task due date"
+                              />
+                              <Calendar size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-700 font-heading block mb-1">
+                              Reminder
+                            </label>
+                            <div className="flex items-center gap-2 h-8 px-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={!!st.reminder?.enabled}
+                                  onChange={(e) => handleSubtaskFieldChange(idx, 'reminder', {
+                                    ...(st.reminder || {}),
+                                    enabled: e.target.checked
+                                  })}
+                                />
+                                <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
+                              </label>
+                              <span className="text-[11px] text-slate-600 font-body">Alert assignee</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sub-task's own checklist items */}
+                        <div className="pt-1.5 border-t border-slate-200/70">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-slate-700 font-heading flex items-center gap-1">
+                              <CheckSquare size={12} className="text-emerald-600" />
+                              <span>Sub-task Checklist ({st.checklists?.length || 0})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAddSubtaskChecklistItem(idx)}
+                              className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5 cursor-pointer font-heading"
+                            >
+                              <Plus size={11} />
+                              <span>Add item</span>
+                            </button>
+                          </div>
+
+                          {st.checklists?.length > 0 && (
+                            <div className="space-y-1.5">
+                              {st.checklists.map((sc, scIdx) => (
+                                <div key={sc.id || scIdx} className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!sc.completed}
+                                    onChange={() => handleToggleSubtaskChecklistItem(idx, scIdx)}
+                                    className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Checklist item title..."
+                                    value={sc.title || ''}
+                                    onChange={(e) => handleUpdateSubtaskChecklistItem(idx, scIdx, e.target.value)}
+                                    className={`flex-1 text-xs text-slate-800 placeholder:text-slate-400 border-0 bg-transparent p-0 focus:ring-0 ${
+                                      sc.completed ? 'line-through text-slate-400' : ''
+                                    }`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSubtaskChecklistItem(idx, scIdx)}
+                                    className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Single Add another sub-task button below existing subtasks */}
+                <button
+                  type="button"
+                  onClick={handleAddSubtask}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-heading pt-1"
+                >
+                  <Plus size={14} />
+                  <span>Add another sub-task</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Due date */}
+          <div className="space-y-2 pt-2 border-t border-slate-200">
+            <p className="text-xs text-gray-500 uppercase font-medium font-heading">Due date</p>
+            <div className="relative">
+              <DatePicker
+                selected={editedTask.dueDate ? (editedTask.dueDate.toDate ? editedTask.dueDate.toDate() : new Date(editedTask.dueDate)) : null}
+                onChange={(date) => setEditedTask({ ...editedTask, dueDate: date })}
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pr-10 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer shadow-2xs"
+                wrapperClassName="w-full"
+                dateFormat="MMM d, yyyy h:mm aa"
+                showTimeSelect
+                timeIntervals={15}
+                placeholderText="No due date"
+              />
+              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+            </div>
           </div>
 
           <button
             onClick={() => onDelete(task.id)}
-            className="w-full py-3 text-rose-600 font-semibold text-sm border-t border-gray-100 flex items-center justify-center gap-2 cursor-pointer hover:bg-rose-50 rounded-b-xl transition-colors"
+            className="w-full py-2.5 text-rose-600 font-semibold text-xs border border-rose-200 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-rose-50 transition-colors mt-4"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
             Delete Task
           </button>
         </div>
@@ -1371,3 +2557,4 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
     </div>
   )
 }
+
