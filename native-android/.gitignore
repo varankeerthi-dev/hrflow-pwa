@@ -1,0 +1,17 @@
+# Android / Gradle generated files
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+
+# Firebase app-specific config and local secrets
+app/google-services.json
+secrets.properties
+*.keystore
+*.jks
+
+# Generated outputs
+captures/
+.externalNativeBuild/
+.cxx/
