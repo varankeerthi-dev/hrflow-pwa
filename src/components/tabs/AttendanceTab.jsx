@@ -24,6 +24,18 @@ import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy, calculateChargeab
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import ShareAction from '../ui/ShareAction'
+import { buildSiteVisitReportPayload, canShareModule, sanitizeShareFileName } from '../../lib/share'
+
+const fingerprintReportContent = (data) => {
+  const serialized = JSON.stringify(data)
+  let hash = 2166136261
+  for (let index = 0; index < serialized.length; index += 1) {
+    hash ^= serialized.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `${serialized.length}:${(hash >>> 0).toString(36)}`
+}
 
 // PDF Styles
 const pdfStyles = StyleSheet.create({
@@ -1162,8 +1174,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }
   }, [reportData, siteConfig])
 
-  const handleExportSitePDF = () => {
-    try {
+  const buildSiteReportPdf = () => {
       const doc = new jsPDF()
       doc.setFontSize(16)
       doc.text(user?.orgName || 'Organization', 14, 15)
@@ -1173,7 +1184,10 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       doc.setTextColor(100)
       doc.text(`Period: ${filterStartDate} to ${filterEndDate} | Generated: ${new Date().toLocaleDateString()}`, 14, 29)
 
-      const summaryTableRows = siteReportData.sites.map(s => [
+      const filteredSites = selectedSiteReportSite
+        ? siteReportData.sites.filter(s => s.siteName === selectedSiteReportSite)
+        : siteReportData.sites
+      const summaryTableRows = filteredSites.map(s => [
         s.siteName,
         s.isRare ? 'Completed / Rare' : 'Regular',
         String(s.totalVisits),
@@ -1219,12 +1233,39 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         })
       }
 
-      doc.save(`Site_Visit_Report_${filterStartDate}_to_${filterEndDate}.pdf`)
+      const fileName = sanitizeShareFileName(`Site_Visit_Report_${filterStartDate}_to_${filterEndDate}.pdf`, 'site-visit-report.pdf')
+      return { doc, fileName, filteredSites, filteredLogs, detailCount: logsRows.length }
+  }
+
+  const handleExportSitePDF = () => {
+    try {
+      const { doc, fileName } = buildSiteReportPdf()
+      doc.save(fileName)
     } catch (err) {
       console.error('Error exporting site PDF:', err)
       alert('Failed to generate PDF: ' + err.message)
     }
   }
+
+  const buildSiteReportShareFile = () => {
+    const { doc, fileName } = buildSiteReportPdf()
+    return new File([doc.output('blob')], fileName, { type: 'application/pdf' })
+  }
+
+  const filteredShareSites = selectedSiteReportSite
+    ? siteReportData.sites.filter(site => site.siteName === selectedSiteReportSite)
+    : siteReportData.sites
+  const filteredShareLogs = selectedSiteReportSite
+    ? siteReportData.detailedLogs.filter(log => log.siteName === selectedSiteReportSite)
+    : siteReportData.detailedLogs
+  const shareSiteCount = filteredShareSites.length
+  const shareVisitCount = filteredShareSites.reduce((sum, site) => sum + site.totalVisits, 0)
+  const shareTotalHours = filteredShareSites.reduce((sum, site) => sum + site.totalHours, 0)
+  const shareDetailCount = Math.min(filteredShareLogs.length, 150)
+  const shareContentRevision = fingerprintReportContent([
+    filteredShareSites.map(site => [site.siteName, site.isRare, site.totalVisits, site.uniqueEmployeesCount, site.totalHours, site.avgHours]),
+    filteredShareLogs.slice(0, 150).map(log => [log.date, log.employeeName, log.siteName, log.inTime, log.outTime, log.hours]),
+  ])
 
   useEffect(() => {
     if (activeSubTab === 'reports' && reportData.length === 0 && !reportLoading) {
@@ -3005,7 +3046,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                       Site-level hours distribution, multi-site employee logs, and visit frequencies
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {selectedSiteReportSite && (
                       <button
                         onClick={() => setSelectedSiteReportSite(null)}
@@ -3023,6 +3064,22 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                       <Download size={13} />
                       <span>Export Site PDF</span>
                     </button>
+                    {canShareModule(user, 'Attendance') && <ShareAction
+                      label="Share"
+                      canShare={() => canShareModule(user, 'Attendance') && Boolean(filterStartDate && filterEndDate && shareSiteCount && shareVisitCount)}
+                      buildPayload={() => buildSiteVisitReportPayload({
+                        organizationName: user?.orgName,
+                        from: filterStartDate,
+                        to: filterEndDate,
+                        selectedSite: selectedSiteReportSite,
+                        siteCount: shareSiteCount,
+                        visitCount: shareVisitCount,
+                        totalHours: shareTotalHours,
+                        detailCount: shareDetailCount,
+                        contentRevision: shareContentRevision,
+                        fileBuilder: buildSiteReportShareFile,
+                      })}
+                    />}
                   </div>
                 </div>
 
