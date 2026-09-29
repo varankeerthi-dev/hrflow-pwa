@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useEmployees } from '../../hooks/useEmployees';
-import { useLeaves } from '../../hooks/useLeaves';
-import { useAttendance } from '../../hooks/useAttendance';
 import { useLogs } from '../../hooks/useActivityLog';
 import { db } from '../../lib/firebase';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
@@ -11,6 +9,7 @@ import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, Us
 import { maskSensitiveValue } from '../../lib/sensitiveData';
 import EmployeeDirectoryTab from './EmployeeDirectoryTab';
 import EmployeeProfileUpdatesTab from './EmployeeProfileUpdatesTab';
+import EmployeeLifecycleTab from './EmployeeLifecycleTab';
 import { ModulePillTabs } from '../ui/ModulePillTabs';
 const formatDate = d => d ? new Date(d).toLocaleDateString('en-IN', {
   day: '2-digit',
@@ -151,8 +150,7 @@ function LeaveSection({
   const {
     data: leaves,
     isLoading,
-    isError,
-    error
+    isError
   } = useEmployeeLeaves(orgId, employeeId, from, to);
   const summary = useMemo(() => {
     if (!leaves) return {
@@ -529,9 +527,6 @@ function BirthdayView() {
               }}>                      {(e.name || '?').charAt(0).toUpperCase()}                    </div>                    <div className="flex-1 min-w-0">                      <div className="text-[12px] font-medium text-[#1A1D26] truncate">{e.name}</div>                      <div className="text-[10px] text-[#6B7280]">{formatBDay(e.dob)} · Turns {e.age}</div>                    </div>                  </div>)}              </div>}          </div>        </div>      </div>    </div>;
 }
 export default function EmployeesTab() {
-  const {
-    user
-  } = useAuth();
   const [activeEmployeeTab, setActiveEmployeeTab] = useState('directory');
   const employeeSubTabs = [{
     id: 'directory',
@@ -549,6 +544,10 @@ export default function EmployeesTab() {
     id: 'profile_updates',
     label: 'Data approvals',
     icon: <ClipboardCheck size={15} />
+  }, {
+    id: 'lifecycle',
+    label: 'Lifecycle',
+    icon: <UserCheck size={15} />
   }];
   return <div className="flex flex-col h-full" style={{
     fontFamily: 'Figtree, system-ui, sans-serif'
@@ -564,6 +563,7 @@ export default function EmployeesTab() {
       {activeEmployeeTab === 'details' && <DetailsView />}
       {activeEmployeeTab === 'birthday' && <BirthdayView />}
       {activeEmployeeTab === 'profile_updates' && <EmployeeProfileUpdatesTab />}
+      {activeEmployeeTab === 'lifecycle' && <EmployeeLifecycleTab />}
     </div>;
 }
 function DetailsView() {
@@ -578,13 +578,7 @@ function DetailsView() {
   const [statusFilter, setStatusFilter] = useState('Active');
   const [selectedId, setSelectedId] = useState(null);
   const [mobileView, setMobileView] = useState('list');
-  useEffect(() => {
-    if (employees?.length > 0 && !selectedId) {
-      const first = employees.find(e => e.status === 'Active') || employees[0];
-      setSelectedId(first.id);
-    }
-  }, [employees, selectedId]);
-  const selectedEmployee = useMemo(() => employees.find(e => e.id === selectedId), [employees, selectedId]);
+  const selectedEmployee = useMemo(() => employees.find(e => e.id === selectedId) || employees.find(e => e.status === 'Active') || employees[0], [employees, selectedId]);
   const handleSelectEmployee = id => {
     setSelectedId(id);
     setMobileView('details');

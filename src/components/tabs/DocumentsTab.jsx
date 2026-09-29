@@ -1,247 +1,178 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
+import { Archive, Clock3, ExternalLink, FileText, Folder, History, Search, ShieldCheck, Trash2, Upload, Users, Building2, X } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useDocuments } from '../../hooks/useDocuments'
 import { useEmployees } from '../../hooks/useEmployees'
-import { 
-  Folder, 
-  File, 
-  FileText, 
-  Search, 
-  Upload, 
-  Download, 
-  Trash2, 
-  MoreHorizontal,
-  Plus,
-  Filter,
-  Users,
-  Building2,
-  FileCode,
-  ShieldCheck,
-  Clock,
-  ExternalLink
-} from 'lucide-react'
+import { groupDocumentVersions, validateDocumentFile } from '../../lib/documentManagement'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
+const inputClass = 'h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600'
+const labelClass = 'mb-1.5 block text-sm font-medium text-slate-800'
+const primaryClass = 'inline-flex h-9 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50'
+const formatDate = (value) => {
+  const date = value?.toDate?.() || (value ? new Date(value) : null)
+  return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date) : '—'
+}
+const isExpired = (value) => Boolean(value && new Date(`${value}T23:59:59`) < new Date())
+
 export default function DocumentsTab() {
   const { user } = useAuth()
-  const { documents, loading, addDocument, deleteDocument } = useDocuments(user?.orgId, user)
-  const { employees } = useEmployees(user?.orgId)
-  
+  const api = useDocuments(user?.orgId, user)
+  const { documents, loading, addDocument, uploadDocument, updateDocument, deleteDocument, canCreate, canEditDocument, canDeleteDocument } = api
+  const { employees, loading: employeesLoading } = useEmployees(user?.orgId)
   const [activeSub, setActiveSub] = useState('org')
   const [searchTerm, setSearchTerm] = useState('')
-  const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedEmpId, setSelectedEmpId] = useState('')
-  
-  const [uploadForm, setUploadForm] = useState({
-    name: '',
-    category: 'Policy',
-    type: 'Org', // 'Org' or 'Employee'
-    employeeId: '',
-    url: '',
-    status: 'Active'
-  })
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [versionTarget, setVersionTarget] = useState(null)
+  const [historyGroup, setHistoryGroup] = useState(null)
+  const [source, setSource] = useState('file')
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [uploadForm, setUploadForm] = useState({ name: '', category: 'Policy', employeeId: '', url: '', expiresOn: '' })
 
-  const filteredOrgDocs = useMemo(() => {
-    return documents.filter(d => 
-      d.type === 'Org' && 
-      d.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  }, [documents, searchTerm])
+  const groupedDocuments = useMemo(() => groupDocumentVersions(documents), [documents])
+  const filteredGroups = useMemo(() => groupedDocuments.filter(({ current }) => {
+    if ((activeSub === 'org' ? 'Org' : 'Employee') !== current.type) return false
+    if (activeSub === 'employee' && selectedEmpId && current.employeeId !== selectedEmpId) return false
+    return !searchTerm.trim() || [current.name, current.fileName, current.category, current.employeeId]
+      .some((value) => String(value || '').toLowerCase().includes(searchTerm.trim().toLowerCase()))
+  }), [groupedDocuments, activeSub, selectedEmpId, searchTerm])
+  const selectedEmployee = employees.find((employee) => employee.id === selectedEmpId)
 
-  const filteredEmpDocs = useMemo(() => {
-    return documents.filter(d => 
-      d.type === 'Employee' && 
-      (selectedEmpId ? d.employeeId === selectedEmpId : true) &&
-      d.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  }, [documents, searchTerm, selectedEmpId])
+  const resetForm = () => {
+    setUploadForm({ name: '', category: 'Policy', employeeId: selectedEmpId, url: '', expiresOn: '' })
+    setSelectedFile(null)
+    setSource('file')
+    setVersionTarget(null)
+    setActionError('')
+  }
+  const openNewDocument = () => {
+    resetForm()
+    setShowUploadModal(true)
+  }
+  const openNewVersion = (current) => {
+    setActionError('')
+    setVersionTarget(current)
+    setUploadForm({ name: current.name || '', category: current.category || 'Policy', employeeId: current.employeeId || '', url: '', expiresOn: current.expiresOn || '' })
+    setSelectedFile(null)
+    setSource('file')
+    setShowUploadModal(true)
+  }
 
-  const handleUpload = async (e) => {
-    e.preventDefault()
+  const handleSave = async (event) => {
+    event.preventDefault()
+    setActionError('')
+    if (!canCreate) { setActionError('You do not have permission to add documents.'); return }
+    const name = uploadForm.name.trim()
+    if (!name) { setActionError('Enter a document name.'); return }
+    const employeeId = activeSub === 'employee' ? uploadForm.employeeId : ''
+    if (activeSub === 'employee' && !employeeId) { setActionError('Choose an employee for this restricted dossier record.'); return }
+    const payload = { name, category: uploadForm.category, type: activeSub === 'org' ? 'Org' : 'Employee', employeeId, status: 'Active', expiresOn: uploadForm.expiresOn || '' }
+    if (source === 'file') {
+      const fileError = validateDocumentFile(selectedFile)
+      if (fileError) { setActionError(fileError); return }
+    } else {
+      try { new URL(uploadForm.url) } catch { setActionError('Enter a valid document URL beginning with https://.'); return }
+      if (!/^https:\/\//i.test(uploadForm.url.trim())) { setActionError('Only secure https:// document URLs are accepted.'); return }
+    }
+    setSaving(true)
     try {
-      const payload = {
-        ...uploadForm,
-        employeeId: activeSub === 'employee' ? selectedEmpId : ''
-      }
-      if (activeSub === 'employee' && !selectedEmpId) {
-        alert('Please select an employee first')
-        return
-      }
-      await addDocument(payload)
+      if (source === 'file') await uploadDocument(payload, selectedFile, versionTarget)
+      else await addDocument({ ...payload, url: uploadForm.url.trim(), fileName: '', documentSource: 'external-url' })
       setShowUploadModal(false)
-      setUploadForm({ name: '', category: 'Policy', type: activeSub === 'org' ? 'Org' : 'Employee', employeeId: '', url: '', status: 'Active' })
-    } catch (err) {
-      alert('Error uploading document: ' + err.message)
+      setNotice(versionTarget ? `Version added for ${name}.` : `${name} added to documents.`)
+      resetForm()
+    } catch (error) {
+      setActionError(error.message || 'Could not save this document.')
+    } finally {
+      setSaving(false)
     }
   }
 
-  if (loading) return <div className="flex h-full items-center justify-center py-20"><Spinner /></div>
+  const handleArchive = async (record) => {
+    setActionError('')
+    try {
+      await updateDocument(record.id, { status: record.status === 'Archived' ? 'Active' : 'Archived' })
+      setNotice(record.status === 'Archived' ? 'Document restored to active.' : 'Document archived.')
+    } catch (error) { setActionError(error.message || 'Could not update this document.') }
+  }
+
+  const handleDelete = async (record) => {
+    if (!window.confirm(`Delete version ${record.version || 1} of “${record.name}”? This also removes its uploaded file when applicable.`)) return
+    setActionError('')
+    try {
+      await deleteDocument(record.id)
+      setNotice(`Version ${record.version || 1} deleted.`)
+      setHistoryGroup((group) => group ? { ...group, versions: group.versions.filter((item) => item.id !== record.id) } : group)
+    } catch (error) { setActionError(error.message || 'Could not delete this document version.') }
+  }
+
+  const getStatus = (document) => {
+    if (document.status === 'Archived') return { label: 'Archived', style: 'bg-slate-100 text-slate-600' }
+    if (isExpired(document.expiresOn)) return { label: 'Expired', style: 'bg-rose-50 text-rose-700' }
+    if (document.expiresOn) return { label: `Expires ${formatDate(document.expiresOn)}`, style: 'bg-amber-50 text-amber-800' }
+    return { label: 'Active', style: 'bg-emerald-50 text-emerald-700' }
+  }
+
+  if (!api.canCreate && documents.length === 0 && !loading && user?.role?.toLowerCase() !== 'admin' && !user?.permissions?.DocumentManagement?.view && !user?.permissions?.DocumentManagement?.full) {
+    return <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900" role="status">You need Document Management view permission to use this workspace.</div>
+  }
 
   return (
-    <div className="space-y-6 font-inter animate-in fade-in duration-500">
-      {/* Category Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex bg-gray-100 w-12 rounded-xl w-fit">
-          <button
-            onClick={() => { setActiveSub('org'); setSearchTerm(''); }}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[13px] font-bold transition ${activeSub === 'org' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            <Building2 size={16} /> Organization Docs
-          </button>
-          <button
-            onClick={() => { setActiveSub('employee'); setSearchTerm(''); }}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[13px] font-bold transition ${activeSub === 'employee' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            <Users size={16} /> Employee Dossiers
-          </button>
+    <div className="space-y-5 font-body">
+      <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs md:flex-row md:items-center md:justify-between md:p-5">
+        <div className="inline-flex w-fit flex-wrap gap-1 rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Document repository type">
+          <button type="button" role="tab" aria-selected={activeSub === 'org'} onClick={() => { setActiveSub('org'); setSearchTerm('') }} className={`inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold ${activeSub === 'org' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}><Building2 size={15} /> Organization</button>
+          <button type="button" role="tab" aria-selected={activeSub === 'employee'} onClick={() => { setActiveSub('employee'); setSearchTerm('') }} className={`inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold ${activeSub === 'employee' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}><Users size={15} /> Employee dossiers</button>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search by filename..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 h-[40px] border border-gray-200 rounded-xl text-sm font-medium bg-white focus:ring-2 focus:ring-indigo-500 outline-none w-[200px] transition"
-            />
-          </div>
-          <button 
-            onClick={() => setShowUploadModal(true)}
-            className="h-[40px] px-5 bg-indigo-600 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition shadow-md"
-          >
-            <Upload size={18} /> Upload New
-          </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative min-w-0 sm:w-56"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} /><input type="search" aria-label="Search documents" placeholder="Search documents…" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className={`${inputClass} pl-9`} /></div>
+          {canCreate && <button type="button" onClick={openNewDocument} className={`${primaryClass} shrink-0`}><Upload size={15} /> Add document</button>}
         </div>
-      </div>
+      </section>
 
-      {activeSub === 'employee' && (
-        <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex items-center gap-4">
-          <label className="text-[11px] font-bold text-indigo-600 uppercase tracking-widest whitespace-nowrap">Select Employee:</label>
-          <select 
-            value={selectedEmpId} 
-            onChange={(e) => setSelectedEmpId(e.target.value)}
-            className="flex-1 max-w-sm h-[40px] border border-indigo-100 rounded-lg text-sm font-bold px-3 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-          >
-            <option value="">All Employees</option>
-            {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode})</option>)}
-          </select>
-        </div>
-      )}
+      {actionError && !showUploadModal && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{actionError}<button type="button" onClick={() => setActionError('')} className="ml-3 font-semibold underline">Dismiss</button></div>}
+      {api.error && !actionError && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{api.error}<button type="button" onClick={api.fetchDocuments} className="ml-3 font-semibold underline">Retry</button></div>}
+      {notice && <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800"><span>{notice}</span><button type="button" aria-label="Dismiss message" onClick={() => setNotice('')}><X size={15} /></button></div>}
 
-      {/* Document Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {(activeSub === 'org' ? filteredOrgDocs : filteredEmpDocs).length === 0 ? (
-          <div className="col-span-full py-20 text-center bg-white rounded-2xl border border-dashed border-gray-200">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Folder size={24} className="text-gray-300" />
-            </div>
-            <p className="text-gray-400 font-medium">No documents found in this repository.</p>
+      {activeSub === 'employee' && <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center"><label className="text-xs font-semibold text-slate-700" htmlFor="document-employee-filter">Employee dossier</label><select id="document-employee-filter" value={selectedEmpId} onChange={(event) => setSelectedEmpId(event.target.value)} className={`${inputClass} sm:max-w-sm`}><option value="">All employees</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.empCode ? ` (${employee.empCode})` : ''}</option>)}</select>{selectedEmployee && <span className="text-xs text-slate-500">Showing files for {selectedEmployee.name}</span>}</div>}
+
+      {loading || employeesLoading ? <div className="flex justify-center rounded-xl border border-slate-200 bg-white py-16"><Spinner /></div> : filteredGroups.length === 0 ? <div className="rounded-xl border border-dashed border-slate-200 bg-white px-6 py-14 text-center"><Folder className="mx-auto mb-3 text-slate-400" size={25} /><p className="text-sm font-semibold text-slate-800">No documents found</p><p className="mt-1 text-xs text-slate-500">{searchTerm ? 'Try another search.' : 'Add a file or an existing secure HTTPS document link to start this repository.'}</p>{canCreate && !searchTerm && <button type="button" onClick={openNewDocument} className="mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700"><Upload size={14} /> Add document</button>}</div> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredGroups.map(({ id, current, versions }) => {
+        const status = getStatus(current)
+        return <article key={id} className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><span className="rounded-lg bg-blue-50 p-2 text-blue-700">{current.category === 'Contract' ? <ShieldCheck size={19} /> : <FileText size={19} />}</span><div className="min-w-0"><h3 className="truncate text-sm font-semibold text-slate-900" title={current.name}>{current.name}</h3><p className="mt-1 text-[11px] text-slate-500">{current.category || 'Other'} · v{current.version || 1}</p></div></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${status.style}`}>{status.label}</span></div>
+          <p className="mt-3 truncate text-[11px] text-slate-500">{current.type === 'Employee' ? `Employee: ${employees.find((employee) => employee.id === current.employeeId)?.name || 'Former staff'}` : 'Organization-wide record'}</p>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400"><Clock3 size={12} /> Updated {formatDate(current.createdAt)}{current.fileSize ? ` · ${(current.fileSize / (1024 * 1024)).toFixed(1)} MB` : ''}</div>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+            <a href={current.url} target="_blank" rel="noreferrer" className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md bg-slate-50 px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"><ExternalLink size={13} /> Open file</a>
+            {versions.length > 1 && <button type="button" onClick={() => setHistoryGroup({ current, versions })} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"><History size={13} /> History ({versions.length})</button>}
+            {canCreate && canEditDocument(current) && <button type="button" onClick={() => openNewVersion(current)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"><Upload size={13} /> New version</button>}
+            {canEditDocument(current) && <button type="button" onClick={() => handleArchive(current)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"><Archive size={13} /> {current.status === 'Archived' ? 'Restore' : 'Archive'}</button>}
+            {canDeleteDocument(current) && <button type="button" aria-label={`Delete ${current.name}`} onClick={() => handleDelete(current)} className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"><Trash2 size={13} /></button>}
           </div>
-        ) : (
-          (activeSub === 'org' ? filteredOrgDocs : filteredEmpDocs).map(doc => (
-            <div key={doc.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition group">
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                  {doc.category === 'Contract' ? <ShieldCheck size={20} /> : <FileText size={20} />}
-                </div>
-                <button 
-                  onClick={() => { if (confirm('Delete this document permanently?')) deleteDocument(doc.id); }}
-                  className="w-12 h-12 text-gray-300 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+        </article>
+      })}</div>}
 
-              <h3 className="text-[13px] font-bold text-gray-900 mb-1 truncate" title={doc.name}>{doc.name}</h3>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter bg-indigo-50 px-2 py-0.5 rounded-md">
-                  {doc.category}
-                </span>
-                <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                  <Clock size={10} /> {new Date(doc.createdAt?.seconds * 1000).toLocaleDateString()}
-                </span>
-              </div>
+      <p className="text-[11px] leading-5 text-slate-500">Uploaded documents are stored in the organisation’s Firebase Storage area. Existing HTTPS URL records remain supported. Access to stored files follows the current Storage rules; this screen does not replace a server-side confidential-record policy.</p>
 
-              {activeSub === 'employee' && !selectedEmpId && (
-                <div className="text-[10px] font-bold text-gray-400 uppercase mb-4 truncate border-t border-gray-50 pt-3">
-                  Owner: {employees.find(e => e.id === doc.employeeId)?.name || 'Former Staff'}
-                </div>
-              )}
-
-              <div className="pt-4 border-t border-gray-50">
-                <a 
-                  href={doc.url} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="w-full h-[36px] flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg text-[11px] font-black uppercase tracking-widest transition"
-                >
-                  <ExternalLink size={14} /> View File
-                </a>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Upload Modal */}
-      <Modal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)} title="Upload Repository File">
-        <form onSubmit={handleUpload} className="p-6 space-y-4 max-w-md mx-auto bg-white">
-          <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">File Name *</label>
-            <input 
-              required
-              type="text" 
-              value={uploadForm.name} 
-              onChange={e => setUploadForm({...uploadForm, name: e.target.value})}
-              placeholder="e.g. Health Insurance Policy 2024"
-              className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Category</label>
-              <select 
-                value={uploadForm.category} 
-                onChange={e => setUploadForm({...uploadForm, category: e.target.value})}
-                className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                <option value="Policy">Policy</option>
-                <option value="Contract">Contract</option>
-                <option value="ID Proof">ID Proof</option>
-                <option value="Certification">Certification</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Access Type</label>
-              <select 
-                value={activeSub === 'org' ? 'Org' : 'Employee'} 
-                disabled
-                className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-medium bg-gray-100 text-gray-400 outline-none appearance-none"
-              >
-                <option value="Org">Org Wide</option>
-                <option value="Employee">Restricted</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">File Source URL (S3/Cloudinary) *</label>
-            <input 
-              required
-              type="text" 
-              value={uploadForm.url} 
-              onChange={e => setUploadForm({...uploadForm, url: e.target.value})}
-              placeholder="https://storage.provider.com/file.pdf"
-              className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-          </div>
-          <button type="submit" className="w-full h-[46px] bg-indigo-600 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest hover:bg-indigo-700 transition shadow-lg mt-4">
-            Initialize Upload
-          </button>
+      <Modal isOpen={showUploadModal} onClose={() => { if (!saving) setShowUploadModal(false) }} title={versionTarget ? `Add a version · ${versionTarget.name}` : 'Add document'} size="md">
+        <form onSubmit={handleSave} className="space-y-4 bg-white p-5 sm:p-6">
+          {actionError && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{actionError}</p>}
+          {!versionTarget && <div><label htmlFor="document-name" className={labelClass}>Document name <span className="text-rose-600">*</span></label><input id="document-name" required maxLength={120} value={uploadForm.name} onChange={(event) => setUploadForm({ ...uploadForm, name: event.target.value })} className={inputClass} placeholder="e.g. Employment handbook" /></div>}
+          <div className="grid gap-4 sm:grid-cols-2"><div><label htmlFor="document-category" className={labelClass}>Category</label><select id="document-category" value={uploadForm.category} onChange={(event) => setUploadForm({ ...uploadForm, category: event.target.value })} className={inputClass}><option>Policy</option><option>Contract</option><option>ID Proof</option><option>Certification</option><option>Payroll</option><option>Other</option></select></div><div><label htmlFor="document-expiry" className={labelClass}>Review / expiry date</label><input id="document-expiry" type="date" value={uploadForm.expiresOn} onChange={(event) => setUploadForm({ ...uploadForm, expiresOn: event.target.value })} className={inputClass} /></div></div>
+          {activeSub === 'employee' && <div><label htmlFor="document-employee" className={labelClass}>Employee dossier <span className="text-rose-600">*</span></label><select id="document-employee" required value={uploadForm.employeeId} onChange={(event) => setUploadForm({ ...uploadForm, employeeId: event.target.value })} className={inputClass}><option value="">Choose employee…</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.empCode ? ` (${employee.empCode})` : ''}</option>)}</select></div>}
+          {!versionTarget && <div className="space-y-3"><div role="radiogroup" aria-label="Document source" className="flex flex-wrap gap-4"><label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700"><input type="radio" name="document-source" checked={source === 'file'} onChange={() => setSource('file')} /> Upload a file</label><label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700"><input type="radio" name="document-source" checked={source === 'url'} onChange={() => setSource('url')} /> Existing HTTPS link</label></div>{source === 'file' ? <div><label htmlFor="document-file" className={labelClass}>Select file <span className="text-rose-600">*</span></label><input id="document-file" required type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} className="block min-h-9 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-blue-700" /><p className="mt-1 text-[10px] text-slate-500">PDF, common images, Word or Excel · up to 25 MB.</p></div> : <div><label htmlFor="document-url" className={labelClass}>Secure HTTPS URL <span className="text-rose-600">*</span></label><input id="document-url" required type="url" value={uploadForm.url} onChange={(event) => setUploadForm({ ...uploadForm, url: event.target.value })} className={inputClass} placeholder="https://…" /></div>}</div>}
+          {versionTarget && <div><label htmlFor="document-version-file" className={labelClass}>New version file <span className="text-rose-600">*</span></label><input id="document-version-file" required type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} className="block min-h-9 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-blue-700" /><p className="mt-1 text-[10px] text-slate-500">A new immutable version entry will be added; earlier versions remain listed in history.</p></div>}
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" disabled={saving} onClick={() => setShowUploadModal(false)} className="h-9 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700">Cancel</button><button type="submit" disabled={saving || !canCreate} className={primaryClass}>{saving ? 'Saving…' : versionTarget ? 'Upload version' : 'Save document'}</button></div>
         </form>
+      </Modal>
+
+      <Modal isOpen={Boolean(historyGroup)} onClose={() => setHistoryGroup(null)} title={`Version history · ${historyGroup?.current?.name || ''}`} size="md">
+        <div className="max-h-[65vh] space-y-2 overflow-y-auto bg-white p-5">{historyGroup?.versions?.map((version) => <div key={version.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-semibold text-slate-800">Version {version.version || 1}{version.fileName ? ` · ${version.fileName}` : ''}</p><p className="mt-1 text-[11px] text-slate-500">Added {formatDate(version.createdAt)} · {version.status || 'Active'}</p></div><div className="flex shrink-0 items-center gap-2"><a href={version.url} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-700 hover:bg-slate-50"><ExternalLink size={12} /> Open</a>{canDeleteDocument(version) && <button type="button" onClick={() => handleDelete(version)} aria-label={`Delete version ${version.version || 1}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:text-rose-700"><Trash2 size={12} /></button>}</div></div>)}</div>
       </Modal>
     </div>
   )

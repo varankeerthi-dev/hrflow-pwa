@@ -20,6 +20,7 @@ import { SubTabsNav } from '../ui/SubTabsNav'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, AlertTriangle, CalendarX, LayoutGrid, List, MapPin, Clock } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { leaveCoverageCol } from '../../lib/firestore'
+import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy, calculateChargeableLateMinutes } from '../../lib/attendancePolicy'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -815,6 +816,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const [reportsView, setReportsView] = useState('timeline') // 'timeline' or 'excel'
   const [compactMode, setCompactMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
+  const [attendancePolicy, setAttendancePolicy] = useState(() => normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY))
   const [remarksOptions, setRemarksOptions] = useState([])
   const [siteConfig, setSiteConfig] = useState({ regular: [], rare: [] })
   const [enableSiteVisits, setEnableSiteVisits] = useState(true)
@@ -926,6 +928,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       const snap = await getDoc(doc(db, 'organisations', user.orgId))
       if (snap.exists()) {
         const data = snap.data()
+        setAttendancePolicy(normalizeAttendancePolicy(data.attendancePolicy))
         const rawRemarks = Array.isArray(data.remarksOptions) ? data.remarksOptions.filter(Boolean) : []
         const rawSiteConfig = data.siteConfig || {}
         const regular = Array.isArray(rawSiteConfig.regular) ? rawSiteConfig.regular.filter(Boolean) : []
@@ -2754,6 +2757,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                     {sortedReportRows.length} Records
                   </span>
                 </div>
+                <div role="note" className="border-b border-indigo-100 bg-indigo-50/60 px-5 py-2.5 text-[11px] leading-5 text-indigo-900">{attendancePolicy.status === 'published' ? 'Published policy' : 'Draft preview'} · “After grace” subtracts {attendancePolicy.gracePeriod.arrivalMinutes} arrival-grace minutes per report row. Raw late-in values remain visible; this preview does not edit punch records, attendance status, or payroll.</div>
                 <div className="overflow-auto flex-1">
                   {reportLoading ? (
                     <div className="py-16 flex items-center justify-center"><Spinner /></div>
@@ -2769,7 +2773,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                           {reportByEmployee.map(emp => (
                             <th 
                               key={emp.id} 
-                              colSpan={8} 
+                              colSpan={9}
                               className="border-r border-zinc-200 px-4 font-bold text-center bg-indigo-50/50 text-indigo-900 border-b border-zinc-200 capitalize text-[11px]"
                             >
                               {emp.name.toLowerCase()}
@@ -2781,7 +2785,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             <React.Fragment key={`sub-${emp.id}`}>
                               <th className="border-r border-zinc-200 px-2 font-semibold text-center w-20">In Time</th>
                               <th className="border-r border-zinc-200 px-2 font-semibold text-center w-20">Out Time</th>
-                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Late In</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Late In (h)</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-24">After grace (min)</th>
                               <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Late Out</th>
                               <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Early In</th>
                               <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Early Out</th>
@@ -2809,12 +2814,15 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                                     <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
                                     <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
                                     <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
                                     <td className="border-r border-zinc-100 px-3 text-zinc-300">-</td>
                                   </React.Fragment>
                                 )
                               }
 
                               const metrics = calculateExcelMetrics(row, employees)
+                              const arrivalGraceMinutes = attendancePolicy.gracePeriod.applyTo === 'departure' ? 0 : attendancePolicy.gracePeriod.arrivalMinutes
+                              const afterGraceMinutes = calculateChargeableLateMinutes({ rawLateMinutes: metrics.lateInHrs * 60, arrivalGraceMinutes })
                               const isAbsent = row.isAbsent || (row.status || '').toLowerCase() === 'absent'
                               const isShort = !isAbsent && metrics.totalWorkingHrs < metrics.minHours && row.inTime != null && row.outTime != null
 
@@ -2832,6 +2840,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                                   </td>
                                   <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${metrics.lateInHrs > 0 ? 'text-amber-600 font-bold bg-amber-50/20' : 'text-zinc-300'}`}>
                                     {metrics.lateInHrs > 0 ? `${metrics.lateInHrs.toFixed(2)}` : '-'}
+                                  </td>
+                                  <td title={`${attendancePolicy.status === 'published' ? 'Published policy' : 'Draft preview'}: raw arrival lateness less ${arrivalGraceMinutes} grace minutes`} className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${afterGraceMinutes > 0 ? 'text-indigo-700 font-bold bg-indigo-50/20' : 'text-zinc-300'}`}>
+                                    {row.inTime && !isAbsent ? afterGraceMinutes : '-'}
                                   </td>
                                   <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${metrics.lateOutHrs > 0 ? 'text-indigo-600 font-bold bg-indigo-50/20' : 'text-zinc-300'}`}>
                                     {metrics.lateOutHrs > 0 ? `${metrics.lateOutHrs.toFixed(2)}` : '-'}

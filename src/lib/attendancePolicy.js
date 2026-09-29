@@ -49,3 +49,9 @@ export function calculateLateMinutes({ shiftStart, actualArrival, graceMinutes =
     chargeableLateMinutes: Math.max(0, rawLateMinutes - Number(graceMinutes || 0)),
   }
 }
+
+export function calculateChargeableLateMinutes({ rawLateMinutes = 0, arrivalGraceMinutes = 0 }) {
+  const raw = Math.max(0, Math.round(Number(rawLateMinutes) || 0))
+  const grace = Math.max(0, Math.round(Number(arrivalGraceMinutes) || 0))
+  return Math.max(0, raw - grace)
+}
