@@ -251,9 +251,31 @@ function displayDateDDMMMM(isoDate) {
 // Display date as Mmm Dd (e.g., "Mar 10")
 function displayShortDate(isoDate) {
   if (!isoDate) return ''
+  const dateStr = String(isoDate).split('T')[0]
+  const parts = dateStr.split('-')
+  if (parts.length === 3) {
+    const [, m, d] = parts.map(Number)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    if (m >= 1 && m <= 12) {
+      return `${months[m - 1]} ${d}`
+    }
+  }
   const d = new Date(isoDate)
+  if (isNaN(d.getTime())) return ''
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return `${months[d.getMonth()]} ${d.getDate()}`
+}
+
+function getNextDateStr(dateStr) {
+  if (!dateStr) return dateStr
+  const clean = String(dateStr).split('T')[0]
+  const [y, m, d] = clean.split('-').map(Number)
+  if (!y || !m || !d) return dateStr
+  const dt = new Date(y, m - 1, d + 1)
+  const year = dt.getFullYear()
+  const month = String(dt.getMonth() + 1).padStart(2, '0')
+  const day = String(dt.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function getDateRange(start, end) {
@@ -435,23 +457,27 @@ function convertShorthand(val, period) {
   const digits = val.replace(/\D/g, '');
   let h, m;
   if (digits.length === 3) {
-    h = parseInt(digits[0]);
-    m = parseInt(digits.slice(1));
+    h = parseInt(digits[0], 10);
+    m = parseInt(digits.slice(1), 10);
   } else if (digits.length === 4) {
-    h = parseInt(digits.slice(0, 2));
-    m = parseInt(digits.slice(2));
+    h = parseInt(digits.slice(0, 2), 10);
+    m = parseInt(digits.slice(2), 10);
+    if (h >= 13 && h <= 23 && m <= 59 && !period) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
   } else if (digits.length === 2) {
-    // If 2 digits could be hour (e.g., "10a" -> "10"), treat as hour:00
-    const num = parseInt(digits);
+    const num = parseInt(digits, 10);
     if (num <= 12) {
       h = num;
       m = 0;
+    } else if (num <= 23 && !period) {
+      return `${String(num).padStart(2, '0')}:00`;
     } else {
       h = new Date().getHours() % 12 || 12;
       m = num > 59 ? 50 : num;
     }
   } else if (digits.length === 1) {
-    h = parseInt(digits);
+    h = parseInt(digits, 10);
     m = 0;
   } else {
     return null;
@@ -467,6 +493,32 @@ function convertShorthand(val, period) {
   return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function parseFlexibleTime(val) {
+  if (!val || typeof val !== 'string') return null;
+  const clean = val.trim();
+  if (!clean) return null;
+  const lower = clean.toLowerCase();
+
+  const isPM = lower.includes('p') || lower.includes('pm');
+  const isAM = lower.includes('a') || lower.includes('am');
+
+  const colonMatch = lower.match(/^(\d{1,2}):(\d{2})/);
+  if (colonMatch) {
+    let h = parseInt(colonMatch[1], 10);
+    let m = parseInt(colonMatch[2], 10);
+    if (m > 59) m = 59;
+    if (isPM && h < 12) h += 12;
+    else if (isAM && h === 12) h = 0;
+    if (h > 23) h = 23;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  const period = isPM ? 'PM' : (isAM ? 'AM' : null);
+  const digits = lower.replace(/\D/g, '');
+  if (!digits) return null;
+  return convertShorthand(digits, period || (parseInt(digits, 10) >= 12 ? null : 'AM'));
+}
+
 const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra, error, scope = 'desktop' }) => {
   const [tempValue, setTempValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -477,6 +529,25 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
       setTempValue(value ? formatTimeDisplay(value) : '');
     }
   }, [value, isEditing]);
+
+  const commitParsedTime = (val) => {
+    if (!val || !val.trim()) {
+      if (value) onChange('');
+      setIsEditing(false);
+      return;
+    }
+    const parsed = parseFlexibleTime(val);
+    if (parsed) {
+      if (parsed !== value) {
+        onChange(parsed);
+      }
+      setTempValue(formatTimeDisplay(parsed));
+      setIsEditing(false);
+    } else {
+      setTempValue(value ? formatTimeDisplay(value) : '');
+      setIsEditing(false);
+    }
+  };
 
   const handleKeyDown = (e) => {
     if (disabled) return;
@@ -498,6 +569,20 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
           }
         }, 50);
       }
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitParsedTime(tempValue);
+      setTimeout(() => {
+        let nextField = field === 'inTime' ? 'outTime' : 'inTime';
+        let nextRowIdx = field === 'outTime' ? rowIdx + 1 : rowIdx;
+        const nextInput = document.querySelector(`[data-row="${scope}-${nextRowIdx}"][data-field="${nextField}"]`);
+        if (nextInput) {
+          nextInput.focus();
+        }
+      }, 50);
+      return;
     }
   };
 
@@ -534,7 +619,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
               e.target.select();
             }}
             onBlur={() => {
-              setTimeout(() => setIsEditing(false), 200);
+              commitParsedTime(tempValue);
             }}
             onKeyDown={handleKeyDown}
             disabled={disabled}
@@ -1661,8 +1746,15 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         // Enrich existing records with current employee data (e.g., minDailyHours)
         const enrichedRecords = records.map(record => {
           const emp = employees.find(e => e.id === record.employeeId)
+          const baseDate = record.inDate || record.date || selectedDate
+          const shiftType = record.shiftType || emp?.shiftType || 'Day'
+          const isOvernight = shiftType === 'Night' || shiftType === 'DN'
           return {
             ...record,
+            inDate: record.inDate || baseDate,
+            date: record.date || baseDate,
+            shiftType,
+            outDate: isOvernight ? (record.outDate || getNextDateStr(baseDate)) : (record.inDate || baseDate),
             minDailyHours: record.minDailyHours || emp?.minDailyHours || 8,
             leaveCoverage: coverageByEmployee[record.employeeId] || null,
           }
@@ -1763,8 +1855,15 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       // If we have an existing record, use it (enriched with latest emp data)
       if (existingMap.has(emp.id)) {
         const record = existingMap.get(emp.id)
+        const baseDate = record.inDate || record.date || selectedDate
+        const shiftType = record.shiftType || emp?.shiftType || 'Day'
+        const isOvernight = shiftType === 'Night' || shiftType === 'DN'
         return {
           ...record,
+          inDate: record.inDate || baseDate,
+          date: record.date || baseDate,
+          shiftType,
+          outDate: isOvernight ? (record.outDate || getNextDateStr(baseDate)) : (record.inDate || baseDate),
           minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
         }
       }
@@ -1871,21 +1970,24 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     if (!emp) return
     setRows(prev => prev.map((r, idx) => {
       if (idx !== rowIndex) return r
+      const baseDate = r.inDate || r.date || selectedDate
+      const shiftType = emp.shiftType || 'Day'
+      const isOvernight = shiftType === 'Night' || shiftType === 'DN'
       return {
         ...r,
         employeeId: emp.id,
         name: emp.name,
-        date: selectedDate,
-        inDate: selectedDate,
+        date: baseDate,
+        inDate: baseDate,
         inTime: '',
-        outDate: selectedDate,
+        outDate: isOvernight ? getNextDateStr(baseDate) : baseDate,
         outTime: '',
         otHours: '00:00',
         remarks: emp.site || '',
         isAbsent: false,
         sundayWorked: false,
         sundayHoliday: false,
-        shiftType: 'Day',
+        shiftType,
         status: 'Present',
         isNew: false,
         isPlaceholder: false,
@@ -1904,17 +2006,39 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     setDirty(true)
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
-      const updated = { ...r, [field]: value }
-      if (field === 'inDate' && isDayShift) updated.outDate = value
+      const baseDate = r.inDate || r.date || selectedDate
+      const updated = { 
+        ...r, 
+        inDate: r.inDate || baseDate,
+        date: r.date || baseDate,
+        [field]: value 
+      }
       
-      // Auto-set outDate based on shift type
+      const currentShift = updated.shiftType || 'Day'
+      const isOvernightShift = currentShift === 'Night' || currentShift === 'DN'
+
       if (field === 'shiftType') {
-        const inDate = new Date(updated.inDate)
         if (value === 'Night' || value === 'DN') {
-          inDate.setDate(inDate.getDate() + 1)
-          updated.outDate = inDate.toISOString().split('T')[0]
+          updated.outDate = getNextDateStr(updated.inDate)
         } else {
           updated.outDate = updated.inDate
+        }
+      } else if (field === 'inDate') {
+        updated.inDate = value
+        updated.date = value
+        if (isOvernightShift) {
+          updated.outDate = getNextDateStr(value)
+        } else {
+          updated.outDate = value
+        }
+      } else if (field === 'outDate') {
+        updated.outDate = value
+      } else {
+        // Guarantee outDate stays aligned with shift type when updating other fields (e.g. outTime)
+        if (!isOvernightShift) {
+          updated.outDate = updated.inDate
+        } else if (!updated.outDate || updated.outDate === updated.inDate) {
+          updated.outDate = getNextDateStr(updated.inDate)
         }
       }
 
@@ -1950,10 +2074,22 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         }
       }
 
-      if (['inTime', 'outTime', 'inDate', 'outDate'].includes(field)) {
-        updated.otHours = calcOT(updated.inTime, updated.outTime, updated.inDate, updated.outDate, r.minDailyHours || 8)
+      if (['inTime', 'outTime', 'inDate', 'outDate', 'shiftType'].includes(field)) {
+        updated.otHours = calcOT(
+          updated.inTime, 
+          updated.outTime, 
+          updated.inDate, 
+          updated.outDate, 
+          updated.minDailyHours || r.minDailyHours || 8
+        )
         if (field === 'outTime' && value) {
-          setCopyData({ inTime: updated.inTime, outTime: updated.outTime, inDate: updated.inDate, outDate: updated.outDate })
+          setCopyData({ 
+            inTime: updated.inTime, 
+            outTime: updated.outTime, 
+            inDate: updated.inDate, 
+            outDate: updated.outDate,
+            shiftType: updated.shiftType 
+          })
           setShowCopyModal(true)
           setActiveCopyEmpId(empId)
         }
@@ -2080,8 +2216,15 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       // Enrich updated rows to keep minDailyHours for OT calculation
       const enrichedUpdated = updatedRecords.map(record => {
         const emp = employees.find(e => e.id === record.employeeId)
+        const baseDate = record.inDate || record.date || selectedDate
+        const shiftType = record.shiftType || emp?.shiftType || 'Day'
+        const isOvernight = shiftType === 'Night' || shiftType === 'DN'
         return {
           ...record,
+          inDate: record.inDate || baseDate,
+          date: record.date || baseDate,
+          shiftType,
+          outDate: isOvernight ? (record.outDate || getNextDateStr(baseDate)) : (record.inDate || baseDate),
           minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
         }
       })
@@ -2115,10 +2258,22 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     setDirty(true)
     setRows(prev => prev.map(r => {
       if (selectedEmps.includes(r.employeeId)) {
-        const updated = { ...r }
+        const baseDate = r.inDate || r.date || selectedDate
+        const isOvernight = r.shiftType === 'Night' || r.shiftType === 'DN'
+        const updated = { 
+          ...r,
+          inDate: r.inDate || baseDate,
+          outDate: isOvernight ? (copyData.outDate || getNextDateStr(baseDate)) : baseDate
+        }
         if (copyConfig.inTime) updated.inTime = copyData.inTime
         if (copyConfig.outTime) updated.outTime = copyData.outTime
-        updated.otHours = calcOT(updated.inTime, updated.outTime, updated.inDate, updated.outDate, r.minDailyHours || 8)
+        updated.otHours = calcOT(
+          updated.inTime, 
+          updated.outTime, 
+          updated.inDate, 
+          updated.outDate, 
+          updated.minDailyHours || r.minDailyHours || 8
+        )
         return updated
       }
       return r

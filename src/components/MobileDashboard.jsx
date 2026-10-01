@@ -200,11 +200,11 @@ const MODULE_CATEGORIES = [
 function StatCard({ icon, label, value, color, indicatorColor, subtitle, badge }) {
   const dotColor = indicatorColor || (color?.includes('green') ? 'bg-emerald-500' : color?.includes('red') ? 'bg-rose-500' : 'bg-blue-500')
   return (
-    <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
+    <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs hover:shadow-xs transition-[box-shadow,border-color] duration-150 flex flex-col justify-between">
       <div className="flex items-center justify-between gap-1 mb-2">
         <span className="text-[11px] font-semibold text-slate-500 truncate">{label}</span>
         {badge ? (
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-600">
+          <span className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-slate-100 text-slate-600">
             {badge}
           </span>
         ) : (
@@ -225,9 +225,9 @@ function MenuCard({ icon, label, onClick, color, badge }) {
   return (
     <button 
       onClick={onClick}
-      className="flex flex-col items-center justify-start gap-1.5 p-1 active:scale-95 transition-transform group text-center cursor-pointer"
+      className="flex flex-col items-center justify-start gap-1.5 p-1 min-h-[72px] active:scale-[0.96] transition-transform duration-150 ease-out group text-center cursor-pointer touch-manipulation"
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} bg-white shadow-2xs border border-slate-200/80 group-hover:border-indigo-200 group-hover:shadow-xs transition-all relative [&>svg]:w-5 [&>svg]:h-5`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} bg-white shadow-2xs border border-slate-200/80 group-hover:border-indigo-200 group-hover:shadow-xs transition-[border-color,box-shadow] duration-150 relative [&>svg]:w-5 [&>svg]:h-5`}>
         {icon}
         {badge ? (
           <span className="absolute -top-1 -right-1 px-1 min-w-[18px] h-[18px] bg-rose-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
@@ -532,7 +532,7 @@ export default function MobileDashboard() {
       <div className="p-4 space-y-4">
         {/* PWA Push Notification Permission Prompt Banner */}
         {isNotifSupported && notifPermission === 'default' && !dismissNotifBanner && (
-          <div className="bg-gradient-to-r from-indigo-50/95 to-blue-50/95 border border-indigo-100 rounded-2xl p-3.5 shadow-xs">
+          <div className="bg-gradient-to-r from-indigo-50/95 to-blue-50/95 border border-indigo-100/90 rounded-[20px] p-3.5 shadow-xs">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -543,7 +543,7 @@ export default function MobileDashboard() {
                   <p className="text-[11px] text-slate-600 leading-tight">Get alerts when tasks are assigned to you or created for your team</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1 shrink-0">
                 <button 
                   onClick={async () => {
                     const res = await requestNotifPermission()
@@ -552,16 +552,16 @@ export default function MobileDashboard() {
                       await sendTestNotification()
                     }
                   }}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-bold font-heading shadow-xs transition-all cursor-pointer"
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.96] text-white rounded-xl text-xs font-bold font-heading shadow-xs transition-[background-color,transform,box-shadow] duration-150 ease-out cursor-pointer touch-manipulation"
                 >
                   Enable
                 </button>
                 <button 
                   onClick={() => setDismissNotifBanner(true)}
-                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                  className="min-w-11 min-h-11 flex items-center justify-center -mr-1.5 text-slate-400 hover:text-slate-600 active:scale-[0.96] rounded-xl transition-[color,transform] duration-150 ease-out cursor-pointer"
                   aria-label="Dismiss banner"
                 >
-                  <X size={15} />
+                  <X size={16} />
                 </button>
               </div>
             </div>
@@ -604,7 +604,7 @@ export default function MobileDashboard() {
             </div>
             <button
               onClick={() => setActiveTab('tasks')}
-              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer"
+              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 pl-2 pr-1.5 py-1 min-h-[36px] flex items-center gap-1 active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer"
             >
               <span>View all</span>
               <ArrowRight size={12} />
@@ -612,11 +612,11 @@ export default function MobileDashboard() {
           </div>
 
           {dashboardTasks.length === 0 ? (
-            <div className="py-3 px-2 text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+            <div className="py-4 px-3 text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
               <p className="text-xs font-medium text-slate-500">No pending tasks for today 🎉</p>
               <button
                 onClick={() => setActiveTab('tasks')}
-                className="mt-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                className="mt-1.5 min-h-[36px] px-3 py-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer inline-flex items-center"
               >
                 + Open Tasks
               </button>
@@ -630,12 +630,12 @@ export default function MobileDashboard() {
                   <div
                     key={task.id}
                     onClick={() => setActiveTab('tasks')}
-                    className="flex items-center gap-2.5 p-2 bg-slate-50/60 hover:bg-slate-50 border border-slate-100 rounded-xl transition-colors cursor-pointer group"
+                    className="flex items-center gap-2 p-2 bg-slate-50/60 hover:bg-slate-50 border border-slate-100 rounded-xl transition-colors duration-150 cursor-pointer group touch-manipulation"
                   >
                     <button
                       type="button"
                       onClick={(e) => handleToggleTaskComplete(task.id, task.status, e)}
-                      className="text-slate-300 hover:text-emerald-500 transition-colors shrink-0 cursor-pointer"
+                      className="min-w-11 min-h-11 flex items-center justify-center -ml-2 -my-2 text-slate-300 hover:text-emerald-500 active:scale-[0.96] transition-[color,transform] duration-150 ease-out shrink-0 cursor-pointer"
                       title="Mark task completed"
                     >
                       <Circle size={18} />
@@ -644,7 +644,7 @@ export default function MobileDashboard() {
                       {task.title}
                     </span>
                     {(isUrgent || isHigh) && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border shrink-0 ${
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg border shrink-0 ${
                         isUrgent ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-600 border-amber-200'
                       }`}>
                         {task.priority}
@@ -661,11 +661,11 @@ export default function MobileDashboard() {
         {stats.pendingCorrections > 0 && (
           <div
             onClick={() => setActiveTab('approvals')}
-            className="flex items-center justify-between p-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl cursor-pointer active:scale-[0.99] transition-all"
+            className="flex items-center justify-between p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-2xl cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
-                <AlertCircle size={16} />
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <AlertCircle size={17} />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-amber-950 font-heading">
@@ -674,7 +674,7 @@ export default function MobileDashboard() {
                 <p className="text-[10px] text-amber-800 truncate">Attendance correction requests need review</p>
               </div>
             </div>
-            <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1 shrink-0 font-heading">
+            <span className="text-[11px] font-bold text-amber-900 pl-2 pr-1.5 py-1 flex items-center gap-1 shrink-0 font-heading">
               Review <ArrowRight size={12} />
             </span>
           </div>
@@ -691,7 +691,7 @@ export default function MobileDashboard() {
                   await sendTestNotification()
                 }}
                 title="Push notifications active. Click to test on this device."
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 hover:bg-emerald-100 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 hover:bg-emerald-100 active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out cursor-pointer"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 Push Active
@@ -706,7 +706,7 @@ export default function MobileDashboard() {
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer touch-manipulation ${
                   selectedCategory === cat.id
                     ? 'bg-slate-900 text-white shadow-xs font-semibold'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
@@ -802,7 +802,7 @@ export default function MobileDashboard() {
             <img 
               src={orgSettings.logoURL} 
               alt="Logo" 
-              className="w-9 h-9 rounded-xl object-cover ring-2 ring-gray-100 shadow-sm"
+              className="w-9 h-9 rounded-xl object-cover ring-2 ring-gray-100 shadow-sm outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
               onError={() => setLogoError(true)} 
             />
           ) : (
@@ -820,7 +820,7 @@ export default function MobileDashboard() {
             <button
               key={mod.id}
               onClick={() => setActiveTab(mod.id)}
-              className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-xl text-[13px] leading-5 transition-all duration-200 ${
+              className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-xl text-[13px] leading-5 active:scale-[0.98] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer ${
                 activeTab === mod.id
                   ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200'
                   : 'text-gray-600 hover:bg-indigo-50/80 hover:text-indigo-700'
@@ -843,8 +843,8 @@ export default function MobileDashboard() {
 
         <div className="p-3 border-t border-gray-200/80 space-y-2 bg-gray-50/50">
           <button 
-            onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-200 ${
+            onClick={() => { setActiveTab('portal') }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] active:scale-[0.98] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer ${
               activeTab === 'portal' 
                 ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' 
                 : 'text-gray-600 hover:bg-indigo-50/80 hover:text-indigo-700'
@@ -862,7 +862,7 @@ export default function MobileDashboard() {
           
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] leading-5 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] leading-5 text-gray-600 hover:bg-red-50 hover:text-red-600 active:scale-[0.98] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer"
           >
             <LogOut size={16} />
             <span className="font-semibold">Sign Out</span>
@@ -873,15 +873,16 @@ export default function MobileDashboard() {
       {/* ─── Main Content Area ─── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#F8FAFC]">
         {/* Mobile Header (Hidden on Desktop) */}
-        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 px-4 h-14 flex items-center justify-between shrink-0 shadow-sm">
-          <div className="flex items-center gap-3">
+        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 px-3 h-14 flex items-center justify-between shrink-0 shadow-sm">
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => setShowMenu(true)}
-              className="p-2 -ml-2 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition-colors"
+              className="min-w-11 min-h-11 flex items-center justify-center -ml-1 rounded-xl text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/80 active:scale-[0.96] transition-[color,background-color,transform] duration-150 ease-out cursor-pointer"
+              aria-label="Open Navigation Menu"
             >
               <Menu size={20} />
             </button>
-            <span className="text-sm font-bold text-gray-900 tracking-tight">
+            <span className="text-sm font-bold text-gray-900 tracking-tight truncate max-w-[190px]">
               {getCurrentModuleLabel()}
             </span>
           </div>
@@ -903,27 +904,31 @@ export default function MobileDashboard() {
                   }
                 }}
                 title={notifPermission === 'granted' ? 'Push notifications active (tap to test)' : 'Enable push notifications'}
-                className="relative p-2 rounded-xl text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 active:scale-90 transition-all"
+                className="relative min-w-11 min-h-11 flex items-center justify-center rounded-xl text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/80 active:scale-[0.96] transition-[color,background-color,transform] duration-150 ease-out cursor-pointer"
                 aria-label="Task Notifications"
               >
                 {notifPermission === 'granted' ? (
                   <>
                     <BellRing size={19} className="text-indigo-600" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
                   </>
                 ) : notifPermission === 'denied' ? (
                   <BellOff size={19} className="text-slate-400" />
                 ) : (
                   <>
                     <Bell size={19} className="text-slate-600" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-white"></span>
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-white"></span>
                   </>
                 )}
               </button>
             )}
-            <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hover:bg-indigo-50 p-1.5 rounded-xl transition-colors">
+            <button 
+              onClick={() => { setActiveTab('portal') }}
+              className="min-w-11 min-h-11 flex items-center justify-center rounded-xl hover:bg-indigo-50/80 active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out cursor-pointer"
+              aria-label="My Profile"
+            >
               {currentEmployee?.photoURL ? (
-                <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200 outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md">
                   {getInitials(user?.name)}
@@ -956,33 +961,37 @@ export default function MobileDashboard() {
           </div>
         </header>
 
-        {/* Content View */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {/* Content View with Mobile Bottom Padding */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar pb-20 lg:pb-0">
           <div className="w-full min-h-full">
             {renderTabContent()}
           </div>
         </div>
 
         {/* Mobile Navigation (Hidden on Desktop) */}
-        <nav className="lg:hidden bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 px-4 z-40">
+        <nav className="lg:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/90 fixed bottom-0 left-0 right-0 h-16 px-2 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
           <div className="flex justify-around items-center h-full">
             {[
-              { id: 'home', label: 'Home', icon: <LayoutDashboard size={20} /> },
-              { id: 'attendance', label: 'Attendance', icon: <Calendar size={20} /> },
-              { id: 'portal', label: 'Portal', icon: <User size={20} /> },
-              { id: 'more', label: 'More', icon: <Menu size={20} />, onClick: () => setShowMenu(true) }
-            ].map(item => (
-              <button
-                key={item.id}
-                onClick={item.onClick || (() => setActiveTab(item.id))}
-                className={`flex flex-col items-center gap-1 transition-colors ${
-                  activeTab === item.id && !item.onClick ? 'text-indigo-600' : 'text-gray-500'
-                }`}
-              >
-                {item.icon}
-                <span className="text-[9px] font-bold uppercase tracking-tighter">{item.label}</span>
-              </button>
-            ))}
+              { id: 'home', label: 'Home', icon: LayoutDashboard },
+              { id: 'attendance', label: 'Attendance', icon: Calendar },
+              { id: 'portal', label: 'Portal', icon: User },
+              { id: 'more', label: 'More', icon: Menu, onClick: () => setShowMenu(true) }
+            ].map(item => {
+              const Icon = item.icon
+              const isCurrent = activeTab === item.id && !item.onClick
+              return (
+                <button
+                  key={item.id}
+                  onClick={item.onClick || (() => setActiveTab(item.id))}
+                  className={`flex-1 flex flex-col items-center justify-center gap-1 h-full min-h-[44px] rounded-xl active:scale-[0.96] transition-[color,transform] duration-150 ease-out cursor-pointer touch-manipulation ${
+                    isCurrent ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon size={20} strokeWidth={isCurrent ? 2.5 : 2} />
+                  <span className={`text-[10px] ${isCurrent ? 'font-bold text-indigo-600' : 'font-medium text-slate-500'} tracking-tight`}>{item.label}</span>
+                </button>
+              )
+            })}
           </div>
         </nav>
       </main>
@@ -990,36 +999,42 @@ export default function MobileDashboard() {
       {/* ─── Mobile Sidebar Overlay ─── */}
       {showMenu && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
-            <div className="p-6 flex items-center justify-between border-b border-gray-200">
-              <div className="flex items-center gap-2">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity duration-200" onClick={() => setShowMenu(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-250">
+            <div className="p-5 flex items-center justify-between border-b border-gray-200">
+              <div className="flex items-center gap-2.5">
                 {orgSettings?.logoURL && !logoError ? (
-                  <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover ring-1 ring-gray-200" onError={() => setLogoError(true)} />
+                  <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover ring-1 ring-gray-200 outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10" onError={() => setLogoError(true)} />
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm">
                     <Building2 size={16} />
                   </div>
                 )}
                 <span className="text-sm font-bold text-gray-900 tracking-tight uppercase">{orgSettings?.name || 'HRFlow'}</span>
               </div>
-              <button onClick={() => setShowMenu(false)} className="p-2 text-gray-500 hover:text-gray-900 rounded-lg transition-colors">
+              <button 
+                onClick={() => setShowMenu(false)} 
+                className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-gray-900 active:scale-[0.96] rounded-xl transition-[color,transform] duration-150 ease-out cursor-pointer"
+                aria-label="Close Menu"
+              >
                 <X size={20} />
               </button>
             </div>
             
-            <nav className="flex-1 overflow-y-auto p-4 bg-white">
+            <nav className="flex-1 overflow-y-auto p-3 space-y-0.5 bg-white">
               {visibleModules.map(mod => (
                 <button
                   key={mod.id}
                   onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all ${
-                    activeTab === mod.id ? 'sidebar-active shadow-lg' : 'text-gray-600 hover:sidebar-hover'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] leading-5 active:scale-[0.98] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer ${
+                    activeTab === mod.id 
+                      ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200 font-semibold' 
+                      : 'text-gray-700 hover:bg-indigo-50/80 hover:text-indigo-700 font-medium'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={activeTab === mod.id ? 'text-white' : 'text-gray-400'}>{mod.icon}</div>
-                    <span className="font-semibold leading-5">{mod.label}</span>
+                    <span className="leading-5">{mod.label}</span>
                   </div>
                   {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
                 </button>
@@ -1027,9 +1042,12 @@ export default function MobileDashboard() {
             </nav>
 
             <div className="p-4 border-t border-gray-200 bg-white">
-              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] leading-5 text-red-600 hover:bg-red-50 transition-colors font-semibold">
-                <LogOut size={18} />
-                <span className="uppercase tracking-widest">Sign Out</span>
+              <button 
+                onClick={() => { logout(); setShowMenu(false) }} 
+                className="w-full flex items-center justify-center gap-2.5 px-3 py-3 rounded-xl text-[13px] leading-5 text-rose-600 hover:bg-rose-50 active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out font-bold cursor-pointer"
+              >
+                <LogOut size={17} />
+                <span className="uppercase tracking-wider">Sign Out</span>
               </button>
             </div>
           </div>

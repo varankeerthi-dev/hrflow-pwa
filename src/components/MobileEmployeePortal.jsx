@@ -700,19 +700,19 @@ export default function MobileEmployeePortal() {
           {!(validInLog || todayRecord?.inTime) ? (
             <button
               onClick={handleCheckIn}
-              className="flex-1 bg-white text-indigo-600 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg"
+              className="flex-1 bg-white text-indigo-600 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer touch-manipulation"
             >
               <Play size={16} fill="currentColor" /> Check In
             </button>
           ) : !(validOutLog || todayRecord?.outTime) ? (
             <button
               onClick={handleCheckOut}
-              className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg"
+              className="flex-1 bg-white text-rose-600 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer touch-manipulation"
             >
               <Square size={14} fill="currentColor" /> Check Out
             </button>
           ) : (
-            <div className="flex-1 bg-white/20 backdrop-blur py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+            <div className="flex-1 bg-white/20 backdrop-blur py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
               <CheckCircle2 size={16} /> Shift Complete
             </div>
           )}
@@ -773,7 +773,7 @@ export default function MobileEmployeePortal() {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
               <Calendar size={16} className="text-blue-600" />
             </div>
             <span className="text-xs text-gray-500">Leave Balance</span>
@@ -787,7 +787,7 @@ export default function MobileEmployeePortal() {
         
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
               <FileText size={16} className="text-emerald-600" />
             </div>
             <span className="text-xs text-gray-500">Requests</span>
@@ -803,7 +803,7 @@ export default function MobileEmployeePortal() {
           <h3 className="font-semibold text-gray-900">Recent Requests</h3>
           <button 
             onClick={() => setActiveTab('requests')}
-            className="text-xs text-indigo-600 font-medium"
+            className="text-xs text-indigo-600 font-semibold p-1 hover:text-indigo-800 active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer"
           >
             View All
           </button>
@@ -816,7 +816,7 @@ export default function MobileEmployeePortal() {
             {requests.slice(0, 5).map(req => (
               <div key={req.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                     req.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' :
                     req.status === 'Rejected' ? 'bg-rose-100 text-rose-600' :
                     'bg-amber-100 text-amber-600'
@@ -831,7 +831,7 @@ export default function MobileEmployeePortal() {
                 {req.status === 'Pending' && (
                   <button 
                     onClick={() => handleWithdraw(req.id, req.source)}
-                    className="text-xs text-rose-500 font-medium px-2 py-1"
+                    className="min-h-9 px-3 py-1 text-xs text-rose-600 font-semibold bg-rose-50 hover:bg-rose-100 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer"
                   >
                     Withdraw
                   </button>
@@ -846,7 +846,7 @@ export default function MobileEmployeePortal() {
       <div className="grid grid-cols-2 gap-3">
         <button 
           onClick={() => setActiveTab('attendance')}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left"
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer touch-manipulation"
         >
           <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
             <Calendar size={20} className="text-indigo-600" />
@@ -857,7 +857,7 @@ export default function MobileEmployeePortal() {
         
         <button 
           onClick={() => setShowRequestModal(true)}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left"
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer touch-manipulation"
         >
           <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mb-3">
             <Plus size={20} className="text-rose-600" />
@@ -868,7 +868,7 @@ export default function MobileEmployeePortal() {
         
         <button 
           onClick={() => setActiveTab('salary')}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left"
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer touch-manipulation"
         >
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
             <Wallet size={20} className="text-emerald-600" />
@@ -879,7 +879,7 @@ export default function MobileEmployeePortal() {
         
         <button 
           onClick={() => setActiveTab('profile')}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left"
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left active:scale-[0.96] transition-transform duration-150 ease-out cursor-pointer touch-manipulation"
         >
           <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center mb-3">
             <User size={20} className="text-purple-600" />
@@ -894,11 +894,11 @@ export default function MobileEmployeePortal() {
 
   // Attendance View
   const renderAttendance = () => (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-20">
       <div className="flex items-center justify-between px-1">
         <button 
           onClick={() => setActiveTab('dashboard')}
-          className="flex items-center gap-1 text-gray-600"
+          className="min-h-11 px-2 -ml-2 rounded-lg inline-flex items-center gap-1 text-gray-600 active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
         >
           <ChevronLeft size={20} />
           <span className="font-medium">Back</span>
@@ -915,7 +915,8 @@ export default function MobileEmployeePortal() {
             const d = new Date(y, m - 2, 1)
             setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
           }}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="min-w-11 min-h-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+          aria-label="Previous Month"
         >
           <ChevronLeft size={20} className="text-gray-600" />
         </button>
@@ -928,7 +929,8 @@ export default function MobileEmployeePortal() {
             const d = new Date(y, m, 1)
             setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
           }}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="min-w-11 min-h-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+          aria-label="Next Month"
         >
           <ChevronRight size={20} className="text-gray-600" />
         </button>
@@ -960,7 +962,7 @@ export default function MobileEmployeePortal() {
             }
             
             return (
-              <div key={date} className="aspect-square">
+              <div key={date} className="aspect-square min-h-[44px]">
                 <div className={`w-full h-full rounded-lg flex flex-col items-center justify-center text-xs ${statusColor} ${isToday ? 'ring-2 ring-indigo-500' : ''}`}>
                   <span className={`font-medium ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
                     {dayNum}
@@ -1005,11 +1007,11 @@ export default function MobileEmployeePortal() {
     })
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 pb-20">
         <div className="flex items-center justify-between px-1">
           <button 
             onClick={() => setActiveTab('dashboard')}
-            className="flex items-center gap-1 text-gray-600"
+            className="min-h-11 px-2 -ml-2 rounded-lg inline-flex items-center gap-1 text-gray-600 active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
           >
             <ChevronLeft size={20} />
             <span className="font-medium">Back</span>
@@ -1017,9 +1019,10 @@ export default function MobileEmployeePortal() {
           <h2 className="font-bold text-gray-900">My Requests</h2>
           <button 
             onClick={() => setShowRequestModal(true)}
-            className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"
+            className="min-w-11 min-h-11 bg-indigo-600 rounded-xl flex items-center justify-center text-white active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer"
+            aria-label="Create Request"
           >
-            <Plus size={18} />
+            <Plus size={20} />
           </button>
         </div>
 
@@ -1029,7 +1032,7 @@ export default function MobileEmployeePortal() {
             <p className="text-gray-500 mb-4">No requests yet</p>
             <button 
               onClick={() => setShowRequestModal(true)}
-              className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium"
+              className="min-h-11 bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer"
             >
               Create Request
             </button>
@@ -1049,7 +1052,7 @@ export default function MobileEmployeePortal() {
                   {/* Month Header */}
                   <button
                     onClick={() => toggleMonth(monthKey)}
-                    className="w-full flex items-center justify-between p-4 bg-gray-50/50 border-b border-gray-100"
+                    className="w-full min-h-11 flex items-center justify-between p-4 bg-gray-50/50 border-b border-gray-100 active:scale-[0.99] transition-transform duration-150 ease-out touch-manipulation cursor-pointer text-left"
                   >
                     <div className="flex items-center gap-3">
                       <div className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
@@ -1194,7 +1197,7 @@ export default function MobileEmployeePortal() {
                             {req.status === 'Pending' && (
                               <button 
                                 onClick={() => handleWithdraw(req.id, req.source)}
-                                className="w-full py-2.5 text-rose-600 text-sm font-medium bg-rose-50 rounded-xl"
+                                className="w-full min-h-11 py-2.5 text-rose-600 text-sm font-medium bg-rose-50 hover:bg-rose-100 rounded-xl active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer flex items-center justify-center"
                               >
                                 Withdraw Request
                               </button>
@@ -1215,11 +1218,11 @@ export default function MobileEmployeePortal() {
 
   // Profile View
   const renderProfile = () => (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-20">
       <div className="flex items-center justify-between px-1">
         <button 
           onClick={() => setActiveTab('dashboard')}
-          className="flex items-center gap-1 text-gray-600"
+          className="min-h-11 px-2 -ml-2 rounded-lg inline-flex items-center gap-1 text-gray-600 active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
         >
           <ChevronLeft size={20} />
           <span className="font-medium">Back</span>
@@ -1230,7 +1233,7 @@ export default function MobileEmployeePortal() {
 
       {/* Profile Header */}
       <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white text-center">
-        <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur mx-auto mb-4 flex items-center justify-center text-3xl font-bold">
+        <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur mx-auto mb-4 flex items-center justify-center text-3xl font-bold outline outline-1 -outline-offset-1 outline-white/30">
           {employee?.name?.[0] || user?.name?.[0]}
         </div>
         <h2 className="text-xl font-bold mb-1">{employee?.name || user?.name}</h2>
@@ -1328,7 +1331,10 @@ export default function MobileEmployeePortal() {
                     </div>
                     <p className="text-sm font-medium text-gray-900">{doc.name}</p>
                   </div>
-                  <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                  <button 
+                    className="min-w-11 min-h-11 flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+                    aria-label="View Document"
+                  >
                     <Eye size={18} />
                   </button>
                 </div>
@@ -1345,7 +1351,7 @@ export default function MobileEmployeePortal() {
             logout()
           }
         }}
-        className="w-full py-3.5 text-rose-600 font-medium bg-rose-50 rounded-xl flex items-center justify-center gap-2"
+        className="w-full min-h-11 py-3.5 text-rose-600 font-medium bg-rose-50 hover:bg-rose-100 rounded-xl flex items-center justify-center gap-2 active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer"
       >
         <LogOut size={18} />
         Logout
@@ -1355,11 +1361,11 @@ export default function MobileEmployeePortal() {
 
   // Salary View
   const renderSalary = () => (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-20">
       <div className="flex items-center justify-between px-1">
         <button 
           onClick={() => setActiveTab('dashboard')}
-          className="flex items-center gap-1 text-gray-600"
+          className="min-h-11 px-2 -ml-2 rounded-lg inline-flex items-center gap-1 text-gray-600 active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
         >
           <ChevronLeft size={20} />
           <span className="font-medium">Back</span>
@@ -1390,7 +1396,7 @@ export default function MobileEmployeePortal() {
                 </div>
                 <p className="font-medium text-gray-900">{item.month}</p>
               </div>
-              <button className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg">
+              <button className="min-h-11 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer">
                 Download
               </button>
             </div>
@@ -1456,7 +1462,7 @@ export default function MobileEmployeePortal() {
                       setValidationErrors({})
                       setSubmitSuccess('')
                     }}
-                    className={`py-2.5 rounded-xl text-xs font-medium transition-colors ${
+                    className={`min-h-11 py-2.5 rounded-xl text-xs font-medium active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out touch-manipulation cursor-pointer ${
                       requestForm.type === type 
                         ? 'bg-gray-900 text-white' 
                         : 'bg-gray-100 text-gray-600'
@@ -1477,7 +1483,7 @@ export default function MobileEmployeePortal() {
                 <select
                   value={selectedLeaveType}
                   onChange={(e) => setRequestForm({ ...requestForm, leaveType: e.target.value })}
-                  className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                 >
                   {configuredLeaveTypes.map(type => (
                     <option key={type.code} value={type.name}>{type.name}</option>
@@ -1506,7 +1512,7 @@ export default function MobileEmployeePortal() {
                         })
                       }}
                       dateFormat="dd/MM/yyyy"
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                      className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                       placeholderText="Select date"
                       minDate={new Date()}
                     />
@@ -1522,7 +1528,7 @@ export default function MobileEmployeePortal() {
                         setRequestForm({ ...requestForm, toDate: dateStr, halfDay: false })
                       }}
                       dateFormat="dd/MM/yyyy"
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                      className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                       placeholderText="Select date"
                       minDate={requestForm.fromDate ? new Date(requestForm.fromDate) : new Date()}
                       disabled={requestForm.halfDay}
@@ -1556,7 +1562,7 @@ export default function MobileEmployeePortal() {
                       setRequestForm({ ...requestForm, date: dateStr })
                     }}
                     dateFormat="dd/MM/yyyy"
-                    className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                    className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                     placeholderText="Select date"
                     minDate={new Date()}
                   />
@@ -1571,7 +1577,7 @@ export default function MobileEmployeePortal() {
                         setTimePickerMode('fromTime')
                         setShowTimePicker(true)
                       }}
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-left"
+                      className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-left active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
                     >
                       {requestForm.fromTime || 'Select time'}
                     </button>
@@ -1585,7 +1591,7 @@ export default function MobileEmployeePortal() {
                         setTimePickerMode('toTime')
                         setShowTimePicker(true)
                       }}
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-left"
+                      className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-left active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
                     >
                       {requestForm.toTime || 'Select time'}
                     </button>
@@ -1608,7 +1614,7 @@ export default function MobileEmployeePortal() {
                       setRequestForm({ ...requestForm, requestDate: dateStr })
                     }}
                     dateFormat="dd/MM/yyyy"
-                    className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                    className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                     placeholderText="Select date"
                   />
                 </div>
@@ -1621,7 +1627,7 @@ export default function MobileEmployeePortal() {
                     value={requestForm.amount}
                     onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
                     placeholder="Enter amount"
-                    className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                    className="w-full min-h-11 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                   />
                   {/* Quick Amount Toggles */}
                   <div className="flex gap-2 mt-2 flex-wrap">
@@ -1629,7 +1635,7 @@ export default function MobileEmployeePortal() {
                       <button
                         key={amt}
                         onClick={() => setRequestForm({ ...requestForm, amount: amt.toString() })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        className={`min-h-11 px-3.5 py-2 rounded-lg text-xs font-medium active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out touch-manipulation cursor-pointer ${
                           requestForm.amount === amt.toString()
                             ? 'bg-indigo-600 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1672,7 +1678,7 @@ export default function MobileEmployeePortal() {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 border-dashed rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 border-dashed rounded-xl cursor-pointer hover:bg-gray-100 transition-colors min-h-11"
                 >
                   <Upload size={20} className="text-gray-400" />
                   <span className="text-sm text-gray-600">
@@ -1684,9 +1690,10 @@ export default function MobileEmployeePortal() {
                         e.preventDefault()
                         setRequestForm({ ...requestForm, attachment: null })
                       }}
-                      className="ml-auto p-1 text-gray-400 hover:text-red-500"
+                      className="ml-auto min-w-11 min-h-11 flex items-center justify-center p-1 text-gray-400 hover:text-red-500 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+                      aria-label="Remove attachment"
                     >
-                      <X size={16} />
+                      <X size={18} />
                     </button>
                   )}
                 </label>
@@ -1723,14 +1730,14 @@ export default function MobileEmployeePortal() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowRequestModal(false)}
-                className="flex-1 py-3 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl"
+                className="flex-1 min-h-11 py-3 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer flex items-center justify-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRequestSubmit}
                 disabled={loading || fileUploading}
-                className="flex-1 py-3 text-sm font-medium text-white bg-indigo-600 rounded-xl disabled:opacity-50"
+                className="flex-1 min-h-11 py-3 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 active:scale-[0.96] transition-[background-color,opacity,transform] duration-150 ease-out touch-manipulation cursor-pointer flex items-center justify-center"
               >
                 {loading || fileUploading ? 'Submitting...' : 'Submit Request'}
               </button>
@@ -1768,7 +1775,7 @@ export default function MobileEmployeePortal() {
   return (
     <div className="flex-1 flex flex-col bg-gray-50 h-full">
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-20">
         {activeTab === 'dashboard' && renderDashboard()}
         {activeTab === 'attendance' && renderAttendance()}
         {activeTab === 'requests' && renderRequests()}
@@ -1791,8 +1798,8 @@ export default function MobileEmployeePortal() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors ${
-                  isActive ? 'text-indigo-600' : 'text-gray-400'
+                className={`min-h-11 flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl active:scale-[0.96] transition-[color,transform] duration-150 ease-out touch-manipulation cursor-pointer ${
+                  isActive ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
@@ -1847,7 +1854,7 @@ export default function MobileEmployeePortal() {
               accept="image/*"
               capture="user"
               onChange={(e) => setExceptionForm(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
-              className="w-full text-sm border border-gray-200 rounded-lg p-2"
+              className="w-full text-sm border border-gray-200 rounded-lg p-2 min-h-11"
             />
           </div>
 
@@ -1865,7 +1872,7 @@ export default function MobileEmployeePortal() {
             <button
               type="button"
               onClick={() => setShowExceptionModal(false)}
-              className="h-10 px-4 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+              className="min-h-11 h-11 px-4 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50 active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer"
             >
               Cancel
             </button>
@@ -1873,7 +1880,7 @@ export default function MobileEmployeePortal() {
               type="button"
               disabled={submittingAttendance}
               onClick={handleExceptionSubmit}
-              className="h-10 px-4 rounded-lg bg-amber-600 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-700 disabled:opacity-50"
+              className="min-h-11 h-11 px-4 rounded-lg bg-amber-600 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-700 disabled:opacity-50 active:scale-[0.96] transition-[background-color,opacity,transform] duration-150 ease-out touch-manipulation cursor-pointer"
             >
               {submittingAttendance ? 'Submitting...' : 'Submit Exception'}
             </button>

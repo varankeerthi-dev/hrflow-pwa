@@ -46,6 +46,55 @@ async function readUserDoc(uid, targetOrgId = null) {
       memberships.push({ orgId: userData.orgId, role: userData.role || 'admin', orgName: userData.orgName || 'My Organisation' })
     }
 
+    // Auto-recovery: if user has no orgId assigned, check if they are an admin or employee of any organisation
+    if (!activeOrgId) {
+      try {
+        const orgsSnap = await getDocs(collection(db, 'organisations'))
+        // 1. Check if UID is in adminUids of any organisation
+        const adminOrg = orgsSnap.docs.find(d => {
+          const admins = d.data().adminUids || []
+          return Array.isArray(admins) && admins.includes(uid)
+        })
+        if (adminOrg) {
+          activeOrgId = adminOrg.id
+          userData.role = userData.role || 'Admin'
+          userData.orgId = activeOrgId
+          userData.currentOrgId = activeOrgId
+          if (!memberships.some(m => m.orgId === activeOrgId)) {
+            memberships.push({ orgId: activeOrgId, role: userData.role, orgName: adminOrg.data().name })
+          }
+        } else {
+          // 2. Check if user's email matches an employee in any organisation
+          const userEmail = (userData.email || '').toLowerCase().trim()
+          if (userEmail) {
+            for (const oDoc of orgsSnap.docs) {
+              const empsSnap = await getDocs(collection(db, 'organisations', oDoc.id, 'employees'))
+              const matchedEmp = empsSnap.docs.find(e => {
+                const ed = e.data()
+                return (ed.email && ed.email.toLowerCase().trim() === userEmail) ||
+                       (ed.workEmail && ed.workEmail.toLowerCase().trim() === userEmail) ||
+                       (ed.personalEmail && ed.personalEmail.toLowerCase().trim() === userEmail)
+              })
+              if (matchedEmp) {
+                activeOrgId = oDoc.id
+                userData.role = matchedEmp.data().role || 'Employee'
+                userData.orgId = activeOrgId
+                userData.currentOrgId = activeOrgId
+                userData.employeeId = matchedEmp.id
+                userData.empCode = matchedEmp.data().empCode || userData.empCode
+                if (!memberships.some(m => m.orgId === activeOrgId)) {
+                  memberships.push({ orgId: activeOrgId, role: userData.role, orgName: oDoc.data().name })
+                }
+                break
+              }
+            }
+          }
+        }
+      } catch (recoveryErr) {
+        console.warn('readUserDoc: Auto-recovery error:', recoveryErr)
+      }
+    }
+
     if (activeOrgId) {
       try {
         const orgSnap = await getDoc(doc(db, 'organisations', activeOrgId))
@@ -260,7 +309,7 @@ export function AuthProvider({ children }) {
       onboardingComplete: false, // Flag to trigger onboarding UI
       createdAt: new Date().toISOString(),
     }
-    await setDoc(doc(db, 'users', firebaseUser.uid), userDoc)
+    await setDoc(doc(db, 'users', firebaseUser.uid), userDoc, { merge: true })
     
     // Read the full doc to get orgName etc if we just joined one
     const fullUser = await readUserDoc(firebaseUser.uid)
@@ -285,8 +334,8 @@ export function AuthProvider({ children }) {
           onboardingComplete: false,
           createdAt: new Date().toISOString(),
         }
-        await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
-        userData = { uid: firebaseUser.uid, ...newDoc }
+        await setDoc(doc(db, 'users', firebaseUser.uid), newDoc, { merge: true })
+        userData = (await readUserDoc(firebaseUser.uid)) || { uid: firebaseUser.uid, ...newDoc }
       }
       setUser(userData)
       return firebaseUser

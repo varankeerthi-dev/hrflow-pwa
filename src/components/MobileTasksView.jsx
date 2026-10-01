@@ -348,12 +348,20 @@ export default function MobileTasksView() {
       <div className="bg-white">
         {/* Calendar Header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-          <button onClick={() => setCalendarDate(addDays(monthStart, -1))} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <ChevronLeft size={18} className="text-gray-600" />
+          <button 
+            onClick={() => setCalendarDate(addDays(monthStart, -1))} 
+            className="min-w-11 min-h-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+            aria-label="Previous Month"
+          >
+            <ChevronLeft size={20} className="text-gray-600" />
           </button>
           <h2 className="text-sm font-semibold text-gray-900">{monthName}</h2>
-          <button onClick={() => setCalendarDate(addDays(monthEnd, 1))} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <ChevronRight size={18} className="text-gray-600" />
+          <button 
+            onClick={() => setCalendarDate(addDays(monthEnd, 1))} 
+            className="min-w-11 min-h-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-lg active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+            aria-label="Next Month"
+          >
+            <ChevronRight size={20} className="text-gray-600" />
           </button>
         </div>
 
@@ -366,7 +374,7 @@ export default function MobileTasksView() {
           ))}
         </div>
 
-        {/* Calendar Grid - Reduced height */}
+        {/* Calendar Grid */}
         <div className="grid grid-cols-7">
           {days.map(day => {
             const dateKey = format(day, 'yyyy-MM-dd')
@@ -379,7 +387,7 @@ export default function MobileTasksView() {
               <button
                 key={dateKey}
                 onClick={() => handleDateClick(day)}
-                className={`h-10 border-b border-r border-gray-100 p-0.5 flex flex-col items-center justify-center transition-colors ${
+                className={`min-h-[44px] h-11 border-b border-r border-gray-100 p-0.5 flex flex-col items-center justify-center active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer ${
                   !isCurrentMonth ? 'bg-gray-50/50' : 'hover:bg-gray-50'
                 } ${isTodayDate ? 'bg-indigo-50' : ''} ${isSelected ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}
               >
@@ -414,7 +422,8 @@ export default function MobileTasksView() {
               <div className="flex items-center gap-1">
                 <button 
                   onClick={() => openAddTaskModal(selectedDate)}
-                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer"
+                  className="min-w-11 min-h-11 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
+                  aria-label="Add task"
                 >
                   <Plus size={18} />
                 </button>
@@ -423,7 +432,8 @@ export default function MobileTasksView() {
                     setSelectedDate(null)
                     setDateTasks([])
                   }}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
+                  aria-label="Close"
                 >
                   <X size={18} />
                 </button>
@@ -438,7 +448,8 @@ export default function MobileTasksView() {
                       e.stopPropagation()
                       handleTaskComplete(task.id, e)
                     }}
-                    className={task.status === 'Completed' ? 'text-emerald-500' : 'text-gray-300'}
+                    className={`min-w-11 min-h-11 -ml-2 -my-2 flex items-center justify-center cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation ${task.status === 'Completed' ? 'text-emerald-500' : 'text-gray-300'}`}
+                    aria-label="Toggle task complete"
                   >
                     {task.status === 'Completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                   </button>
@@ -455,13 +466,15 @@ export default function MobileTasksView() {
                   <div className="flex items-center gap-0.5">
                     <button 
                       onClick={() => setShowTaskDetail(task)}
-                      className="p-1.5 text-gray-400 hover:text-indigo-600"
+                      className="min-w-11 min-h-11 flex items-center justify-center p-1.5 text-gray-400 hover:text-indigo-600 cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
+                      aria-label="Edit task"
                     >
                       <Edit3 size={14} />
                     </button>
                     <button 
                       onClick={() => handleDeleteTask(task.id)}
-                      className="p-1.5 text-gray-400 hover:text-rose-600"
+                      className="min-w-11 min-h-11 flex items-center justify-center p-1.5 text-gray-400 hover:text-rose-600 cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
+                      aria-label="Delete task"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -484,7 +497,8 @@ export default function MobileTasksView() {
                   setSelectedDate(null)
                   setDateTasks([])
                 }}
-                className="p-1.5 text-gray-400 hover:text-gray-600"
+                className="min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
+                aria-label="Close"
               >
                 <X size={18} />
               </button>
@@ -492,7 +506,7 @@ export default function MobileTasksView() {
             <p className="text-sm text-gray-500 italic mb-3">No tasks for this day</p>
             <button 
               onClick={() => openAddTaskModal(selectedDate)}
-              className="w-full py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg cursor-pointer hover:bg-indigo-100/70 transition-colors"
+              className="w-full min-h-11 py-2.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation flex items-center justify-center"
             >
               <Plus size={16} className="inline mr-1" />
               Add task for this day
@@ -576,10 +590,10 @@ export default function MobileTasksView() {
                 setSelectedDate(null)
                 setDateTasks([])
               }}
-              className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors relative ${
+              className={`flex-1 min-h-11 py-3 text-sm font-medium border-b-2 active:scale-[0.96] transition-[color,border-color,transform] duration-150 ease-out relative cursor-pointer touch-manipulation ${
                 activeTab === tab.id 
                   ? 'border-indigo-600 text-indigo-600' 
-                  : 'border-transparent text-gray-500'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab.label}
@@ -602,13 +616,14 @@ export default function MobileTasksView() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tasks..."
-            className="w-full h-8 pl-8 pr-8 bg-gray-50 border border-gray-200 rounded-lg text-xs placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all font-body"
+            className="w-full h-8 pl-8 pr-9 bg-gray-50 border border-gray-200 rounded-lg text-xs placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-[background-color,border-color,box-shadow] duration-150 ease-out font-body"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+              className="absolute right-0 top-0 bottom-0 min-w-11 min-h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
+              aria-label="Clear search"
             >
               <X size={14} />
             </button>
@@ -617,7 +632,7 @@ export default function MobileTasksView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-28">
         {activeTab === 'team' && (
           <div>
             {/* Team View Tabs */}
@@ -637,10 +652,10 @@ export default function MobileTasksView() {
                     setSelectedDate(null)
                     setDateTasks([])
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`min-h-11 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer touch-manipulation ${
                     teamView === view.id 
                       ? 'bg-gray-900 text-white' 
-                      : 'bg-gray-100 text-gray-600'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200/70'
                   }`}
                 >
                   {view.icon && <view.icon size={12} />}
@@ -687,10 +702,10 @@ export default function MobileTasksView() {
                     setSelectedDate(null)
                     setDateTasks([])
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`min-h-11 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer touch-manipulation ${
                     personalView === view.id 
                       ? 'bg-gray-900 text-white' 
-                      : 'bg-gray-100 text-gray-600'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200/70'
                   }`}
                 >
                   {view.icon && <view.icon size={12} />}
@@ -722,10 +737,9 @@ export default function MobileTasksView() {
       </div>
 
       {/* Add Task/Idea Button */}
-      {/* Add Task/Idea Button */}
       <button 
         onClick={() => activeTab === 'ideas' ? setShowIdeaModal(true) : openAddTaskModal()}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-300/60 z-30 transition-all cursor-pointer"
+        className="fixed bottom-20 right-4 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-[0.96] rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-300/60 z-30 transition-[background-color,box-shadow,transform] duration-150 ease-out cursor-pointer touch-manipulation"
         aria-label="Add Task or Idea"
       >
         <Plus size={28} />
@@ -788,7 +802,7 @@ export default function MobileTasksView() {
                             : [...current, emp.id]
                           setNewTask({ ...newTask, assignedTo: updated })
                         }}
-                        className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border font-body cursor-pointer ${
+                        className={`min-h-9 px-2.5 rounded-lg text-xs font-medium active:scale-[0.96] transition-[background-color,color,border-color,transform] duration-150 ease-out flex items-center gap-1.5 border font-body cursor-pointer touch-manipulation ${
                           isSelected 
                             ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-2xs' 
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -850,7 +864,7 @@ export default function MobileTasksView() {
                       key={p.id}
                       type="button"
                       onClick={() => setNewTask({ ...newTask, priority: p.id })}
-                      className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading cursor-pointer ${
+                      className={`h-10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[0.96] transition-[background-color,color,border-color,box-shadow,transform] duration-150 ease-out border font-heading cursor-pointer touch-manipulation ${
                         newTask.priority === p.id 
                           ? `${p.color} font-bold shadow-2xs`
                           : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -867,7 +881,7 @@ export default function MobileTasksView() {
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Status</label>
                 <select
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
                   value={newTask.status}
                   onChange={e => setNewTask({ ...newTask, status: e.target.value })}
                 >
@@ -885,7 +899,7 @@ export default function MobileTasksView() {
                   <DatePicker
                     selected={newTask.dueDate ? (newTask.dueDate.toDate ? newTask.dueDate.toDate() : new Date(newTask.dueDate)) : null}
                     onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer"
                     placeholderText="Select due date"
                     dateFormat="MMM d, yyyy"
                   />
@@ -898,7 +912,7 @@ export default function MobileTasksView() {
                 <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Internal Notes</label>
                 <input
                   type="text"
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
                   placeholder="Quick note (internal only)"
                   value={newTask.notes}
                   onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
@@ -921,7 +935,7 @@ export default function MobileTasksView() {
                   <label className="block text-xs font-medium text-slate-600 mb-1 font-body">Client Name</label>
                   <input
                     type="text"
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
                     placeholder="e.g. Acme Corp / John Doe"
                     value={newTask.clientName || ''}
                     onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
@@ -937,7 +951,7 @@ export default function MobileTasksView() {
                           key={type.id}
                           type="button"
                           onClick={() => setNewTask({ ...newTask, clientType: isSelected ? null : type.id })}
-                          className={`h-9 rounded-lg text-xs font-medium transition-all border flex items-center justify-center gap-1 cursor-pointer font-body ${
+                          className={`h-10 rounded-lg text-xs font-medium active:scale-[0.96] transition-[background-color,color,border-color,box-shadow,transform] duration-150 ease-out border flex items-center justify-center gap-1 cursor-pointer font-body touch-manipulation ${
                             isSelected 
                               ? `${type.bgColor} ${type.borderColor} ${type.color} font-bold shadow-2xs`
                               : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -1009,14 +1023,14 @@ export default function MobileTasksView() {
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
-              className="flex-1 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition-colors font-heading cursor-pointer"
+              className="flex-1 min-h-11 py-3 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out font-heading cursor-pointer touch-manipulation flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!newTask.title.trim()}
-              className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 font-heading cursor-pointer"
+              className="flex-1 min-h-11 py-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm active:scale-[0.96] transition-[background-color,box-shadow,transform,opacity] duration-150 ease-out disabled:opacity-50 font-heading cursor-pointer touch-manipulation flex items-center justify-center"
             >
               Create Task
             </button>
@@ -1064,15 +1078,16 @@ export default function MobileTasksView() {
                       onChange={(e) => selectedIdea ? null : handleBulletChange(index, e.target.value)}
                       placeholder={`Point ${index + 1}`}
                       readOnly={!!selectedIdea}
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="flex-1 min-h-11 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                     />
                     {!selectedIdea && newIdea.bullets.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveBullet(index)}
-                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        className="min-w-11 min-h-11 flex items-center justify-center p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out touch-manipulation cursor-pointer"
+                        aria-label="Remove point"
                       >
-                        <X size={16} />
+                        <X size={18} />
                       </button>
                     )}
                   </div>
@@ -1082,9 +1097,9 @@ export default function MobileTasksView() {
                 <button
                   type="button"
                   onClick={handleAddBullet}
-                  className="mt-3 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  className="mt-3 min-h-11 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation cursor-pointer"
                 >
-                  <Plus size={16} />
+                  <Plus size={18} />
                   Add another point
                 </button>
               )}
@@ -1099,7 +1114,7 @@ export default function MobileTasksView() {
                 setSelectedIdea(null)
                 setNewIdea({ title: '', bullets: [''] })
               }}
-              className="flex-1 py-3 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl"
+              className="flex-1 min-h-11 py-3 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl active:scale-[0.96] transition-[background-color,transform] duration-150 ease-out touch-manipulation cursor-pointer flex items-center justify-center"
             >
               {selectedIdea ? 'Close' : 'Cancel'}
             </button>
@@ -1107,7 +1122,7 @@ export default function MobileTasksView() {
               <button
                 type="submit"
                 disabled={!newIdea.title.trim()}
-                className="flex-1 py-3 text-sm font-medium text-white bg-indigo-600 rounded-xl disabled:opacity-50"
+                className="flex-1 min-h-11 py-3 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 active:scale-[0.96] transition-[background-color,opacity,transform] duration-150 ease-out touch-manipulation cursor-pointer flex items-center justify-center"
               >
                 Save Idea
               </button>
@@ -1138,7 +1153,7 @@ function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
   return (
     <div
       onClick={onClick}
-      className={`flex items-start gap-3 p-3 bg-white border border-gray-100 rounded-xl active:bg-gray-50 transition-colors cursor-pointer ${isCompleted ? 'opacity-60' : ''}`}
+      className={`flex items-start gap-3 p-3 bg-white border border-gray-100 rounded-xl active:scale-[0.99] active:bg-gray-50 transition-[background-color,transform] duration-150 ease-out cursor-pointer touch-manipulation ${isCompleted ? 'opacity-60' : ''}`}
     >
       <button 
         type="button"
@@ -1146,8 +1161,9 @@ function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
           e.stopPropagation()
           onComplete(task.id, e)
         }}
-        className={`mt-0.5 flex-shrink-0 cursor-pointer ${isCompleted ? 'text-emerald-500' : 'text-gray-300 hover:text-emerald-500 transition-colors'}`}
+        className={`min-w-11 min-h-11 -ml-2 -my-2 flex items-center justify-center flex-shrink-0 cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation ${isCompleted ? 'text-emerald-500' : 'text-gray-300 hover:text-emerald-500'}`}
         title="Toggle task completion"
+        aria-label="Toggle task completion"
       >
         {isCompleted ? <CheckCircle2 size={22} /> : <Circle size={22} />}
       </button>
@@ -1186,7 +1202,7 @@ function TaskItem({ task, onClick, onComplete, getAssigneeInfo }) {
           {assignees.length > 0 && (
             <div className="flex -space-x-1 ml-auto">
               {assignees.slice(0, 3).map(emp => (
-                <div key={emp.id} className="w-4 h-4 rounded-full bg-emerald-100 border border-white flex items-center justify-center text-[7px] font-bold text-emerald-600">
+                <div key={emp.id} className="w-5 h-5 rounded-full bg-emerald-100 border border-white flex items-center justify-center text-[8px] font-bold text-emerald-600 outline outline-1 -outline-offset-1 outline-black/10">
                   {emp.name.charAt(0).toUpperCase()}
                 </div>
               ))}
@@ -1225,12 +1241,16 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-200">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <button onClick={onClose} className="p-2 -ml-2 text-gray-500 cursor-pointer">
+          <button 
+            onClick={onClose} 
+            className="min-w-11 min-h-11 flex items-center justify-center p-2 -ml-2 text-gray-500 hover:text-gray-700 cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
+            aria-label="Close"
+          >
             <X size={20} />
           </button>
           <button 
             onClick={handleSave}
-            className="text-indigo-600 font-semibold text-sm cursor-pointer"
+            className="min-h-11 px-3 flex items-center text-indigo-600 font-semibold text-sm cursor-pointer active:scale-[0.96] transition-transform duration-150 ease-out touch-manipulation"
           >
             Save
           </button>
@@ -1251,13 +1271,13 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                         : [...editedTask.assignedTo, emp.id]
                       setEditedTask({ ...editedTask, assignedTo: updated })
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-colors border cursor-pointer ${
+                    className={`min-h-10 flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium active:scale-[0.96] transition-[background-color,color,border-color,transform] duration-150 ease-out border cursor-pointer touch-manipulation ${
                       isSelected 
                         ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold' 
-                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                        : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200/70'
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold outline outline-1 -outline-offset-1 outline-black/10 ${
                       isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-600'
                     }`}>
                       {emp.name.charAt(0).toUpperCase()}
@@ -1286,7 +1306,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                 <button
                   key={s.id}
                   onClick={() => setEditedTask({ ...editedTask, status: s.id })}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  className={`min-h-10 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium active:scale-[0.96] transition-[background-color,color,transform] duration-150 ease-out cursor-pointer touch-manipulation ${
                     editedTask.status === s.id 
                       ? 'bg-gray-900 text-white font-semibold' 
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200/70'
@@ -1306,8 +1326,8 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                 <button
                   key={p.id}
                   onClick={() => setEditedTask({ ...editedTask, priority: p.id })}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all border cursor-pointer ${
-                    editedTask.priority === p.id ? p.color : 'bg-white border-gray-200 text-gray-600'
+                  className={`min-h-11 flex-1 py-2.5 rounded-xl text-xs font-medium active:scale-[0.96] transition-[background-color,color,border-color,transform] duration-150 ease-out border cursor-pointer touch-manipulation ${
+                    editedTask.priority === p.id ? p.color : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   {p.label}
@@ -1327,7 +1347,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
               </div>
               <div className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
                 {editedTask.checklists.map((item, idx) => (
-                  <label key={item.id || idx} className="flex items-start gap-2.5 p-1.5 rounded-lg hover:bg-white transition-colors cursor-pointer select-none">
+                  <label key={item.id || idx} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer select-none min-h-11 items-center">
                     <input
                       type="checkbox"
                       checked={!!item.completed}
@@ -1335,7 +1355,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
                         const updated = editedTask.checklists.map((c, i) => i === idx ? { ...c, completed: e.target.checked } : c)
                         setEditedTask({ ...editedTask, checklists: updated })
                       }}
-                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
+                      className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
                     />
                     <div className="flex-1 min-w-0">
                       <span className={`text-xs block ${item.completed ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}`}>
@@ -1353,7 +1373,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
             <DatePicker
               selected={editedTask.dueDate ? (editedTask.dueDate.toDate ? editedTask.dueDate.toDate() : new Date(editedTask.dueDate)) : null}
               onChange={(date) => setEditedTask({ ...editedTask, dueDate: date })}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+              className="w-full min-h-11 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
               dateFormat="MMM d, yyyy"
               placeholderText="No due date"
             />
@@ -1361,7 +1381,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
 
           <button
             onClick={() => onDelete(task.id)}
-            className="w-full py-3 text-rose-600 font-semibold text-sm border-t border-gray-100 flex items-center justify-center gap-2 cursor-pointer hover:bg-rose-50 rounded-b-xl transition-colors"
+            className="w-full min-h-11 py-3.5 text-rose-600 font-semibold text-sm border-t border-gray-100 flex items-center justify-center gap-2 cursor-pointer hover:bg-rose-50 active:scale-[0.96] rounded-b-xl transition-[background-color,transform] duration-150 ease-out touch-manipulation"
           >
             <Trash2 size={16} />
             Delete Task
