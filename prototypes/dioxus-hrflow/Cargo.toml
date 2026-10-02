@@ -1,0 +1,14 @@
+[package]
+name = "dioxus-hrflow-prototype"
+version.workspace = true
+edition = "2024"
+publish = false
+
+[dependencies]
+dioxus = { version = "=0.7.10" }
+hrflow-attendance-policy = { path = "../../rust/attendance-policy" }
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+mobile = ["dioxus/mobile"]

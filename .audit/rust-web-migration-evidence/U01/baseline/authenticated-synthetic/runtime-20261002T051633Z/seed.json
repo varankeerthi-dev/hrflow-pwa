@@ -1,0 +1,223 @@
+{
+  "projectId": "demo-hrflow-u01",
+  "orgId": "u01-synthetic-org",
+  "personas": [
+    {
+      "uid": "u01-admin",
+      "persona": "synthetic-admin",
+      "email": "u01-admin@example.invalid",
+      "name": "Synthetic Admin",
+      "role": "admin",
+      "localId": "MCfWC75m6j1srcISJP8D7MqV0V6g",
+      "employeeId": null,
+      "directPermissions": null
+    },
+    {
+      "uid": "u01-employee",
+      "persona": "employee-self-service-defaults",
+      "email": "u01-employee@example.invalid",
+      "name": "Synthetic Employee",
+      "role": "employee",
+      "employeeId": "u01-synthetic-employee",
+      "localId": "orDw2ZyccRJHgB3dmt8JjYsmzI3E",
+      "directPermissions": null
+    },
+    {
+      "uid": "u01-view-only",
+      "persona": "permission-limited-view-only",
+      "email": "u01-view-only@example.invalid",
+      "name": "Synthetic view only",
+      "role": "staff",
+      "permissions": {
+        "Employees": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      },
+      "localId": "Lm8rgdjkSGEUll8Mz4hCM5nGTZLC",
+      "employeeId": null,
+      "directPermissions": {
+        "Employees": {
+          "view": true,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      }
+    },
+    {
+      "uid": "u01-create-only",
+      "persona": "permission-limited-create-only",
+      "email": "u01-create-only@example.invalid",
+      "name": "Synthetic create only",
+      "role": "staff",
+      "permissions": {
+        "Employees": {
+          "view": false,
+          "create": true,
+          "edit": false,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      },
+      "localId": "dg8d50J8OHlKeLsuhYVNB2VRitGk",
+      "employeeId": null,
+      "directPermissions": {
+        "Employees": {
+          "view": false,
+          "create": true,
+          "edit": false,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      }
+    },
+    {
+      "uid": "u01-edit-only",
+      "persona": "permission-limited-edit-only",
+      "email": "u01-edit-only@example.invalid",
+      "name": "Synthetic edit only",
+      "role": "staff",
+      "permissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": true,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      },
+      "localId": "1RuYePoJCZhZ7UDWLA9K28t7zGbo",
+      "employeeId": null,
+      "directPermissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": true,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      }
+    },
+    {
+      "uid": "u01-delete-only",
+      "persona": "permission-limited-delete-only",
+      "email": "u01-delete-only@example.invalid",
+      "name": "Synthetic delete only",
+      "role": "staff",
+      "permissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": true,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      },
+      "localId": "A0qZGDzl6P2sZmmZ1ow3mZXEWuNE",
+      "employeeId": null,
+      "directPermissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": true,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      }
+    },
+    {
+      "uid": "u01-approve-only",
+      "persona": "permission-limited-approve-only",
+      "email": "u01-approve-only@example.invalid",
+      "name": "Synthetic approve only",
+      "role": "staff",
+      "permissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "approve": true,
+          "export": false,
+          "full": false
+        }
+      },
+      "localId": "QLIw5qkCZK0chaWXWEl3fRyVfhYI",
+      "employeeId": null,
+      "directPermissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "approve": true,
+          "export": false,
+          "full": false
+        }
+      }
+    },
+    {
+      "uid": "u01-no-permission",
+      "persona": "permission-limited-all-false",
+      "email": "u01-no-permission@example.invalid",
+      "name": "Synthetic No Permission",
+      "role": "staff",
+      "permissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      },
+      "localId": "puxhCodyQSBDVJUbzAXYA112pguH",
+      "employeeId": null,
+      "directPermissions": {
+        "Employees": {
+          "view": false,
+          "create": false,
+          "edit": false,
+          "delete": false,
+          "approve": false,
+          "export": false,
+          "full": false
+        }
+      }
+    }
+  ],
+  "seededEmployeeDocument": "organisations/u01-synthetic-org/employees/u01-synthetic-employee",
+  "seededCollections": [
+    "users",
+    "organisations/u01-synthetic-org",
+    "organisations/u01-synthetic-org/employees"
+  ],
+  "otherBusinessCollections": "intentionally empty",
+  "emulatorOriginsUsed": [
+    "http://127.0.0.1:9099",
+    "http://127.0.0.1:8080"
+  ]
+}

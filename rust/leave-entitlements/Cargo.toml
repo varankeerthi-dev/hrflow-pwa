@@ -1,0 +1,16 @@
+[package]
+name = "hrflow-leave-entitlements"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[lib]
+name = "hrflow_leave_entitlements"
+path = "src/lib.rs"
+
+[[bin]]
+name = "leave-entitlements-parity"
+path = "src/main.rs"

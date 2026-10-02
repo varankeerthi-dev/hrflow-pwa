@@ -32,3 +32,5 @@ firebase-debug.log
 
 .vercel
 functions/
+/rust/attendance-policy/target/
+/target/

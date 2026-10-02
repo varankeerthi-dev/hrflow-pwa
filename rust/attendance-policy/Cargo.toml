@@ -1,0 +1,8 @@
+[package]
+name = "hrflow-attendance-policy"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]

@@ -1,0 +1,16 @@
+{
+  "name": "u01-authenticated-synthetic-baseline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare-local-copy": "node prepare.mjs",
+    "seed": "node seed.mjs",
+    "capture": "node capture.mjs",
+    "start-local": "bash start-local.sh",
+    "stop-local": "bash stop-local.sh"
+  },
+  "dependencies": {
+    "firebase-tools": "^14.10.1",
+    "playwright-core": "^1.55.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "firestore": {
+    "rules": "<absolute-path-to-published-source-copy>/firestore.rules",
+    "indexes": "<absolute-path-to-published-source-copy>/firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "<absolute-path-to-published-source-copy>/storage.rules"
+  },
+  "emulators": {
+    "host": "127.0.0.1",
+    "auth": { "host": "127.0.0.1", "port": 9099 },
+    "firestore": { "host": "127.0.0.1", "port": 8080 },
+    "storage": { "host": "127.0.0.1", "port": 9199 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

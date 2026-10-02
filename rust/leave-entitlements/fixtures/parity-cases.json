@@ -1,0 +1,853 @@
+[
+  {
+    "name": "legacy-casual-alias",
+    "op": "normalize",
+    "value": "CL",
+    "expected": "casual"
+  },
+  {
+    "name": "legacy-loss-of-pay-alias",
+    "op": "normalize",
+    "value": "Loss of Pay",
+    "expected": "lop"
+  },
+  {
+    "name": "custom-type-alias",
+    "op": "normalize",
+    "value": "Community Leave",
+    "orgData": {
+      "leaveTypes": [
+        {
+          "code": "volunteer_day",
+          "name": "Volunteer Day",
+          "aliases": [
+            "Community Leave"
+          ]
+        }
+      ]
+    },
+    "expected": "volunteer_day"
+  },
+  {
+    "name": "built-in-override-and-custom-catalog",
+    "op": "configuredTypes",
+    "orgData": {
+      "leaveTypes": [
+        {
+          "code": "casual",
+          "name": "Casual Time",
+          "aliases": [
+            "CL",
+            "Personal Day"
+          ]
+        },
+        {
+          "code": "volunteer_day",
+          "name": "Volunteer Day",
+          "aliases": [
+            "Community Leave"
+          ]
+        },
+        {
+          "code": "sick",
+          "name": "Sick Leave",
+          "enabled": false
+        }
+      ]
+    },
+    "expected": [
+      {
+        "code": "casual",
+        "name": "Casual Time",
+        "aliases": [
+          "CL",
+          "Personal Day"
+        ],
+        "enabled": true,
+        "builtIn": true
+      },
+      {
+        "code": "privilege",
+        "name": "Privilege",
+        "aliases": [
+          "EL",
+          "Annual"
+        ],
+        "enabled": true,
+        "builtIn": true
+      },
+      {
+        "code": "maternity",
+        "name": "Maternity",
+        "aliases": [],
+        "enabled": true,
+        "builtIn": true
+      },
+      {
+        "code": "paternity",
+        "name": "Paternity",
+        "aliases": [],
+        "enabled": true,
+        "builtIn": true
+      },
+      {
+        "code": "unpaid",
+        "name": "Unpaid",
+        "aliases": [],
+        "enabled": true,
+        "builtIn": true
+      },
+      {
+        "code": "lop",
+        "name": "LOP",
+        "aliases": [
+          "Loss of Pay"
+        ],
+        "enabled": true,
+        "builtIn": true
+      },
+      {
+        "code": "volunteer_day",
+        "name": "Volunteer Day",
+        "aliases": [
+          "Community Leave"
+        ],
+        "enabled": true,
+        "builtIn": false
+      }
+    ]
+  },
+  {
+    "name": "monthly-accrual-month-end-clamps",
+    "op": "accrual",
+    "leaveType": "CL",
+    "asOf": "2024-03-31",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 1.25,
+          "effectiveFrom": "2024-01-31"
+        }
+      }
+    },
+    "expected": {
+      "units": 2.5,
+      "grants": [
+        {
+          "id": "casual_20240229_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-02-29",
+          "quantity": 1.25,
+          "cadence": "monthly",
+          "policyVersion": 1
+        },
+        {
+          "id": "casual_20240331_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-03-31",
+          "quantity": 1.25,
+          "cadence": "monthly",
+          "policyVersion": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "monthly-accrual-not-before-anniversary",
+    "op": "accrual",
+    "leaveType": "Casual",
+    "asOf": "2024-02-28",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 1,
+          "effectiveFrom": "2024-01-31"
+        }
+      }
+    },
+    "expected": {
+      "units": 0,
+      "grants": []
+    }
+  },
+  {
+    "name": "annual-accrual-after-leap-day-anniversary",
+    "op": "accrual",
+    "leaveType": "Sick",
+    "asOf": "2025-02-28",
+    "orgData": {
+      "leavePolicies": {
+        "Sick": {
+          "entitlementCadence": "annual",
+          "entitlementAmount": 12,
+          "effectiveFrom": "2024-02-29"
+        }
+      }
+    },
+    "expected": {
+      "units": 12,
+      "grants": [
+        {
+          "id": "sick_20250228_v1",
+          "leaveTypeCode": "sick",
+          "effectiveDate": "2025-02-28",
+          "quantity": 12,
+          "cadence": "annual",
+          "policyVersion": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "effective-dated-policy-versions",
+    "op": "accrual",
+    "leaveType": "CL",
+    "asOf": "2024-04-15",
+    "orgData": {
+      "leavePolicyVersions": [
+        {
+          "leaveTypeCode": "casual",
+          "effectiveFrom": "2024-01-01",
+          "version": 1,
+          "policy": {
+            "entitlementCadence": "monthly",
+            "entitlementAmount": 1,
+            "effectiveFrom": "2024-01-01"
+          }
+        },
+        {
+          "leaveTypeCode": "casual",
+          "effectiveFrom": "2024-03-15",
+          "version": 2,
+          "policy": {
+            "entitlementCadence": "monthly",
+            "entitlementAmount": 2,
+            "effectiveFrom": "2024-03-15"
+          }
+        }
+      ],
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 2,
+          "effectiveFrom": "2024-03-15"
+        }
+      }
+    },
+    "expected": {
+      "units": 4,
+      "grants": [
+        {
+          "id": "casual_20240201_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-02-01",
+          "quantity": 1,
+          "cadence": "monthly",
+          "policyVersion": 1
+        },
+        {
+          "id": "casual_20240301_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-03-01",
+          "quantity": 1,
+          "cadence": "monthly",
+          "policyVersion": 1
+        },
+        {
+          "id": "casual_20240415_v2",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-04-15",
+          "quantity": 2,
+          "cadence": "monthly",
+          "policyVersion": 2
+        }
+      ]
+    }
+  },
+  {
+    "name": "future-policy-is-not-selected",
+    "op": "policy",
+    "leaveType": "Casual",
+    "date": "2024-02-29",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "paid": false,
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 2,
+          "effectiveFrom": "2024-03-01"
+        }
+      },
+      "leavePolicyVersions": [
+        {
+          "leaveTypeCode": "casual",
+          "effectiveFrom": "2024-03-01",
+          "version": 1,
+          "policy": {
+            "paid": false,
+            "entitlementCadence": "monthly",
+            "entitlementAmount": 2,
+            "effectiveFrom": "2024-03-01"
+          }
+        }
+      ]
+    },
+    "expected": {}
+  },
+  {
+    "name": "future-policy-leaves-balance-unconfigured",
+    "op": "balance",
+    "leaveType": "Casual",
+    "asOf": "2024-02-29",
+    "ledgerEntries": [],
+    "requests": [],
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "paid": false,
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 2,
+          "effectiveFrom": "2024-03-01"
+        }
+      },
+      "leavePolicyVersions": [
+        {
+          "leaveTypeCode": "casual",
+          "effectiveFrom": "2024-03-01",
+          "version": 1,
+          "policy": {
+            "paid": false,
+            "entitlementCadence": "monthly",
+            "entitlementAmount": 2,
+            "effectiveFrom": "2024-03-01"
+          }
+        }
+      ]
+    },
+    "expected": {
+      "leaveTypeCode": "casual",
+      "leaveType": "Casual",
+      "configured": false,
+      "cadence": "unconfigured",
+      "policyVersion": "v1",
+      "accrued": 0,
+      "accruals": [],
+      "opening": 0,
+      "granted": 0,
+      "used": 0,
+      "pending": 0,
+      "expired": 0,
+      "entitlement": 0,
+      "available": null,
+      "overEntitlement": 0,
+      "projectedAfterPending": null,
+      "asOf": "2024-02-29"
+    }
+  },
+  {
+    "name": "balance-fractional-ledger-reversals-expiry-and-pending",
+    "op": "balance",
+    "leaveType": "CL",
+    "asOf": "2024-03-31",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 0.75,
+          "effectiveFrom": "2024-01-31"
+        }
+      }
+    },
+    "ledgerEntries": [
+      {
+        "leaveType": "Casual",
+        "quantity": 4.25,
+        "source": "opening_balance"
+      },
+      {
+        "leaveTypeCode": "CL",
+        "quantity": -1.75,
+        "source": "approved_leave"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": 0.125,
+        "source": "leave_debit"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": 0.25,
+        "source": "leave_cancelled"
+      },
+      {
+        "leaveType": "CL",
+        "quantity": -0.5,
+        "source": "expiry"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": 0.3333,
+        "source": "accrual"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": 0.1,
+        "source": "balance_adjustment"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": 0.2,
+        "source": "adjustment_credit"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": -9,
+        "source": "approved_leave",
+        "effectiveDate": "2024-04-01"
+      },
+      {
+        "leaveType": "Casual",
+        "quantity": -9,
+        "source": "approved_leave",
+        "id": "__balance__cached",
+        "isBalanceState": true
+      }
+    ],
+    "requests": [
+      {
+        "leaveType": "Casual",
+        "status": "Pending",
+        "coveragePreview": [
+          {
+            "leaveUnits": 0.75
+          },
+          {
+            "leaveUnits": 0.25
+          }
+        ]
+      },
+      {
+        "leaveTypeCode": "CL",
+        "status": "in_review",
+        "duration": 0.5
+      },
+      {
+        "leaveType": "Sick",
+        "status": "Pending",
+        "requestedUnits": 2
+      },
+      {
+        "leaveType": "Casual",
+        "status": "Rejected",
+        "requestedUnits": 9
+      },
+      {
+        "leaveType": "Casual",
+        "status": "Pending"
+      }
+    ],
+    "expected": {
+      "leaveTypeCode": "casual",
+      "leaveType": "Casual",
+      "configured": true,
+      "cadence": "monthly",
+      "policyVersion": "v1",
+      "accrued": 1.5,
+      "accruals": [
+        {
+          "id": "casual_20240229_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-02-29",
+          "quantity": 0.75,
+          "cadence": "monthly",
+          "policyVersion": 1
+        },
+        {
+          "id": "casual_20240331_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-03-31",
+          "quantity": 0.75,
+          "cadence": "monthly",
+          "policyVersion": 1
+        }
+      ],
+      "opening": 4.25,
+      "granted": 0.8333,
+      "used": 1.375,
+      "pending": 1.5,
+      "expired": 0.5,
+      "entitlement": 6.5833,
+      "available": 3.2083000000000004,
+      "overEntitlement": 0,
+      "projectedAfterPending": 3.2083000000000004,
+      "asOf": "2024-03-31"
+    }
+  },
+  {
+    "name": "unconfigured-legacy-balance-is-null",
+    "op": "balance",
+    "leaveType": "Casual",
+    "asOf": "2024-03-01",
+    "orgData": {},
+    "ledgerEntries": [],
+    "requests": [],
+    "expected": {
+      "leaveTypeCode": "casual",
+      "leaveType": "Casual",
+      "configured": false,
+      "cadence": "unconfigured",
+      "policyVersion": "v1",
+      "accrued": 0,
+      "accruals": [],
+      "opening": 0,
+      "granted": 0,
+      "used": 0,
+      "pending": 0,
+      "expired": 0,
+      "entitlement": 0,
+      "available": null,
+      "overEntitlement": 0,
+      "projectedAfterPending": null,
+      "asOf": "2024-03-01"
+    }
+  },
+  {
+    "name": "shortfall-splits-entitled-unpaid-and-lop",
+    "op": "limit",
+    "availableUnits": 0.5,
+    "overuseMode": "unpaid_shortfall",
+    "candidates": [
+      {
+        "date": "2026-01-01",
+        "leaveUnits": 1,
+        "classification": "paid_leave",
+        "policySnapshot": {
+          "paidBehavior": "unpaid"
+        }
+      },
+      {
+        "date": "2026-01-02",
+        "leaveUnits": 1,
+        "classification": "paid_leave",
+        "policySnapshot": {
+          "paidBehavior": "lop"
+        }
+      }
+    ],
+    "expected": {
+      "candidates": [
+        {
+          "date": "2026-01-01",
+          "leaveUnits": 1,
+          "classification": "mixed_leave",
+          "policySnapshot": {
+            "paidBehavior": "unpaid"
+          },
+          "segments": [
+            {
+              "part": "entitled",
+              "classification": "half_paid_leave",
+              "units": 0.5
+            },
+            {
+              "part": "shortfall",
+              "classification": "unpaid_leave",
+              "units": 0.5
+            }
+          ]
+        },
+        {
+          "date": "2026-01-02",
+          "leaveUnits": 1,
+          "classification": "lop_leave",
+          "policySnapshot": {
+            "paidBehavior": "lop"
+          },
+          "segments": []
+        }
+      ],
+      "requestedPaidUnits": 2,
+      "paidUnits": 0.5,
+      "unpaidShortfallUnits": 1.5,
+      "overEntitlementUnits": 0
+    }
+  },
+  {
+    "name": "negative-available-block-mode",
+    "op": "limit",
+    "availableUnits": -0.75,
+    "overuseMode": "block",
+    "candidates": [
+      {
+        "date": "2026-01-03",
+        "leaveUnits": 1.25,
+        "classification": "paid_leave"
+      }
+    ],
+    "expected": {
+      "candidates": [
+        {
+          "date": "2026-01-03",
+          "leaveUnits": 1.25,
+          "classification": "paid_leave"
+        }
+      ],
+      "requestedPaidUnits": 1.25,
+      "paidUnits": 1.25,
+      "unpaidShortfallUnits": 0,
+      "overEntitlementUnits": 1.25
+    }
+  },
+  {
+    "name": "non-finite-unavailable-entitlement-does-not-rewrite-candidates",
+    "op": "limit",
+    "overuseMode": "unpaid_shortfall",
+    "candidates": [
+      {
+        "date": "2026-01-04",
+        "leaveUnits": 0.5,
+        "classification": "paid_leave"
+      }
+    ],
+    "expected": {
+      "candidates": [
+        {
+          "date": "2026-01-04",
+          "leaveUnits": 0.5,
+          "classification": "paid_leave"
+        }
+      ],
+      "requestedPaidUnits": 0.5,
+      "paidUnits": 0.5,
+      "unpaidShortfallUnits": 0,
+      "overEntitlementUnits": 0
+    }
+  },
+  {
+    "name": "salary-impact-fractional-unpaid-units",
+    "op": "salaryImpact",
+    "input": {
+      "units": 1.5,
+      "monthlySalary": 30000,
+      "basicPercent": 40,
+      "hraPercent": 20,
+      "monthDays": 30
+    },
+    "expected": 900
+  },
+  {
+    "name": "salary-impact-rejects-zero-day-period",
+    "op": "salaryImpact",
+    "input": {
+      "units": 1,
+      "monthlySalary": 30000,
+      "monthDays": 0
+    },
+    "expected": null
+  },
+  {
+    "name": "salary-impact-missing-salary-is-null",
+    "op": "salaryImpact",
+    "input": {
+      "units": 1,
+      "monthlySalary": null
+    },
+    "expected": null
+  },
+  {
+    "name": "custom-leave-type-definition-lookup",
+    "op": "definition",
+    "leaveType": "Community Leave",
+    "orgData": {
+      "leaveTypes": [
+        {
+          "code": "volunteer_day",
+          "name": "Volunteer Day",
+          "aliases": [
+            "Community Leave"
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "code": "volunteer_day",
+      "name": "Volunteer Day",
+      "aliases": [
+        "Community Leave"
+      ],
+      "enabled": true,
+      "builtIn": false
+    }
+  },
+  {
+    "name": "valid-monthly-entitlement-configuration",
+    "op": "isConfigured",
+    "policy": {
+      "entitlementCadence": "monthly",
+      "entitlementAmount": "2.5",
+      "effectiveFrom": "2024-02-29"
+    },
+    "expected": true
+  },
+  {
+    "name": "invalid-effective-date-is-not-configured",
+    "op": "isConfigured",
+    "policy": {
+      "entitlementCadence": "annual",
+      "entitlementAmount": 12,
+      "effectiveFrom": "2025-02-29"
+    },
+    "expected": false
+  },
+  {
+    "name": "effective-policy-version-selected-on-date",
+    "op": "policy",
+    "leaveType": "CL",
+    "date": "2024-03-15",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 1,
+          "effectiveFrom": "2024-01-01",
+          "memo": "direct"
+        }
+      },
+      "leavePolicyVersions": [
+        {
+          "leaveTypeCode": "casual",
+          "effectiveFrom": "2024-01-01",
+          "version": 1,
+          "policy": {
+            "entitlementCadence": "monthly",
+            "entitlementAmount": 1,
+            "effectiveFrom": "2024-01-01"
+          }
+        },
+        {
+          "leaveTypeCode": "casual",
+          "effectiveFrom": "2024-03-15",
+          "version": 2,
+          "policy": {
+            "entitlementCadence": "annual",
+            "entitlementAmount": 15,
+            "effectiveFrom": "2024-03-15",
+            "paid": false
+          }
+        }
+      ]
+    },
+    "expected": {
+      "entitlementCadence": "annual",
+      "entitlementAmount": 15,
+      "effectiveFrom": "2024-03-15",
+      "memo": "direct",
+      "paid": false,
+      "policyVersion": 2
+    }
+  },
+  {
+    "name": "allow-negative-mode-keeps-paid-candidates",
+    "op": "limit",
+    "availableUnits": 0.5,
+    "overuseMode": "allow_negative",
+    "candidates": [
+      {
+        "date": "2026-01-05",
+        "leaveUnits": 1.5,
+        "classification": "paid_leave"
+      }
+    ],
+    "expected": {
+      "candidates": [
+        {
+          "date": "2026-01-05",
+          "leaveUnits": 1.5,
+          "classification": "paid_leave"
+        }
+      ],
+      "requestedPaidUnits": 1.5,
+      "paidUnits": 1.5,
+      "unpaidShortfallUnits": 0,
+      "overEntitlementUnits": 1
+    }
+  },
+  {
+    "name": "policy-date-defaults-to-current-utc-day",
+    "op": "policy",
+    "leaveType": "Casual",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 1,
+          "effectiveFrom": "2024-01-01"
+        }
+      }
+    },
+    "expected": {
+      "entitlementCadence": "monthly",
+      "entitlementAmount": 1,
+      "effectiveFrom": "2024-01-01"
+    }
+  },
+  {
+    "name": "accrual-units-round-like-javascript-tofixed-four",
+    "op": "accrual",
+    "leaveType": "Casual",
+    "asOf": "2024-02-01",
+    "orgData": {
+      "leavePolicies": {
+        "Casual": {
+          "entitlementCadence": "monthly",
+          "entitlementAmount": 5e-05,
+          "effectiveFrom": "2024-01-01"
+        }
+      }
+    },
+    "expected": {
+      "units": 0.0001,
+      "grants": [
+        {
+          "id": "casual_20240201_v1",
+          "leaveTypeCode": "casual",
+          "effectiveDate": "2024-02-01",
+          "quantity": 5e-05,
+          "cadence": "monthly",
+          "policyVersion": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "policy-alias-fallback-keeps-object-key-order",
+    "op": "policy",
+    "leaveType": "EL",
+    "date": "2024-05-01",
+    "orgData": {
+      "leavePolicies": {
+        "annual": false,
+        "Annual": {
+          "entitlementCadence": "annual",
+          "entitlementAmount": 10,
+          "effectiveFrom": "2024-01-01"
+        }
+      }
+    },
+    "expected": {}
+  },
+  {
+    "name": "javascript-prefixed-number-string-coercion",
+    "op": "salaryImpact",
+    "input": {
+      "units": "0b1",
+      "monthlySalary": "0x7530",
+      "basicPercent": "0o50",
+      "hraPercent": "0o24",
+      "monthDays": "0x1e"
+    },
+    "expected": 600
+  }
+]

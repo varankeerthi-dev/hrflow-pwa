@@ -1,0 +1,13 @@
+[application]
+name = "dioxus-hrflow-prototype"
+default_platform = "web"
+android_manifest = "assets/android/AndroidManifest.xml"
+
+[android]
+min_sdk = 24
+target_sdk = 34
+compile_sdk = 34
+lib_name = "main"
+
+[web.app]
+title = "Attendance overview · Synthetic demo"
