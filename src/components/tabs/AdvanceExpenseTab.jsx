@@ -7702,133 +7702,124 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           ) : (
             <>
               <div className="rounded-[12px] border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-4 bg-slate-50/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Advance & Expense Register</p>
-                    <h2 className="mt-1 text-lg font-semibold text-slate-900 font-heading">Cash Summary</h2>
-                    <p className="mt-1 text-xs font-normal text-slate-500 font-body">
-                      Category ledger and employee balances for {periodDisplayLabel}.
-                    </p>
+                <div className="flex flex-wrap items-end gap-3 bg-slate-50/70 px-5 py-3.5">
+                  {/* Period View Mode Toggle */}
+                  <div className="flex flex-col">
+                    <span className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">View By</span>
+                    <div className="inline-flex h-9 p-0.5 rounded-lg border border-slate-200 bg-slate-100/90 items-center">
+                      <button
+                        type="button"
+                        onClick={() => setSummaryPeriodMode('month')}
+                        className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                          summaryPeriodMode === 'month'
+                            ? 'bg-white text-blue-600 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Month
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSummaryPeriodMode('range')}
+                        className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                          summaryPeriodMode === 'range'
+                            ? 'bg-white text-blue-600 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Date Range
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                    {/* Period View Mode Toggle */}
+
+                  {/* Date Selector Inputs */}
+                  {summaryPeriodMode === 'month' ? (
                     <div className="flex flex-col">
-                      <span className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">View By</span>
-                      <div className="inline-flex h-9 p-0.5 rounded-lg border border-slate-200 bg-slate-100/90 items-center">
-                        <button
-                          type="button"
-                          onClick={() => setSummaryPeriodMode('month')}
-                          className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
-                            summaryPeriodMode === 'month'
-                              ? 'bg-white text-blue-600 shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          Month
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSummaryPeriodMode('range')}
-                          className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
-                            summaryPeriodMode === 'range'
-                              ? 'bg-white text-blue-600 shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          Date Range
-                        </button>
+                      <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Statement Month</label>
+                      <div className="relative">
+                        <DatePicker
+                          selected={summaryMonthDate}
+                          onChange={(date) => {
+                            if (date) {
+                              const yyyy = date.getFullYear()
+                              const mm = String(date.getMonth() + 1).padStart(2, '0')
+                              setSummaryMonth(`${yyyy}-${mm}`)
+                            }
+                          }}
+                          dateFormat="MMMM yyyy"
+                          showMonthYearPicker
+                          popperClassName="z-[99999] shadow-2xl"
+                          popperPlacement="bottom-start"
+                          popperProps={{ strategy: 'fixed' }}
+                          portalId="root"
+                          className="h-9 w-full sm:w-[175px] rounded-md border border-slate-200 bg-white px-3 pl-8 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
+                        />
+                        <Calendar size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
                     </div>
-
-                    {/* Date Selector Inputs */}
-                    {summaryPeriodMode === 'month' ? (
+                  ) : (
+                    <div className="flex flex-wrap items-end gap-2">
                       <div className="flex flex-col">
-                        <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Statement Month</label>
+                        <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">From Date</label>
                         <div className="relative">
                           <DatePicker
-                            selected={summaryMonthDate}
+                            selected={summaryFromDate ? parseISO(summaryFromDate) : null}
                             onChange={(date) => {
-                              if (date) {
-                                const yyyy = date.getFullYear()
-                                const mm = String(date.getMonth() + 1).padStart(2, '0')
-                                setSummaryMonth(`${yyyy}-${mm}`)
-                              }
+                              setSummaryFromDate(date ? format(date, 'yyyy-MM-dd') : '')
                             }}
-                            dateFormat="MMMM yyyy"
-                            showMonthYearPicker
+                            selectsStart
+                            startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
+                            endDate={summaryToDate ? parseISO(summaryToDate) : null}
+                            maxDate={summaryToDate ? parseISO(summaryToDate) : undefined}
+                            dateFormat="dd MMM yyyy"
+                            placeholderText="Start date"
                             popperClassName="z-[99999] shadow-2xl"
                             popperPlacement="bottom-start"
                             popperProps={{ strategy: 'fixed' }}
                             portalId="root"
-                            className="h-9 w-full sm:w-[175px] rounded-md border border-slate-200 bg-white px-3 pl-8 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
+                            className="h-9 w-[132px] rounded-md border border-slate-200 bg-white px-2 pl-7 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
                           />
-                          <Calendar size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="flex flex-col">
-                          <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">From Date</label>
-                          <div className="relative">
-                            <DatePicker
-                              selected={summaryFromDate ? parseISO(summaryFromDate) : null}
-                              onChange={(date) => {
-                                setSummaryFromDate(date ? format(date, 'yyyy-MM-dd') : '')
-                              }}
-                              selectsStart
-                              startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
-                              endDate={summaryToDate ? parseISO(summaryToDate) : null}
-                              maxDate={summaryToDate ? parseISO(summaryToDate) : undefined}
-                              dateFormat="dd MMM yyyy"
-                              placeholderText="Start date"
-                              popperClassName="z-[99999] shadow-2xl"
-                              popperPlacement="bottom-start"
-                              popperProps={{ strategy: 'fixed' }}
-                              portalId="root"
-                              className="h-9 w-[132px] rounded-md border border-slate-200 bg-white px-2 pl-7 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
-                            />
-                            <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                          </div>
+                      <div className="flex flex-col">
+                        <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">To Date</label>
+                        <div className="relative">
+                          <DatePicker
+                            selected={summaryToDate ? parseISO(summaryToDate) : null}
+                            onChange={(date) => {
+                              setSummaryToDate(date ? format(date, 'yyyy-MM-dd') : '')
+                            }}
+                            selectsEnd
+                            startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
+                            endDate={summaryToDate ? parseISO(summaryToDate) : null}
+                            minDate={summaryFromDate ? parseISO(summaryFromDate) : undefined}
+                            dateFormat="dd MMM yyyy"
+                            placeholderText="End date"
+                            popperClassName="z-[99999] shadow-2xl"
+                            popperPlacement="bottom-start"
+                            popperProps={{ strategy: 'fixed' }}
+                            portalId="root"
+                            className="h-9 w-[132px] rounded-md border border-slate-200 bg-white px-2 pl-7 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
+                          />
+                          <Calendar size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         </div>
-                        <div className="flex flex-col">
-                          <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">To Date</label>
-                          <div className="relative">
-                            <DatePicker
-                              selected={summaryToDate ? parseISO(summaryToDate) : null}
-                              onChange={(date) => {
-                                setSummaryToDate(date ? format(date, 'yyyy-MM-dd') : '')
-                              }}
-                              selectsEnd
-                              startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
-                              endDate={summaryToDate ? parseISO(summaryToDate) : null}
-                              minDate={summaryFromDate ? parseISO(summaryFromDate) : undefined}
-                              dateFormat="dd MMM yyyy"
-                              placeholderText="End date"
-                              popperClassName="z-[99999] shadow-2xl"
-                              popperPlacement="bottom-start"
-                              popperProps={{ strategy: 'fixed' }}
-                              portalId="root"
-                              className="h-9 w-[132px] rounded-md border border-slate-200 bg-white px-2 pl-7 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
-                            />
-                            <Calendar size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSummaryPeriodMode('month')
-                            setSummaryFromDate(firstDayOfMonth)
-                            setSummaryToDate(today)
-                          }}
-                          title="Reset to Monthly view"
-                          className="h-9 px-2.5 inline-flex items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors font-body shadow-xs"
-                        >
-                          <RotateCcw size={13} className="mr-1 text-slate-400" />
-                          Month
-                        </button>
                       </div>
-                    )}
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSummaryPeriodMode('month')
+                          setSummaryFromDate(firstDayOfMonth)
+                          setSummaryToDate(today)
+                        }}
+                        title="Reset to Monthly view"
+                        className="h-9 px-2.5 inline-flex items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors font-body shadow-xs"
+                      >
+                        <RotateCcw size={13} className="mr-1 text-slate-400" />
+                        Month
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
