@@ -7701,7 +7701,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
           ) : (
             <>
-              <div className="rounded-[12px] border border-slate-200 bg-white shadow-sm">
+              <div className="relative z-30 rounded-[12px] border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-end gap-3 bg-slate-50/70 px-5 py-3.5">
                   {/* Period View Mode Toggle */}
                   <div className="flex flex-col">
@@ -7736,7 +7736,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   {summaryPeriodMode === 'month' ? (
                     <div className="flex flex-col">
                       <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Statement Month</label>
-                      <div className="relative">
+                      <div className="relative z-30">
                         <DatePicker
                           selected={summaryMonthDate}
                           onChange={(date) => {
@@ -7761,7 +7761,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="flex flex-col">
                         <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">From Date</label>
-                        <div className="relative">
+                        <div className="relative z-30">
                           <DatePicker
                             selected={summaryFromDate ? parseISO(summaryFromDate) : null}
                             onChange={(date) => {
@@ -7781,7 +7781,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       </div>
                       <div className="flex flex-col">
                         <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">To Date</label>
-                        <div className="relative">
+                        <div className="relative z-30">
                           <DatePicker
                             selected={summaryToDate ? parseISO(summaryToDate) : null}
                             onChange={(date) => {

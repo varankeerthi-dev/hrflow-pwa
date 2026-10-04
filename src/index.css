@@ -986,6 +986,21 @@ table.chronos-matrix th {
 }
 
 /* ─── Compact React Datepicker Popup Styling ─── */
+.react-datepicker-popper,
+div.react-datepicker-popper {
+  z-index: 99999 !important;
+}
+
+.react-datepicker-popper[data-placement^="bottom"],
+.react-datepicker-popper[data-placement^="top"] {
+  z-index: 99999 !important;
+}
+
+.react-datepicker__portal,
+.react-datepicker-portal {
+  z-index: 99999 !important;
+}
+
 .react-datepicker {
   font-size: 0.75rem !important;
   font-family: inherit !important;
