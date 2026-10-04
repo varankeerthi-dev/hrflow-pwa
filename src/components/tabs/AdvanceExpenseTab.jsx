@@ -122,6 +122,16 @@ function formatShortReportDate(dateValue) {
   }
 }
 
+function formatOnlyMonthName(monthStr) {
+  if (!monthStr || !monthStr.includes('-')) return ''
+  const [, m] = monthStr.split('-').map(Number)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+  if (m >= 1 && m <= 12) {
+    return months[m - 1]
+  }
+  return ''
+}
+
 
 function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions, vehicleOptions = [], handleSelectVehicle }) {
   const categoryRequiresPaidTo = isCategoryPayableToOthers
@@ -3620,10 +3630,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const totalAdvance = rows.reduce((acc, r) => acc + r.advance, 0)
     const totalExpense = rows.reduce((acc, r) => acc + r.expense, 0)
     const totalDeductedInPrevMonth = rows.reduce((acc, r) => acc + (r.deductedInPrevMonth || 0), 0)
+    const prevTargets = [...new Set(rows.map((r) => r.deductedInPrevMonthTarget).filter(Boolean))]
+    const prevMonthName = prevTargets.length === 1
+      ? (formatOnlyMonthName(prevTargets[0]) || 'prev')
+      : prevTargets.length > 1
+      ? prevTargets.map((m) => formatOnlyMonthName(m)).filter(Boolean).join(', ')
+      : (formatOnlyMonthName(getPreviousMonth(statementCutoffMonth)) || 'prev')
     const effectiveTotalAdvance = Math.max(0, totalAdvance - totalDeductedInPrevMonth)
     const totalNet = effectiveTotalAdvance - totalExpense
-    return { totalAdvance, totalExpense, totalNet, totalDeductedInPrevMonth, effectiveTotalAdvance }
-  }, [monthlyStatement.employeeRows])
+    return { totalAdvance, totalExpense, totalNet, totalDeductedInPrevMonth, effectiveTotalAdvance, prevMonthName }
+  }, [monthlyStatement.employeeRows, statementCutoffMonth])
 
   const advancesReceivedStatement = useMemo(() => {
     const periodRows = monthlyStatement.periodRows || []
@@ -7917,6 +7933,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             const isAdvanceSurplus = effectiveAdvance > emp.expense
                             const isExpenseSurplus = emp.expense > effectiveAdvance
                             const diff = Math.abs(effectiveAdvance - emp.expense)
+                            const targetMonthName = formatOnlyMonthName(emp.deductedInPrevMonthTarget) || formatOnlyMonthName(getPreviousMonth(statementCutoffMonth)) || 'prev'
 
                             return (
                               <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
@@ -7932,7 +7949,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                           className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap"
                                           title={`₹${Number(emp.deductedInPrevMonth || 0).toLocaleString('en-IN')} deducted in ${formatMonthLabel(emp.deductedInPrevMonthTarget)} salary`}
                                         >
-                                          ({formatINR(emp.deductedInPrevMonth)} in prev)
+                                          ({formatINR(emp.deductedInPrevMonth)} in {targetMonthName})
                                         </div>
                                       )}
                                     </div>
@@ -7945,21 +7962,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   {isAdvanceSurplus ? (
                                     <span
                                       className="inline-flex items-center gap-1 rounded border border-emerald-200/70 bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800"
-                                      title={emp.deductedInPrevMonth > 0 ? `Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in prev) - Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Advance surplus (cash in hand)"}
+                                      title={emp.deductedInPrevMonth > 0 ? `Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in ${targetMonthName}) - Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Advance surplus (cash in hand)"}
                                     >
                                       +{formatINR(diff)}
                                     </span>
                                   ) : isExpenseSurplus ? (
                                     <span
                                       className="inline-flex items-center gap-1 rounded border border-rose-200/70 bg-rose-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-rose-800"
-                                      title={emp.deductedInPrevMonth > 0 ? `Expense ₹${emp.expense.toLocaleString('en-IN')} - Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in prev)` : "Expense surplus (due to employee)"}
+                                      title={emp.deductedInPrevMonth > 0 ? `Expense ₹${emp.expense.toLocaleString('en-IN')} - Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in ${targetMonthName})` : "Expense surplus (due to employee)"}
                                     >
                                       -{formatINR(diff)}
                                     </span>
                                   ) : (
                                     <span
                                       className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-500"
-                                      title={emp.deductedInPrevMonth > 0 ? `Settled: Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (after prev deduction) = Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Settled (Advance = Expense)"}
+                                      title={emp.deductedInPrevMonth > 0 ? `Settled: Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (after ${targetMonthName} deduction) = Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Settled (Advance = Expense)"}
                                     >
                                       ₹0.00
                                     </span>
@@ -7978,7 +7995,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               <div>{formatINR(employeeSummaryTotals.totalAdvance)}</div>
                               {employeeSummaryTotals.totalDeductedInPrevMonth > 0 && (
                                 <div className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap">
-                                  ({formatINR(employeeSummaryTotals.totalDeductedInPrevMonth)} in prev)
+                                  ({formatINR(employeeSummaryTotals.totalDeductedInPrevMonth)} in {employeeSummaryTotals.prevMonthName})
                                 </div>
                               )}
                             </td>
@@ -7987,14 +8004,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               {employeeSummaryTotals.totalNet > 0 ? (
                                 <span
                                   className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800"
-                                  title={employeeSummaryTotals.totalDeductedInPrevMonth > 0 ? `Advance ₹${employeeSummaryTotals.effectiveTotalAdvance.toLocaleString('en-IN')} (minus ₹${employeeSummaryTotals.totalDeductedInPrevMonth.toLocaleString('en-IN')} in prev) - Expense ₹${employeeSummaryTotals.totalExpense.toLocaleString('en-IN')}` : undefined}
+                                  title={employeeSummaryTotals.totalDeductedInPrevMonth > 0 ? `Advance ₹${employeeSummaryTotals.effectiveTotalAdvance.toLocaleString('en-IN')} (minus ₹${employeeSummaryTotals.totalDeductedInPrevMonth.toLocaleString('en-IN')} in ${employeeSummaryTotals.prevMonthName}) - Expense ₹${employeeSummaryTotals.totalExpense.toLocaleString('en-IN')}` : undefined}
                                 >
                                   +{formatINR(employeeSummaryTotals.totalNet)}
                                 </span>
                               ) : employeeSummaryTotals.totalNet < 0 ? (
                                 <span
                                   className="inline-flex items-center gap-1 rounded border border-rose-200 bg-rose-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-rose-800"
-                                  title={employeeSummaryTotals.totalDeductedInPrevMonth > 0 ? `Expense ₹${employeeSummaryTotals.totalExpense.toLocaleString('en-IN')} - Advance ₹${employeeSummaryTotals.effectiveTotalAdvance.toLocaleString('en-IN')} (minus ₹${employeeSummaryTotals.totalDeductedInPrevMonth.toLocaleString('en-IN')} in prev)` : undefined}
+                                  title={employeeSummaryTotals.totalDeductedInPrevMonth > 0 ? `Expense ₹${employeeSummaryTotals.totalExpense.toLocaleString('en-IN')} - Advance ₹${employeeSummaryTotals.effectiveTotalAdvance.toLocaleString('en-IN')} (minus ₹${employeeSummaryTotals.totalDeductedInPrevMonth.toLocaleString('en-IN')} in ${employeeSummaryTotals.prevMonthName})` : undefined}
                                 >
                                   -{formatINR(Math.abs(employeeSummaryTotals.totalNet))}
                                 </span>
