@@ -3541,10 +3541,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     })
 
     const employeeRows = [...employeeMap.values()]
-      .map((row) => ({
-        ...row,
-        net: row.advance - row.expense
-      }))
+      .map((row) => {
+        const effectiveAdvance = Math.max(0, row.advance - (row.deductedInPrevMonth || 0))
+        return {
+          ...row,
+          effectiveAdvance,
+          net: effectiveAdvance - row.expense
+        }
+      })
       .sort((left, right) => (right.advance + right.expense) - (left.advance + left.expense) || left.name.localeCompare(right.name))
 
     return { periodRows, expenseRows, advanceRows, categoryRows, employeeRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
@@ -7909,9 +7913,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           </tr>
                         ) : (
                           filteredEmployeeRows.slice(0, employeeBalancesLimit).map((emp) => {
-                            const isAdvanceSurplus = emp.advance > emp.expense
-                            const isExpenseSurplus = emp.expense > emp.advance
-                            const diff = Math.abs(emp.advance - emp.expense)
+                            const effectiveAdvance = emp.effectiveAdvance ?? Math.max(0, emp.advance - (emp.deductedInPrevMonth || 0))
+                            const isAdvanceSurplus = effectiveAdvance > emp.expense
+                            const isExpenseSurplus = emp.expense > effectiveAdvance
+                            const diff = Math.abs(effectiveAdvance - emp.expense)
 
                             return (
                               <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
@@ -7940,21 +7945,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   {isAdvanceSurplus ? (
                                     <span
                                       className="inline-flex items-center gap-1 rounded border border-emerald-200/70 bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800"
-                                      title="Advance surplus (cash in hand)"
+                                      title={emp.deductedInPrevMonth > 0 ? `Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in prev) - Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Advance surplus (cash in hand)"}
                                     >
                                       +{formatINR(diff)}
                                     </span>
                                   ) : isExpenseSurplus ? (
                                     <span
                                       className="inline-flex items-center gap-1 rounded border border-rose-200/70 bg-rose-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-rose-800"
-                                      title="Expense surplus (due to employee)"
+                                      title={emp.deductedInPrevMonth > 0 ? `Expense ₹${emp.expense.toLocaleString('en-IN')} - Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in prev)` : "Expense surplus (due to employee)"}
                                     >
                                       -{formatINR(diff)}
                                     </span>
                                   ) : (
                                     <span
                                       className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-500"
-                                      title="Settled (Advance = Expense)"
+                                      title={emp.deductedInPrevMonth > 0 ? `Settled: Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (after prev deduction) = Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Settled (Advance = Expense)"}
                                     >
                                       ₹0.00
                                     </span>
