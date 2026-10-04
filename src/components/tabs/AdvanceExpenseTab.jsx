@@ -102,6 +102,26 @@ function formatReportDate(dateValue) {
   }
 }
 
+function formatShortReportDate(dateValue) {
+  if (!dateValue) return '—'
+  try {
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+      const [, m, d] = dateValue.slice(0, 10).split('-')
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+      const month = months[parseInt(m, 10) - 1]
+      return `${d}-${month}`
+    }
+    const d = dateValue?.toDate ? dateValue.toDate() : new Date(dateValue)
+    if (Number.isNaN(d.getTime())) return String(dateValue)
+    const day = String(d.getDate()).padStart(2, '0')
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+    const month = months[d.getMonth()]
+    return `${day}-${month}`
+  } catch {
+    return String(dateValue)
+  }
+}
+
 
 function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions, vehicleOptions = [], handleSelectVehicle }) {
   const categoryRequiresPaidTo = isCategoryPayableToOthers
@@ -8126,10 +8146,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                             e.stopPropagation()
                                             toggleAdvanceEmpExpand(row.employeeId)
                                           }}
-                                          className="text-[10px] text-slate-400 hover:text-blue-600 font-body inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                          className="text-[8px] text-slate-400 hover:text-blue-600 font-body inline-flex items-center gap-1 cursor-pointer transition-colors"
                                         >
                                           <span>{row.count} voucher{row.count === 1 ? '' : 's'}</span>
-                                          <span className="text-[9px] text-slate-400 font-medium">
+                                          <span className="text-[8px] text-slate-400 font-medium">
                                             · {isExpanded ? 'collapse' : 'view dates'}
                                           </span>
                                         </button>
@@ -8137,33 +8157,33 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                         {/* Hover Popover Preview */}
                                         <div 
                                           onClick={(e) => e.stopPropagation()}
-                                          className="pointer-events-none opacity-0 group-hover/voucher:opacity-100 group-hover/voucher:pointer-events-auto transition-all duration-150 ease-out absolute left-0 top-full mt-1 z-40 w-auto min-w-[210px] rounded-lg border border-slate-200 bg-white p-2.5 shadow-xl cursor-default whitespace-nowrap"
+                                          className="pointer-events-none opacity-0 group-hover/voucher:opacity-100 group-hover/voucher:pointer-events-auto transition-all duration-150 ease-out absolute left-0 top-full mt-1 z-40 w-auto min-w-[190px] rounded-lg border border-slate-200 bg-white p-2 shadow-xl cursor-default whitespace-nowrap"
                                         >
-                                          <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-1.5 mb-1.5 whitespace-nowrap">
+                                          <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-1 mb-1 whitespace-nowrap">
                                             <div>
-                                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-body block">Vouchers</span>
-                                              <span className="text-xs font-semibold text-slate-800 font-body">{row.employeeName}</span>
+                                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400 font-body block">Vouchers</span>
+                                              <span className="text-[8px] font-semibold text-slate-800 font-body">{row.employeeName}</span>
                                             </div>
-                                            <span className="text-xs font-bold text-slate-900 tabular-nums">{formatINR(row.totalAdvance)}</span>
+                                            <span className="text-[8px] font-bold text-slate-900 tabular-nums">{formatINR(row.totalAdvance)}</span>
                                           </div>
-                                          <div className="space-y-1 max-h-48 overflow-y-auto slim-scrollbar">
+                                          <div className="space-y-0.5 max-h-48 overflow-y-auto slim-scrollbar">
                                             {row.vouchers.map((v, vIdx) => (
-                                              <div key={v.id || vIdx} className="flex items-center justify-between gap-4 text-xs py-0.5 border-b border-slate-50 last:border-0 whitespace-nowrap">
-                                                <div className="flex items-center gap-2 whitespace-nowrap">
-                                                  <span className="font-medium text-slate-700 tabular-nums text-[11px] whitespace-nowrap">{formatReportDate(v.date)}</span>
+                                              <div key={v.id || vIdx} className="flex items-center justify-between gap-3 text-[8px] py-0.5 border-b border-slate-50 last:border-0 whitespace-nowrap">
+                                                <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                                  <span className="font-medium text-slate-700 tabular-nums text-[8px] whitespace-nowrap">{formatShortReportDate(v.date)}</span>
                                                   {v.givenBy && (
-                                                    <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                                    <span className="text-[8px] text-slate-500 whitespace-nowrap">
                                                       ({v.givenBy})
                                                     </span>
                                                   )}
                                                 </div>
-                                                <span className="font-semibold text-slate-800 tabular-nums shrink-0 text-[11px] whitespace-nowrap">{formatINR(v.amount)}</span>
+                                                <span className="font-semibold text-slate-800 tabular-nums shrink-0 text-[8px] whitespace-nowrap">{formatINR(v.amount)}</span>
                                               </div>
                                             ))}
                                           </div>
-                                          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between font-body whitespace-nowrap">
+                                          <div className="mt-1 pt-1 border-t border-slate-100 text-[8px] text-slate-400 flex items-center justify-between font-body whitespace-nowrap">
                                             <span>Click row to keep open</span>
-                                            <span className="text-blue-600 font-medium">{row.vouchers.length} item{row.vouchers.length === 1 ? '' : 's'}</span>
+                                            <span className="text-blue-600 font-medium text-[8px]">{row.vouchers.length} item{row.vouchers.length === 1 ? '' : 's'}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -8204,13 +8224,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   {isExpanded && (
                                     <tr className="bg-slate-50/70 border-b border-slate-200/80">
                                       <td colSpan={5} className="p-0">
-                                        <div className="py-2 px-3 pl-6 border-l-2 border-l-blue-500 bg-slate-50/50">
-                                          <div className="flex items-center justify-between mb-1.5 whitespace-nowrap">
+                                        <div className="py-1.5 px-3 pl-6 border-l-2 border-l-blue-500 bg-slate-50/50">
+                                          <div className="flex items-center justify-between mb-1 whitespace-nowrap">
                                             <div className="flex items-center gap-2 whitespace-nowrap">
-                                              <span className="text-[11px] font-semibold text-slate-700 font-heading whitespace-nowrap">
+                                              <span className="text-[8px] font-semibold text-slate-700 font-heading whitespace-nowrap">
                                                 Advance Breakdown
                                               </span>
-                                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-medium tabular-nums whitespace-nowrap">
+                                              <span className="text-[8px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-medium tabular-nums whitespace-nowrap">
                                                 {row.vouchers.length} voucher{row.vouchers.length === 1 ? '' : 's'} · {formatINR(row.totalAdvance)}
                                               </span>
                                             </div>
@@ -8220,32 +8240,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                                 e.stopPropagation()
                                                 toggleAdvanceEmpExpand(row.employeeId)
                                               }}
-                                              className="text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer font-body flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/60 whitespace-nowrap"
+                                              className="text-[8px] text-slate-400 hover:text-slate-700 cursor-pointer font-body flex items-center gap-1 transition-colors px-1 py-0.5 rounded hover:bg-slate-200/60 whitespace-nowrap"
                                             >
                                               <span>Collapse</span>
-                                              <X size={11} />
+                                              <X size={10} />
                                             </button>
                                           </div>
 
                                           <div className="overflow-x-auto rounded border border-slate-200/80 bg-white">
-                                            <table className="w-full text-left text-xs font-body border-collapse">
+                                            <table className="w-full text-left text-[8px] font-body border-collapse">
                                               <thead>
-                                                <tr className="bg-slate-50/90 border-b border-slate-200/70 text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
-                                                  <th className="px-3 py-1.5 whitespace-nowrap">Date</th>
-                                                  <th className="px-3 py-1.5 whitespace-nowrap">Given By</th>
-                                                  <th className="px-3 py-1.5 text-right whitespace-nowrap">Amount</th>
+                                                <tr className="bg-slate-50/90 border-b border-slate-200/70 text-[8px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                                                  <th className="px-2.5 py-1 whitespace-nowrap text-[8px]">Date</th>
+                                                  <th className="px-2.5 py-1 whitespace-nowrap text-[8px]">Given By</th>
+                                                  <th className="px-2.5 py-1 text-right whitespace-nowrap text-[8px]">Amount</th>
                                                 </tr>
                                               </thead>
-                                              <tbody className="divide-y divide-slate-100 text-xs">
+                                              <tbody className="divide-y divide-slate-100 text-[8px]">
                                                 {row.vouchers.map((v, vIdx) => (
                                                   <tr key={v.id || vIdx} className="hover:bg-slate-50/70 transition-colors whitespace-nowrap">
-                                                    <td className="px-3 py-1.5 whitespace-nowrap tabular-nums text-slate-700 font-medium text-[11px]">
-                                                      {formatReportDate(v.date)}
+                                                    <td className="px-2.5 py-1 whitespace-nowrap tabular-nums text-slate-700 font-medium text-[8px]">
+                                                      {formatShortReportDate(v.date)}
                                                     </td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-slate-600 text-[11px]">
+                                                    <td className="px-2.5 py-1 whitespace-nowrap text-slate-600 text-[8px]">
                                                       {v.givenBy || <span className="text-slate-300 font-normal">—</span>}
                                                     </td>
-                                                    <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-900 text-[11px] whitespace-nowrap">
+                                                    <td className="px-2.5 py-1 text-right font-semibold tabular-nums text-slate-900 text-[8px] whitespace-nowrap">
                                                       {formatINR(v.amount)}
                                                     </td>
                                                   </tr>
