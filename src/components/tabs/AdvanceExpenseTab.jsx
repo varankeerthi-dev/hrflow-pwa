@@ -44,6 +44,7 @@ import {
   getDefaultAdvanceDeductionMonth,
   getAdvanceDeductionMonth,
   getNextMonth,
+  getPreviousMonth,
   formatMonthLabel
 } from '../../lib/advanceSalaryUtils'
 
