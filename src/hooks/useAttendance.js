@@ -302,7 +302,10 @@ export function useAttendance(orgId) {
 }
 
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {
-  if (!inTime || !outTime || !inDate || !outDate) return '00:00'
+  if (!inTime || !outTime) return '00:00'
+  const effInDate = inDate || outDate
+  const effOutDate = outDate || inDate
+  if (!effInDate || !effOutDate) return '00:00'
 
   const [inH, inM] = inTime.split(':').map(Number)
   const [outH, outM] = outTime.split(':').map(Number)

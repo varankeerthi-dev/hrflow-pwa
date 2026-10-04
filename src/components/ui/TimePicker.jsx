@@ -132,7 +132,7 @@ export default function TimePicker({ value, onChange, onClose, variant = 'defaul
   return (
     <div
       ref={pickerRef}
-      className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white rounded-xl shadow-lg border border-zinc-200 font-['Roboto',sans-serif] animate-in fade-in zoom-in-95 duration-200"
+      className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white rounded-xl shadow-lg border border-zinc-200 font-body animate-in fade-in zoom-in-95 duration-200"
       style={{ width: '170px' }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}

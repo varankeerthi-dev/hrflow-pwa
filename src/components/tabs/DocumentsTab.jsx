@@ -1,11 +1,15 @@
 import React, { useMemo, useState } from 'react'
+import { getBlob, ref } from 'firebase/storage'
 import { Archive, Clock3, ExternalLink, FileText, Folder, History, Search, ShieldCheck, Trash2, Upload, Users, Building2, X } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useDocuments } from '../../hooks/useDocuments'
 import { useEmployees } from '../../hooks/useEmployees'
-import { groupDocumentVersions, validateDocumentFile } from '../../lib/documentManagement'
+import { storage } from '../../lib/firebase'
+import { groupDocumentVersions, MAX_DOCUMENT_UPLOAD_BYTES, validateDocumentFile } from '../../lib/documentManagement'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import ShareAction from '../ui/ShareAction'
+import { buildOrganizationDocumentPayload, canShareOrganizationDocument, sanitizeShareFileName } from '../../lib/share'
 
 const inputClass = 'h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600'
 const labelClass = 'mb-1.5 block text-sm font-medium text-slate-800'
@@ -42,6 +46,13 @@ export default function DocumentsTab() {
       .some((value) => String(value || '').toLowerCase().includes(searchTerm.trim().toLowerCase()))
   }), [groupedDocuments, activeSub, selectedEmpId, searchTerm])
   const selectedEmployee = employees.find((employee) => employee.id === selectedEmpId)
+
+  const prepareStoredDocumentFile = async (document) => {
+    const blob = await getBlob(ref(storage, document.storagePath), MAX_DOCUMENT_UPLOAD_BYTES)
+    if (!blob.size || blob.size > MAX_DOCUMENT_UPLOAD_BYTES) throw new Error('File is too large or empty.')
+    const fileName = sanitizeShareFileName(document.fileName || document.name, 'organization-document')
+    return new File([blob], fileName, { type: blob.type || document.fileType || 'application/octet-stream' })
+  }
 
   const resetForm = () => {
     setUploadForm({ name: '', category: 'Policy', employeeId: selectedEmpId, url: '', expiresOn: '' })
@@ -149,6 +160,11 @@ export default function DocumentsTab() {
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400"><Clock3 size={12} /> Updated {formatDate(current.createdAt)}{current.fileSize ? ` · ${(current.fileSize / (1024 * 1024)).toFixed(1)} MB` : ''}</div>
           <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
             <a href={current.url} target="_blank" rel="noreferrer" className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md bg-slate-50 px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"><ExternalLink size={13} /> Open file</a>
+            {canShareOrganizationDocument(user, user?.orgId, current, documents) && <ShareAction
+              label="Share"
+              canShare={() => canShareOrganizationDocument(user, user?.orgId, current, documents)}
+              buildPayload={() => buildOrganizationDocumentPayload(current, () => prepareStoredDocumentFile(current))}
+            />}
             {versions.length > 1 && <button type="button" onClick={() => setHistoryGroup({ current, versions })} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"><History size={13} /> History ({versions.length})</button>}
             {canCreate && canEditDocument(current) && <button type="button" onClick={() => openNewVersion(current)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"><Upload size={13} /> New version</button>}
             {canEditDocument(current) && <button type="button" onClick={() => handleArchive(current)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"><Archive size={13} /> {current.status === 'Archived' ? 'Restore' : 'Archive'}</button>}

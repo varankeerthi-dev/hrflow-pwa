@@ -13,6 +13,8 @@ import EmployeeLifecycleTab from './EmployeeLifecycleTab';
 import { ModulePillTabs } from '../ui/ModulePillTabs';
 import { useLeaveBalances } from '../../hooks/useLeaveBalances';
 import { normalizeLeaveTypeCode } from '../../lib/leaveEntitlements';
+import ShareAction from '../ui/ShareAction'
+import { buildEmployeeContactPayload, canShareEmployeeContactCard } from '../../lib/share'
 const formatDate = d => d ? new Date(d).toLocaleDateString('en-IN', {
   day: '2-digit',
   month: 'short',
@@ -400,6 +402,11 @@ function EmployeeDetailsPanel({ employee, onBack, onShowActivity }) {
             </div>
             <p className="text-[12px] text-[#6B7280] mt-0.5">{employee.designation || employee.department || ''}</p>
           </div>
+          {canShareEmployeeContactCard(user, employee) && <ShareAction
+            label="Share"
+            canShare={() => canShareEmployeeContactCard(user, employee)}
+            buildPayload={() => buildEmployeeContactPayload(employee)}
+          />}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-5 pt-4 space-y-5">
@@ -563,7 +570,7 @@ export default function EmployeesTab() {
     icon: <UserCheck size={15} />
   }];
   return <div className="flex flex-col h-full" style={{
-    fontFamily: 'Figtree, system-ui, sans-serif'
+    fontFamily: "'Inter', sans-serif"
   }}>
       <ModulePillTabs
         className="mx-4 mt-3"

@@ -259,7 +259,7 @@ const BulkAttendanceModal = ({ isOpen, onClose, employees, orgId }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Bulk Attendance Entry" maxWidth="max-w-7xl">
-      <div className="flex flex-col h-[85vh] font-['Roboto',sans-serif]">
+      <div className="flex flex-col h-[85vh] font-body">
         <style>{`
           input[type="date"]::-webkit-inner-spin-button,
           input[type="date"]::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }

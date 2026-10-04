@@ -22,6 +22,7 @@ import { useCommunications } from '../../../hooks/useCommunications'
 import { Table } from '../../table/Table'
 import { ModulePillTabs } from '../../ui/ModulePillTabs'
 import Modal from '../../ui/Modal'
+import ShareAction from '../../ui/ShareAction'
 import Spinner from '../../ui/Spinner'
 import LegacyLetterFormatsWorkspace from './LegacyLetterFormatsWorkspace'
 import {
@@ -45,6 +46,7 @@ import {
   statusTone,
   summarizeDeliveries,
 } from '../../../lib/communications'
+import { buildPublishedCommunicationPayload, canSharePublishedCommunication } from '../../../lib/share'
 
 const TABS = [
   { id: 'letters', label: 'Letters', icon: <FileText size={15} />, kind: COMMUNICATION_KINDS.LETTER },
@@ -189,7 +191,7 @@ function CommunicationForm({ tab, form, setForm, employees, onClose, onSave, sav
   </div>
 }
 
-function ItemDetails({ item, kind, onClose, onEdit, onRequestAction, onCreateRevision, canEdit, canDelete, canRequestApproval, canApprove, canCreate, busy, deliveries, employees, pendingAction, onConfirm, onCancelConfirm }) {
+function ItemDetails({ item, kind, user, orgId, onClose, onEdit, onRequestAction, onCreateRevision, canEdit, canDelete, canRequestApproval, canApprove, canCreate, busy, deliveries, employees, pendingAction, onConfirm, onCancelConfirm }) {
   if (!item) return null
   const title = displayTitle(item)
   const isTemplate = kind === 'template'
@@ -200,6 +202,7 @@ function ItemDetails({ item, kind, onClose, onEdit, onRequestAction, onCreateRev
   const response = summarizeDeliveries(deliveries, item.id)
   const detailTitle = isTemplate ? item.name : title
   const currentState = isTemplate ? item.status || 'active' : item.state || 'draft'
+  const canShareThisItem = canSharePublishedCommunication(user, orgId, item, kind)
   const confirmCopy = {
     publish: `Publish “${title}” to ${recipientCount} active employee${recipientCount === 1 ? '' : 's'} now? The version and content shown above will be copied into each recipient’s inbox.`,
     issue: `Issue ${item.letterType || 'this letter'} to ${item.employeeName || 'the selected employee'} now? This creates an employee-facing copy and reference.`,
@@ -232,6 +235,11 @@ function ItemDetails({ item, kind, onClose, onEdit, onRequestAction, onCreateRev
       {publishable && canApprove && <button type="button" disabled={busy || (kind !== 'letter' && recipientCount === 0) || !item.body?.trim()} onClick={() => onRequestAction('publish')} className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"><Send size={14} /> Publish to {recipientCount} employee{recipientCount === 1 ? '' : 's'}</button>}
       {kind === 'policy' && item.state === 'published' && canCreate && <button type="button" disabled={busy} onClick={onCreateRevision} className="inline-flex h-9 items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"><FileText size={14} /> Create revision</button>}
       {publishedOrIssued && canApprove && <button type="button" disabled={busy} onClick={() => onRequestAction('withdraw')} className="inline-flex h-9 items-center gap-2 rounded-md border border-rose-200 px-3 text-sm font-medium text-rose-700 hover:bg-rose-50"><Archive size={14} /> Withdraw</button>}
+      {canShareThisItem && <ShareAction
+        label="Share"
+        canShare={() => canSharePublishedCommunication(user, orgId, item, kind)}
+        buildPayload={() => buildPublishedCommunicationPayload(item, kind)}
+      />}
     </div>
     {pendingAction && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4" role="alertdialog" aria-label="Confirm communication action"><p className="text-sm font-semibold text-amber-950">Please confirm</p><p className="mt-1 text-sm leading-5 text-amber-900">{confirmCopy}</p>{pendingAction === 'publish' && <p className="mt-2 text-xs text-amber-800">Audience: {audienceLabel(item)} · {recipientCount} recipients · Version {item.version || 1} · Acknowledgement: {item.acknowledgementMode === 'acknowledged' ? 'required' : 'recorded when opened'}{item.effectiveDate ? ` · Effective ${dateLabel(item.effectiveDate)}` : ''}{item.expiresAt ? ` · Expires ${dateLabel(item.expiresAt)}` : ''}</p>}{pendingAction === 'issue' && <p className="mt-2 text-xs text-amber-800">Employee: {item.employeeName || 'Not selected'} · Reference: {item.issueReference || referenceNumber('letter', item.id)}{item.effectiveDate ? ` · Effective ${dateLabel(item.effectiveDate)}` : ''}</p>}<div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" disabled={busy} onClick={onCancelConfirm} className="h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-medium text-amber-950">Cancel</button><button type="button" disabled={busy} onClick={onConfirm} className={`h-9 rounded-md px-4 text-sm font-bold text-white ${pendingAction === 'delete' || pendingAction === 'withdraw' ? 'bg-rose-600 hover:bg-rose-700' : pendingAction === 'request_approval' || pendingAction === 'approve' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{busy ? 'Working…' : pendingAction === 'delete' ? 'Delete' : pendingAction === 'issue' ? 'Issue letter' : pendingAction === 'withdraw' ? 'Withdraw' : pendingAction === 'request_approval' ? 'Request approval' : pendingAction === 'approve' ? 'Approve' : 'Publish now'}</button></div></div>}
   </div>
@@ -451,7 +459,7 @@ export default function HRCommunicationsTab() {
         <div className="hidden md:block"><Table data={records} columns={columns} loading={api.loading} page={1} pageSize={25} totalRows={records.length} searchable={false} pagination={false} sortable onView={(item) => { setSelectedItem(item); setPendingAction('') }} onRowClick={(item) => { setSelectedItem(item); setPendingAction('') }} rowActions={activeTab === 'archive' ? undefined : rowActions} emptyTitle={search || statusFilter !== 'all' ? 'No matching records' : `No ${tab.label.toLowerCase()} yet`} emptySubtitle={search || statusFilter !== 'all' ? 'Try a different search term or status.' : activeTab === 'archive' ? 'Issued, published, expired, and withdrawn communications will appear here.' : canCreate ? 'Start with a draft. It will stay private to HR until an approver publishes or issues it.' : 'Published items will appear here when they are available to you.'} emptyActionLabel={canCreate && !['archive', 'templates'].includes(activeTab) ? `Create ${tab.id === 'policies' ? 'SOP / Policy' : tab.label.slice(0, -1)}` : undefined} onEmptyAction={() => openCreate()} /></div>
       </section>
       <Modal isOpen={showForm} onClose={() => { if (!busy) { setShowForm(false); setEditingItem(null) } }} title={`${editingItem ? 'Edit' : 'New'} ${formTabId === 'policies' ? 'SOP / Policy' : currentFormTab.id === 'templates' ? 'Template' : currentFormTab.label.slice(0, -1)}`} size="2xl"><CommunicationForm key={`${formTabId}-${editingItem?.id || 'new'}`} tab={currentFormTab} form={form} setForm={setForm} employees={employees} onClose={() => { setShowForm(false); setEditingItem(null) }} onSave={saveDraft} saving={busy} /></Modal>
-      <Modal isOpen={!!selectedItem} onClose={() => { if (!busy) { setSelectedItem(null); setPendingAction('') } }} title={`${kindLabel(currentItemKind)} details`} size="2xl"><ItemDetails item={selectedItem} kind={currentItemKind} onClose={() => { setSelectedItem(null); setPendingAction('') }} onEdit={() => openEdit(selectedItem)} onRequestAction={requestAction} onCreateRevision={startRevision} canEdit={selectedCanEdit} canDelete={selectedCanDelete} canRequestApproval={selectedCanRequestApproval} canApprove={canApprove} canCreate={canCreate} busy={busy} deliveries={api.deliveries} employees={employees} pendingAction={pendingAction} onConfirm={runConfirmedAction} onCancelConfirm={() => setPendingAction('')} /></Modal>
+      <Modal isOpen={!!selectedItem} onClose={() => { if (!busy) { setSelectedItem(null); setPendingAction('') } }} title={`${kindLabel(currentItemKind)} details`} size="2xl"><ItemDetails item={selectedItem} kind={currentItemKind} user={user} orgId={user?.orgId} onClose={() => { setSelectedItem(null); setPendingAction('') }} onEdit={() => openEdit(selectedItem)} onRequestAction={requestAction} onCreateRevision={startRevision} canEdit={selectedCanEdit} canDelete={selectedCanDelete} canRequestApproval={selectedCanRequestApproval} canApprove={canApprove} canCreate={canCreate} busy={busy} deliveries={api.deliveries} employees={employees} pendingAction={pendingAction} onConfirm={runConfirmedAction} onCancelConfirm={() => setPendingAction('')} /></Modal>
     </>}
     {api.loading && showActivePanel && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/40 backdrop-blur-[1px]" aria-label="Loading HR communications"><Spinner /></div>}
   </div>

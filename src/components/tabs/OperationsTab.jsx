@@ -19,7 +19,7 @@ export default function OperationsTab({ initialSubTab = 'dates' }) {
   }, [initialSubTab])
 
   return (
-    <div className="flex flex-col h-full" style={{ fontFamily: 'Figtree, system-ui, sans-serif' }}>
+    <div className="flex flex-col h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
       <SubTabsNav
         tabs={subTabs}
         activeTabId={activeSubTab}

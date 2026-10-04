@@ -7,7 +7,7 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { z } from 'zod'
-import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -53,6 +53,8 @@ import { PORTAL_APPROVAL_MODULES, PORTAL_APPROVAL_ROLES, createPortalApprovalDra
 import { formatDateDDMMYYYY } from '../../lib/utils';
 import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy } from '../../lib/attendancePolicy'
 import { normalizeExpenseCategory, isPetrolCategory, DEFAULT_ADVANCE_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_COMPANY_ACCOUNTS } from '../../lib/advanceExpenseCategories'
+import ShareAction from '../ui/ShareAction'
+import { buildOrganizationInvitePayload, canShareOrganizationInvite } from '../../lib/share'
 
 /*
  * Mobile Settings visual direction: a calm grouped-list surface based on the supplied
@@ -1040,7 +1042,7 @@ export default function SettingsTab({ initialSubTab }) {
   }, {})
 
   const permissionRights = ['view', 'create', 'edit', 'delete', 'approve', 'export']
-  const roleMatrixActions = permissionRights.filter(action => action !== 'export')
+  const roleMatrixActions = [...permissionRights.filter(action => action !== 'export'), 'share']
 
   // Role Groups & Rights
   const roleGroups = []
@@ -1054,7 +1056,7 @@ export default function SettingsTab({ initialSubTab }) {
           name: 'Admin',
           description: 'Full access to all modules and settings.',
           permissions: allModulesList.reduce((acc, mod) => {
-            acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+            acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, share: true, full: true }
             return acc
           }, {})
         },
@@ -1758,7 +1760,7 @@ export default function SettingsTab({ initialSubTab }) {
           'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
         modules.forEach(m => {
-          selectedRolePerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+          selectedRolePerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, share: true, full: true }
         })
       }
 
@@ -4900,15 +4902,26 @@ export default function SettingsTab({ initialSubTab }) {
                         {typeof window !== 'undefined' ? `${window.location.origin}/login` : ''}
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
-                          const link = `${window.location.origin}/login`
-                          navigator.clipboard.writeText(link)
+                          navigator.clipboard.writeText(`${window.location.origin}/login`)
                           alert('Login link copied!')
                         }}
-                        className="flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-indigo-700 shrink-0"
+                        className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:bg-slate-200 shrink-0"
                       >
-                        <Share2 size={12} /> Share
+                        Copy link
                       </button>
+                      {isAdmin && Boolean(orgSettings.code) && <ShareAction
+                        label="Share invite"
+                        className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        canShare={() => canShareOrganizationInvite(user) && Boolean(orgSettings.code)}
+                        buildPayload={() => buildOrganizationInvitePayload({
+                          organizationName: orgSettings.name,
+                          inviteCode: orgSettings.code,
+                          loginUrl: typeof window !== 'undefined' ? `${window.location.origin}/login` : '',
+                          loginOrigin: typeof window !== 'undefined' ? window.location.origin : '',
+                        })}
+                      />}
                     </div>
                   </div>
                 </div>
@@ -6443,7 +6456,18 @@ export default function SettingsTab({ initialSubTab }) {
                             <TableCell align="right" sx={settingsTableBodyCellSx}>
                               <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                                 <IconButton
-                                  onClick={() => { setEditingRole(role); setNewRole({ ...role }); setShowAddRole(true); }}
+                                  onClick={() => {
+                                    const editableRole = { ...role }
+                                    if (String(role.name || '').toLowerCase() === 'admin') {
+                                      editableRole.permissions = allModulesList.reduce((permissions, module) => ({
+                                        ...permissions,
+                                        [module.id]: { ...(role.permissions?.[module.id] || {}), share: true },
+                                      }), { ...(role.permissions || {}) })
+                                    }
+                                    setEditingRole(editableRole)
+                                    setNewRole(editableRole)
+                                    setShowAddRole(true)
+                                  }}
                                   size="small"
                                   sx={{ color: '#4f46e5' }}
                                 >
@@ -8033,7 +8057,7 @@ export default function SettingsTab({ initialSubTab }) {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h4 className="text-[10px] font-black text-gray-800 uppercase tracking-[0.2em]">Permissions Matrix</h4>
-                  <p className="text-[10px] text-gray-400 font-medium mt-0.5 uppercase">Configure module-level access and actions</p>
+                  <p className="text-[10px] text-gray-400 font-medium mt-0.5 uppercase">Configure module-level access and actions. Share is a separate reviewed handoff grant; view, export, or full do not enable it for non-admins.</p>
                 </div>
                 <div className="flex gap-3">
                   <div className="flex items-center gap-2">
@@ -8062,7 +8086,7 @@ export default function SettingsTab({ initialSubTab }) {
                     {Object.entries(moduleGroups).map(([group, groupModules]) => (
                       <React.Fragment key={group}>
                         <tr className="bg-zinc-100/40">
-                          <td colSpan={7} className="px-4 py-1.5 text-[9px] font-black text-indigo-600 uppercase tracking-[0.22em]">{group}</td>
+                          <td colSpan={roleMatrixActions.length + 2} className="px-4 py-1.5 text-[9px] font-black text-indigo-600 uppercase tracking-[0.22em]">{group}</td>
                         </tr>
                         {groupModules.map(mod => (
                           <tr key={mod.id} className="hover:bg-zinc-100/60 transition-colors">
@@ -8085,9 +8109,11 @@ export default function SettingsTab({ initialSubTab }) {
                             {roleMatrixActions.map(action => (
                               <td key={action} className="px-2 py-2 text-center">
                                 <button
-                                  type="button"
-                                  onClick={() => togglePermission(mod.id, action)}
-                                  className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-all ${newRole.permissions?.[mod.id]?.[action] ? 'bg-zinc-100 border-black' : 'bg-zinc-100 border-zinc-300 hover:border-black'}`}
+                                type="button"
+                                onClick={() => togglePermission(mod.id, action)}
+                                aria-label={`${newRole.permissions?.[mod.id]?.[action] ? 'Disable' : 'Enable'} ${action} permission for ${mod.label}`}
+                                aria-pressed={newRole.permissions?.[mod.id]?.[action] === true}
+                                className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-all ${newRole.permissions?.[mod.id]?.[action] ? 'bg-zinc-100 border-black' : 'bg-zinc-100 border-zinc-300 hover:border-black'}`}
                                 >
                                   {newRole.permissions?.[mod.id]?.[action] && <Check size={10} className="text-black" />}
                                 </button>

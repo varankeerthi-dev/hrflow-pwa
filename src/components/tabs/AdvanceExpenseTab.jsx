@@ -668,6 +668,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
   const [summaryMonth, setSummaryMonth] = useState(new Date().toISOString().slice(0, 7))
+  const [summaryPeriodMode, setSummaryPeriodMode] = useState('month') // 'month' | 'range'
+  const [summaryFromDate, setSummaryFromDate] = useState(firstDayOfMonth)
+  const [summaryToDate, setSummaryToDate] = useState(today)
   const [reportFromDate, setReportFromDate] = useState(firstDayOfMonth)
   const [reportToDate, setReportToDate] = useState(today)
   const [reportSelectedEmployees, setReportSelectedEmployees] = useState([]) // Multi-select
@@ -789,6 +792,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }, [activeModule, expenseMode])
 
   const [summaryEmployeeSearch, setSummaryEmployeeSearch] = useState('')
+  const [cashSummaryRightView, setCashSummaryRightView] = useState('advances') // 'advances' | 'categories'
+  const [cashSummaryRightSearch, setCashSummaryRightSearch] = useState('')
+  const [cashSummaryChartMode, setCashSummaryChartMode] = useState('employee_advances') // 'employee_advances' | 'advance_types' | 'expense_categories'
+  const [employeeBalancesLimit, setEmployeeBalancesLimit] = useState(25)
+  const [advancesBreakdownLimit, setAdvancesBreakdownLimit] = useState(25)
+  const [categoriesTableLimit, setCategoriesTableLimit] = useState(25)
+  const [voucherRegisterLimit, setVoucherRegisterLimit] = useState(30)
+  const [voucherRegisterSearch, setVoucherRegisterSearch] = useState('')
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
   const [portalEditForm, setPortalEditForm] = useState(null)
 
@@ -3379,9 +3390,57 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }, [entries, getAccountingEntryType])
 
+  const statementCutoffMonth = useMemo(() => {
+    if (summaryPeriodMode === 'range') {
+      return summaryFromDate ? summaryFromDate.slice(0, 7) : summaryMonth
+    }
+    return summaryMonth
+  }, [summaryPeriodMode, summaryFromDate, summaryMonth])
+
+  const periodDisplayLabel = useMemo(() => {
+    if (summaryPeriodMode === 'range') {
+      try {
+        const fromStr = summaryFromDate ? format(parseISO(summaryFromDate), 'dd MMM yyyy') : ''
+        const toStr = summaryToDate ? format(parseISO(summaryToDate), 'dd MMM yyyy') : ''
+        if (fromStr && toStr) return `${fromStr} to ${toStr}`
+        if (fromStr) return `from ${fromStr}`
+        if (toStr) return `up to ${toStr}`
+        return 'custom period'
+      } catch {
+        return `${summaryFromDate || 'Start'} to ${summaryToDate || 'End'}`
+      }
+    }
+    try {
+      return format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')
+    } catch {
+      return summaryMonth
+    }
+  }, [summaryPeriodMode, summaryMonth, summaryFromDate, summaryToDate])
+
+  const summaryMonthDate = useMemo(() => {
+    if (!summaryMonth) return new Date()
+    try {
+      const [y, m] = summaryMonth.split('-').map(Number)
+      return new Date(y, (m || 1) - 1, 1)
+    } catch {
+      return new Date()
+    }
+  }, [summaryMonth])
+
   const monthlyStatement = useMemo(() => {
+    const isRangeMode = summaryPeriodMode === 'range'
     const periodRows = entries
-      .filter((entry) => String(entry.date || '').startsWith(summaryMonth) && entry.status !== 'Rejected')
+      .filter((entry) => {
+        if (entry.status === 'Rejected') return false
+        const entryDate = String(entry.date || '').trim()
+        if (!entryDate) return false
+        if (isRangeMode) {
+          if (summaryFromDate && entryDate < summaryFromDate) return false
+          if (summaryToDate && entryDate > summaryToDate) return false
+          return true
+        }
+        return entryDate.startsWith(summaryMonth)
+      })
       .map((entry) => {
         const details = resolveReportEntryDetails(entry, employees, entries)
         const effectiveId = details.effectiveEmployeeId || entry.employeeId
@@ -3419,7 +3478,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const paidTotal = periodRows.filter((entry) => entry.paymentStatus === 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
     const outstandingTotal = expenseRows.filter((entry) => entry.paymentStatus !== 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
 
-    // Employee Summary for the month — includes transfer-pair GTO as Expense for the giver (Rahul)
+    // Employee Summary for the period — includes transfer-pair GTO as Expense for the giver (Rahul)
     const employeeMap = new Map()
     periodRows.forEach((entry) => {
       const empId = entry.statementEmployeeId || entry.employeeId || entry.statementEmployeeName || 'unassigned'
@@ -3436,7 +3495,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       if (entry.accountingType === 'Advance') {
         current.advance += entry.statementAmount
         current.count += 1
-        if (entry.deductionMonth && String(entry.deductionMonth).trim() < summaryMonth) {
+        if (entry.deductionMonth && String(entry.deductionMonth).trim() < statementCutoffMonth) {
           current.deductedInPrevMonth = (current.deductedInPrevMonth || 0) + entry.statementAmount
           current.deductedInPrevMonthTarget = String(entry.deductionMonth).trim()
         }
@@ -3455,7 +3514,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       .sort((left, right) => (right.advance + right.expense) - (left.advance + left.expense) || left.name.localeCompare(right.name))
 
     return { periodRows, expenseRows, advanceRows, categoryRows, employeeRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
-  }, [employees, entries, summaryMonth, getAccountingEntryType])
+  }, [employees, entries, summaryMonth, summaryPeriodMode, summaryFromDate, summaryToDate, statementCutoffMonth, getAccountingEntryType])
 
   const expenseCategoryChart = useMemo(() => {
     const chartRows = monthlyStatement.categoryRows.map((category) => ({
@@ -3463,6 +3522,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       amount: category.amount,
       vouchers: category.count,
     }))
+
+    // Dynamic bar padding so 1, 2, or 3 categories don't produce excessively thick bars
+    const count = chartRows.length
+    const barPadding = count <= 1 ? 0.88 : count === 2 ? 0.78 : count === 3 ? 0.68 : count === 4 ? 0.58 : 0.45
 
     return defineChart({
       marks: [
@@ -3476,7 +3539,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       ],
       scales: {
         x: {
-          scale: () => scaleBand().padding(0.55),
+          scale: () => scaleBand().padding(barPadding),
           axis: {
             line: false,
             ticks: {
@@ -3522,6 +3585,253 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const totalNet = totalAdvance - totalExpense
     return { totalAdvance, totalExpense, totalNet, totalDeductedInPrevMonth }
   }, [monthlyStatement.employeeRows])
+
+  const advancesReceivedStatement = useMemo(() => {
+    const periodRows = monthlyStatement.periodRows || []
+    const empAdvanceMap = new Map()
+
+    const getOrInit = (empId, empName) => {
+      const cleanId = empId || empName || 'unassigned'
+      const cleanName = empName || 'Unassigned employee'
+      if (!empAdvanceMap.has(cleanId)) {
+        empAdvanceMap.set(cleanId, {
+          employeeId: cleanId,
+          employeeName: cleanName,
+          cashAdvance: 0,
+          salaryAdvance: 0,
+          gtoAdvance: 0,
+          otherAdvance: 0,
+          totalAdvance: 0,
+          count: 0,
+          vouchers: []
+        })
+      }
+      return empAdvanceMap.get(cleanId)
+    }
+
+    periodRows.forEach((entry) => {
+      const details = resolveReportEntryDetails(entry, employees, periodRows)
+      const amt = Number(effectiveAmount(entry) || 0)
+      if (amt <= 0) return
+
+      if (entry.accountingType === 'Advance') {
+        const targetEmpId = entry.statementEmployeeId || entry.employeeId
+        const targetEmpName = entry.statementEmployeeName || entry.employeeName
+        const target = getOrInit(targetEmpId, targetEmpName)
+        
+        target.count += 1
+        target.totalAdvance += amt
+        target.vouchers.push({
+          id: entry.id,
+          date: entry.date,
+          transactionNo: entry.transactionNo,
+          amount: amt,
+          category: entry.statementCategory || entry.category || 'Advance',
+          reason: entry.reason || entry.remarks || '',
+          givenBy: details.displayGivenBy || null,
+          isTransfer: !!details.isTransferAdvance
+        })
+
+        const catLower = String(entry.statementCategory || entry.category || '').toLowerCase()
+        const isTransfer = !!details.isTransferAdvance || !!entry.linkedExpenseId || catLower.includes('given to others') || catLower.includes('transfer')
+        
+        if (isTransfer) {
+          target.gtoAdvance += amt
+        } else if (catLower.includes('salary advance') || catLower === 'salary') {
+          target.salaryAdvance += amt
+        } else if (catLower.includes('cash advance') || catLower === 'cash') {
+          target.cashAdvance += amt
+        } else {
+          target.otherAdvance += amt
+        }
+      } else if (
+        entry.accountingType === 'Expense' && 
+        isGivenToOthersCategory(entry.category) &&
+        !isTransferPairGtoExpense(entry, periodRows)
+      ) {
+        const recipientName = details.recipientName || entry.paidToName || entry.paidToCustomName
+        const recipientId = details.effectiveEmployeeId !== entry.employeeId ? details.effectiveEmployeeId : (entry.paidTo || recipientName)
+        if (recipientName || recipientId) {
+          const target = getOrInit(recipientId, recipientName || 'Employee')
+          target.count += 1
+          target.totalAdvance += amt
+          target.gtoAdvance += amt
+          target.vouchers.push({
+            id: entry.id,
+            date: entry.date,
+            transactionNo: entry.transactionNo,
+            amount: amt,
+            category: 'Given to Others (Transfer)',
+            reason: entry.reason || entry.remarks || '',
+            givenBy: entry.statementEmployeeName || entry.employeeName || 'Colleague',
+            isTransfer: true
+          })
+        }
+      }
+    })
+
+    const rows = [...empAdvanceMap.values()]
+      .sort((a, b) => b.totalAdvance - a.totalAdvance || a.employeeName.localeCompare(b.employeeName))
+
+    const totals = rows.reduce(
+      (acc, r) => ({
+        totalAdvance: acc.totalAdvance + r.totalAdvance,
+        cashAdvance: acc.cashAdvance + r.cashAdvance,
+        salaryAdvance: acc.salaryAdvance + r.salaryAdvance,
+        gtoAdvance: acc.gtoAdvance + r.gtoAdvance,
+        otherAdvance: acc.otherAdvance + r.otherAdvance,
+        count: acc.count + r.count
+      }),
+      { totalAdvance: 0, cashAdvance: 0, salaryAdvance: 0, gtoAdvance: 0, otherAdvance: 0, count: 0 }
+    )
+
+    return { rows, totals }
+  }, [monthlyStatement.periodRows, employees])
+
+  const advanceTypeBreakdown = useMemo(() => {
+    const { totals } = advancesReceivedStatement
+    return [
+      { type: 'Cash Advance', amount: totals.cashAdvance, color: '#059669' },
+      { type: 'Salary Advance', amount: totals.salaryAdvance, color: '#2563eb' },
+      { type: 'Given to Others', amount: totals.gtoAdvance, color: '#7c3aed' },
+      { type: 'Other Advances', amount: totals.otherAdvance, color: '#ea580c' }
+    ].filter(t => t.amount > 0 || totals.totalAdvance === 0)
+  }, [advancesReceivedStatement])
+
+  const advanceEmployeeChart = useMemo(() => {
+    const chartRows = advancesReceivedStatement.rows.slice(0, 10).map((r) => ({
+      name: r.employeeName,
+      amount: r.totalAdvance,
+      cash: r.cashAdvance,
+      salary: r.salaryAdvance,
+      gto: r.gtoAdvance,
+      other: r.otherAdvance,
+      vouchers: r.count
+    }))
+
+    const empCount = chartRows.length
+    const empBarPadding = empCount <= 1 ? 0.88 : empCount === 2 ? 0.78 : empCount === 3 ? 0.68 : empCount === 4 ? 0.58 : 0.40
+
+    return defineChart({
+      marks: [
+        barY(chartRows, {
+          id: 'advance-employee-bars',
+          x: 'name',
+          y: 'amount',
+          fill: '#059669',
+          radius: 6,
+        }),
+      ],
+      scales: {
+        x: {
+          scale: () => scaleBand().padding(empBarPadding),
+          axis: {
+            line: false,
+            ticks: {
+              size: 0,
+              padding: 10,
+              format: (value) => String(value).length > 12 ? `${String(value).slice(0, 12)}…` : String(value),
+            },
+          },
+        },
+        y: {
+          scale: scaleLinear,
+          nice: true,
+          grid: true,
+          axis: {
+            line: false,
+            ticks: {
+              size: 0,
+              padding: 8,
+              format: (value) => formatINR(Number(value)),
+            },
+          },
+        },
+      },
+      margin: { top: 12, right: 12, bottom: 50, left: 76 },
+      tooltip,
+      focus: 'group-x',
+      svgAnimation: true,
+    })
+  }, [advancesReceivedStatement.rows])
+
+  const advanceTypeChart = useMemo(() => {
+    const chartRows = advanceTypeBreakdown.map((item) => ({
+      type: item.type,
+      amount: item.amount,
+    }))
+
+    const typeCount = chartRows.length
+    const typeBarPadding = typeCount <= 1 ? 0.88 : typeCount === 2 ? 0.78 : typeCount === 3 ? 0.68 : typeCount === 4 ? 0.58 : 0.45
+
+    return defineChart({
+      marks: [
+        barY(chartRows, {
+          id: 'advance-type-bars',
+          x: 'type',
+          y: 'amount',
+          fill: '#059669',
+          radius: 6,
+        }),
+      ],
+      scales: {
+        x: {
+          scale: () => scaleBand().padding(typeBarPadding),
+          axis: {
+            line: false,
+            ticks: {
+              size: 0,
+              padding: 10,
+              format: (value) => String(value),
+            },
+          },
+        },
+        y: {
+          scale: scaleLinear,
+          nice: true,
+          grid: true,
+          axis: {
+            line: false,
+            ticks: {
+              size: 0,
+              padding: 8,
+              format: (value) => formatINR(Number(value)),
+            },
+          },
+        },
+      },
+      margin: { top: 12, right: 12, bottom: 50, left: 76 },
+      tooltip,
+      focus: 'group-x',
+      svgAnimation: true,
+    })
+  }, [advanceTypeBreakdown])
+
+  const filteredAdvancesBreakdownRows = useMemo(() => {
+    const rows = advancesReceivedStatement.rows || []
+    if (!cashSummaryRightSearch.trim()) return rows
+    const q = cashSummaryRightSearch.toLowerCase()
+    return rows.filter((r) => r.employeeName.toLowerCase().includes(q))
+  }, [advancesReceivedStatement.rows, cashSummaryRightSearch])
+
+  const filteredCategoriesBreakdownRows = useMemo(() => {
+    const rows = monthlyStatement.categoryRows || []
+    if (!cashSummaryRightSearch.trim()) return rows
+    const q = cashSummaryRightSearch.toLowerCase()
+    return rows.filter((r) => r.category.toLowerCase().includes(q))
+  }, [monthlyStatement.categoryRows, cashSummaryRightSearch])
+
+  const filteredVoucherRegisterRows = useMemo(() => {
+    const rows = monthlyStatement.periodRows || []
+    if (!voucherRegisterSearch.trim()) return rows
+    const q = voucherRegisterSearch.toLowerCase()
+    return rows.filter((r) =>
+      String(r.statementEmployeeName || '').toLowerCase().includes(q) ||
+      String(r.category || '').toLowerCase().includes(q) ||
+      String(r.transactionNo || '').toLowerCase().includes(q) ||
+      String(r.reason || '').toLowerCase().includes(q)
+    )
+  }, [monthlyStatement.periodRows, voucherRegisterSearch])
 
   const handleMonthChange = (direction) => {
     const [year, month] = reportMonth.split('-').map(Number)
@@ -4760,7 +5070,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   type="text"
                   disabled
                   value={`₹${Number(convertingLoanAdvance.amount || 0).toLocaleString('en-IN')}`}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-mono font-bold text-slate-800"
+                  className="h-9 w-full rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-bold tabular-nums text-slate-800 font-body"
                 />
               </div>
 
@@ -4773,7 +5083,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   placeholder="e.g. 5000"
                   value={loanConvertForm.emiAmount}
                   onChange={(e) => setLoanConvertForm({ ...loanConvertForm, emiAmount: e.target.value })}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-mono text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium tabular-nums text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 font-body"
                 />
                 {Number(loanConvertForm.emiAmount) > 0 && (
                   <p className="mt-1 text-[11px] text-slate-500 font-body">
@@ -7391,107 +7701,239 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
           ) : (
             <>
-              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-4 bg-slate-50/70 px-5 py-4 md:flex-row md:items-center md:justify-between">
+              <div className="rounded-[12px] border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-4 bg-slate-50/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance & Expense Register</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Advance & Expense Register</p>
                     <h2 className="mt-1 text-lg font-semibold text-slate-900 font-heading">Cash Summary</h2>
-                    <p className="mt-1 text-xs font-normal text-slate-500 font-body">Category ledger and employee balances for {format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}.</p>
+                    <p className="mt-1 text-xs font-normal text-slate-500 font-body">
+                      Category ledger and employee balances for {periodDisplayLabel}.
+                    </p>
                   </div>
-                  <label className="w-full md:w-auto">
-                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Statement month</span>
-                    <input type="month" value={summaryMonth} onChange={(event) => setSummaryMonth(event.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 md:w-[180px]" />
-                  </label>
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                    {/* Period View Mode Toggle */}
+                    <div className="flex flex-col">
+                      <span className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">View By</span>
+                      <div className="inline-flex h-9 p-0.5 rounded-lg border border-slate-200 bg-slate-100/90 items-center">
+                        <button
+                          type="button"
+                          onClick={() => setSummaryPeriodMode('month')}
+                          className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                            summaryPeriodMode === 'month'
+                              ? 'bg-white text-blue-600 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Month
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSummaryPeriodMode('range')}
+                          className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                            summaryPeriodMode === 'range'
+                              ? 'bg-white text-blue-600 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Date Range
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Date Selector Inputs */}
+                    {summaryPeriodMode === 'month' ? (
+                      <div className="flex flex-col">
+                        <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Statement Month</label>
+                        <div className="relative">
+                          <DatePicker
+                            selected={summaryMonthDate}
+                            onChange={(date) => {
+                              if (date) {
+                                const yyyy = date.getFullYear()
+                                const mm = String(date.getMonth() + 1).padStart(2, '0')
+                                setSummaryMonth(`${yyyy}-${mm}`)
+                              }
+                            }}
+                            dateFormat="MMMM yyyy"
+                            showMonthYearPicker
+                            popperClassName="z-[99999] shadow-2xl"
+                            popperPlacement="bottom-start"
+                            popperProps={{ strategy: 'fixed' }}
+                            portalId="root"
+                            className="h-9 w-full sm:w-[175px] rounded-md border border-slate-200 bg-white px-3 pl-8 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
+                          />
+                          <Calendar size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex flex-col">
+                          <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">From Date</label>
+                          <div className="relative">
+                            <DatePicker
+                              selected={summaryFromDate ? parseISO(summaryFromDate) : null}
+                              onChange={(date) => {
+                                setSummaryFromDate(date ? format(date, 'yyyy-MM-dd') : '')
+                              }}
+                              selectsStart
+                              startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
+                              endDate={summaryToDate ? parseISO(summaryToDate) : null}
+                              maxDate={summaryToDate ? parseISO(summaryToDate) : undefined}
+                              dateFormat="dd MMM yyyy"
+                              placeholderText="Start date"
+                              popperClassName="z-[99999] shadow-2xl"
+                              popperPlacement="bottom-start"
+                              popperProps={{ strategy: 'fixed' }}
+                              portalId="root"
+                              className="h-9 w-[132px] rounded-md border border-slate-200 bg-white px-2 pl-7 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
+                            />
+                            <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">To Date</label>
+                          <div className="relative">
+                            <DatePicker
+                              selected={summaryToDate ? parseISO(summaryToDate) : null}
+                              onChange={(date) => {
+                                setSummaryToDate(date ? format(date, 'yyyy-MM-dd') : '')
+                              }}
+                              selectsEnd
+                              startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
+                              endDate={summaryToDate ? parseISO(summaryToDate) : null}
+                              minDate={summaryFromDate ? parseISO(summaryFromDate) : undefined}
+                              dateFormat="dd MMM yyyy"
+                              placeholderText="End date"
+                              popperClassName="z-[99999] shadow-2xl"
+                              popperPlacement="bottom-start"
+                              popperProps={{ strategy: 'fixed' }}
+                              portalId="root"
+                              className="h-9 w-[132px] rounded-md border border-slate-200 bg-white px-2 pl-7 text-xs font-medium text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-body cursor-pointer"
+                            />
+                            <Calendar size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSummaryPeriodMode('month')
+                            setSummaryFromDate(firstDayOfMonth)
+                            setSummaryToDate(today)
+                          }}
+                          title="Reset to Monthly view"
+                          className="h-9 px-2.5 inline-flex items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors font-body shadow-xs"
+                        >
+                          <RotateCcw size={13} className="mr-1 text-slate-400" />
+                          Month
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* 2-Column Grid: Left (Employee Summary) + Right (Expense Analysis) */}
+              {/* 2-Column Grid: Left (Employee Summary) + Right (Notion-inspired Advances / Category Table) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-                {/* Left Side: Employee Monthly Summary */}
+                {/* Left Side: Employee Summary (Period balances) */}
                 <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-4">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Monthly balances</p>
-                      <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">Employee Summary</h3>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-3.5 bg-slate-50/40">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">
+                          {summaryPeriodMode === 'range' ? 'Period balances' : 'Monthly balances'}
+                        </p>
+                        <h3 className="text-sm font-semibold text-slate-900 font-heading">Employee Summary</h3>
+                      </div>
+                      <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium tabular-nums rounded bg-slate-100 text-slate-600 border border-slate-200/60">
+                        {filteredEmployeeRows.length}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="relative w-44">
+                      <div className="relative w-40 sm:w-44">
                         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         <input
                           type="text"
                           value={summaryEmployeeSearch}
                           onChange={(e) => setSummaryEmployeeSearch(e.target.value)}
-                          placeholder="Search employee..."
-                          className="w-full h-8 pl-8 pr-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white font-body placeholder:text-slate-400 text-slate-800"
+                          placeholder="Filter employee..."
+                          className="w-full h-8 pl-8 pr-2.5 text-xs bg-white border border-slate-200 rounded-md outline-none focus:border-blue-600 font-body placeholder:text-slate-400 text-slate-800"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="max-h-[620px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
+                  <div className="max-h-[560px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
                     <table className="w-full border-collapse text-left text-xs font-body">
-                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-2xs">
-                        <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          <th className="px-4 py-2.5">Employee Name</th>
-                          <th className="px-3 py-2.5 text-right">Advance</th>
-                          <th className="px-3 py-2.5 text-right">Expense</th>
-                          <th className="px-4 py-2.5 text-right">Summary</th>
+                      <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                        <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-2.5">
+                            Employee
+                          </th>
+                          <th className="px-3 py-2.5 text-right">
+                            Advance
+                          </th>
+                          <th className="px-3 py-2.5 text-right">
+                            Expense
+                          </th>
+                          <th className="px-4 py-2.5 text-right">
+                            Net Balance
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
                         {filteredEmployeeRows.length === 0 ? (
                           <tr>
                             <td colSpan={4} className="px-4 py-12 text-center text-xs font-normal text-slate-400">
-                              {summaryEmployeeSearch ? 'No matching employee found.' : 'No employee advance or expense records for this month.'}
+                              {summaryEmployeeSearch ? 'No matching employee found.' : `No employee advance or expense records for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
                             </td>
                           </tr>
                         ) : (
-                          filteredEmployeeRows.map((emp) => {
+                          filteredEmployeeRows.slice(0, employeeBalancesLimit).map((emp) => {
                             const isAdvanceSurplus = emp.advance > emp.expense
                             const isExpenseSurplus = emp.expense > emp.advance
                             const diff = Math.abs(emp.advance - emp.expense)
 
                             return (
-                              <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
+                              <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                                 <td className="px-4 py-2.5">
                                   <span className="font-semibold text-slate-800 font-body">{emp.name}</span>
                                 </td>
                                 <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
                                   {emp.advance > 0 ? (
                                     <div>
-                                      <div>{formatINR(emp.advance)}</div>
+                                      <div className="font-medium tabular-nums">{formatINR(emp.advance)}</div>
                                       {emp.deductedInPrevMonth > 0 && (
                                         <div
                                           className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap"
                                           title={`₹${Number(emp.deductedInPrevMonth || 0).toLocaleString('en-IN')} deducted in ${formatMonthLabel(emp.deductedInPrevMonthTarget)} salary`}
                                         >
-                                          ({formatINR(emp.deductedInPrevMonth)} deducted in {formatMonthLabel(emp.deductedInPrevMonthTarget)})
+                                          ({formatINR(emp.deductedInPrevMonth)} in prev)
                                         </div>
                                       )}
                                     </div>
-                                  ) : '—'}
+                                  ) : <span className="text-slate-300 font-normal">—</span>}
                                 </td>
                                 <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
-                                  {emp.expense > 0 ? formatINR(emp.expense) : '—'}
+                                  {emp.expense > 0 ? formatINR(emp.expense) : <span className="text-slate-300 font-normal">—</span>}
                                 </td>
-                                <td className="px-4 py-2.5 text-right">
+                                <td className="px-4 py-2.5 text-right tabular-nums">
                                   {isAdvanceSurplus ? (
                                     <span
-                                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-700 shadow-2xs"
+                                      className="inline-flex items-center gap-1 rounded border border-emerald-200/70 bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800"
                                       title="Advance surplus (cash in hand)"
                                     >
                                       +{formatINR(diff)}
                                     </span>
                                   ) : isExpenseSurplus ? (
                                     <span
-                                      className="inline-flex items-center gap-1 rounded-md border border-rose-200/70 bg-rose-50 px-2 py-0.5 text-xs font-bold tabular-nums text-rose-700 shadow-2xs"
+                                      className="inline-flex items-center gap-1 rounded border border-rose-200/70 bg-rose-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-rose-800"
                                       title="Expense surplus (due to employee)"
                                     >
                                       -{formatINR(diff)}
                                     </span>
                                   ) : (
                                     <span
-                                      className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-500"
+                                      className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-500"
                                       title="Settled (Advance = Expense)"
                                     >
                                       ₹0.00
@@ -7504,25 +7946,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         )}
                       </tbody>
                       {monthlyStatement.employeeRows?.length > 0 && (
-                        <tfoot className="bg-slate-50/90 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10">
+                        <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
                           <tr>
                             <td className="px-4 py-2.5 text-slate-800">Total ({monthlyStatement.employeeRows.length})</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">
+                            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-emerald-700">
                               <div>{formatINR(employeeSummaryTotals.totalAdvance)}</div>
                               {employeeSummaryTotals.totalDeductedInPrevMonth > 0 && (
                                 <div className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap">
-                                  ({formatINR(employeeSummaryTotals.totalDeductedInPrevMonth)} in prev month)
+                                  ({formatINR(employeeSummaryTotals.totalDeductedInPrevMonth)} in prev)
                                 </div>
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">{formatINR(employeeSummaryTotals.totalExpense)}</td>
-                            <td className="px-4 py-2.5 text-right">
+                            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(employeeSummaryTotals.totalExpense)}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">
                               {employeeSummaryTotals.totalAdvance > employeeSummaryTotals.totalExpense ? (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-100/70 px-2 py-0.5 text-xs font-black tabular-nums text-emerald-800">
+                                <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800">
                                   +{formatINR(employeeSummaryTotals.totalAdvance - employeeSummaryTotals.totalExpense)}
                                 </span>
                               ) : employeeSummaryTotals.totalExpense > employeeSummaryTotals.totalAdvance ? (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-100/70 px-2 py-0.5 text-xs font-black tabular-nums text-rose-800">
+                                <span className="inline-flex items-center gap-1 rounded border border-rose-200 bg-rose-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-rose-800">
                                   -{formatINR(employeeSummaryTotals.totalExpense - employeeSummaryTotals.totalAdvance)}
                                 </span>
                               ) : (
@@ -7534,6 +7976,28 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       )}
                     </table>
                   </div>
+
+                  {filteredEmployeeRows.length > employeeBalancesLimit && (
+                    <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 flex items-center justify-between text-xs text-slate-500 font-body">
+                      <span>Showing {Math.min(employeeBalancesLimit, filteredEmployeeRows.length)} of {filteredEmployeeRows.length} employees</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEmployeeBalancesLimit((prev) => prev + 25)}
+                          className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-white border border-slate-200 rounded-md hover:bg-blue-50 transition-colors shadow-2xs"
+                        >
+                          Load +25 more
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEmployeeBalancesLimit(filteredEmployeeRows.length)}
+                          className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-100 transition-colors shadow-2xs"
+                        >
+                          Show all
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-body">
                     <span className="flex items-center gap-1">
@@ -7547,24 +8011,389 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
                 </div>
 
-                {/* Right Side: Expense Analysis Breakdown */}
+                {/* Right Side: Notion-inspired Table (Advances Breakdown & Category Breakdown) */}
                 <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
-                  <div className="border-b border-slate-100 px-5 py-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Expense analysis</p>
-                    <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">Category breakdown</h3>
+                  {/* Notion-style Header with Tabs and Search */}
+                  <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-3.5 bg-slate-50/40">
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex h-8 p-0.5 rounded-lg border border-slate-200 bg-slate-100/90 items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCashSummaryRightView('advances')
+                            setCashSummaryRightSearch('')
+                          }}
+                          className={`h-7 px-2.5 rounded-md text-xs font-semibold transition-all font-body ${
+                            cashSummaryRightView === 'advances'
+                              ? 'bg-white text-emerald-700 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Advances Breakdown
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCashSummaryRightView('categories')
+                            setCashSummaryRightSearch('')
+                          }}
+                          className={`h-7 px-2.5 rounded-md text-xs font-semibold transition-all font-body ${
+                            cashSummaryRightView === 'categories'
+                              ? 'bg-white text-blue-700 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Expense Categories
+                        </button>
+                      </div>
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium tabular-nums rounded bg-slate-100 text-slate-600 border border-slate-200/60">
+                        {cashSummaryRightView === 'advances' ? filteredAdvancesBreakdownRows.length : filteredCategoriesBreakdownRows.length}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-40 sm:w-44">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={cashSummaryRightSearch}
+                          onChange={(e) => setCashSummaryRightSearch(e.target.value)}
+                          placeholder={cashSummaryRightView === 'advances' ? 'Filter employee...' : 'Filter category...'}
+                          className="w-full h-8 pl-8 pr-2.5 text-xs bg-white border border-slate-200 rounded-md outline-none focus:border-blue-600 font-body placeholder:text-slate-400 text-slate-800"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="border-b border-slate-100 px-5 py-4">
-                    {monthlyStatement.categoryRows.length === 0 ? (
+
+                  {/* Notion Table Content */}
+                  <div className="max-h-[560px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
+                    {cashSummaryRightView === 'advances' ? (
+                      /* Advances Received Table */
+                      <table className="w-full border-collapse text-left text-xs font-body">
+                        <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                          <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-4 py-2.5">Employee</th>
+                            <th className="px-2.5 py-2.5 text-right" title="Cash Advance directly given">Cash</th>
+                            <th className="px-2.5 py-2.5 text-right" title="Salary Advance deducted from payroll">Salary</th>
+                            <th className="px-2.5 py-2.5 text-right" title="Received from colleague / transfer">Given to Others</th>
+                            <th className="px-4 py-2.5 text-right">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                          {filteredAdvancesBreakdownRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-12 text-center text-xs font-normal text-slate-400">
+                                {cashSummaryRightSearch ? 'No matching employee found.' : `No advances recorded for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredAdvancesBreakdownRows.slice(0, advancesBreakdownLimit).map((row) => (
+                              <tr key={row.employeeId} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <div className="font-semibold text-slate-800 font-body">{row.employeeName}</div>
+                                  <div className="text-[10px] text-slate-400 font-body">{row.count} voucher{row.count === 1 ? '' : 's'}</div>
+                                </td>
+                                <td className="px-2.5 py-2.5 text-right tabular-nums">
+                                  {row.cashAdvance > 0 ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-medium tabular-nums">
+                                      {formatINR(row.cashAdvance)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300 font-normal">—</span>
+                                  )}
+                                </td>
+                                <td className="px-2.5 py-2.5 text-right tabular-nums">
+                                  {row.salaryAdvance > 0 ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-medium tabular-nums">
+                                      {formatINR(row.salaryAdvance)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300 font-normal">—</span>
+                                  )}
+                                </td>
+                                <td className="px-2.5 py-2.5 text-right tabular-nums">
+                                  {row.gtoAdvance > 0 ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/60 font-medium tabular-nums" title="Received via Given to Others / Transfer from another employee">
+                                      {formatINR(row.gtoAdvance)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300 font-normal">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900">
+                                  {formatINR(row.totalAdvance)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                        {advancesReceivedStatement.rows.length > 0 && (
+                          <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                            <tr>
+                              <td className="px-4 py-2.5 text-slate-800 font-body">Total ({advancesReceivedStatement.rows.length})</td>
+                              <td className="px-2.5 py-2.5 text-right tabular-nums text-emerald-700">{formatINR(advancesReceivedStatement.totals.cashAdvance)}</td>
+                              <td className="px-2.5 py-2.5 text-right tabular-nums text-blue-700">{formatINR(advancesReceivedStatement.totals.salaryAdvance)}</td>
+                              <td className="px-2.5 py-2.5 text-right tabular-nums text-purple-700">{formatINR(advancesReceivedStatement.totals.gtoAdvance)}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{formatINR(advancesReceivedStatement.totals.totalAdvance)}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    ) : (
+                      /* Category Breakdown Table */
+                      <table className="w-full border-collapse text-left text-xs font-body">
+                        <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                          <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-4 py-2.5">Category</th>
+                            <th className="px-3 py-2.5 text-right"># Vouchers</th>
+                            <th className="px-4 py-2.5 text-right">Expense</th>
+                            <th className="px-3 py-2.5 text-right">Paid</th>
+                            <th className="px-3 py-2.5 text-right">Pending</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                          {filteredCategoriesBreakdownRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">
+                                {cashSummaryRightSearch ? 'No matching category found.' : `No expense vouchers for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredCategoriesBreakdownRows.slice(0, categoriesTableLimit).map((category) => (
+                              <tr key={category.category} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="px-4 py-2.5 font-medium text-slate-800">{category.category}</td>
+                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-600">{category.count}</td>
+                                <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</td>
+                                <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td>
+                                <td className="px-3 py-2.5 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                        {monthlyStatement.categoryRows.length > 0 && (
+                          <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                            <tr>
+                              <td className="px-4 py-2.5 text-slate-800 font-body">Total ({monthlyStatement.categoryRows.length})</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{monthlyStatement.categoryRows.reduce((s, c) => s + c.count, 0)}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-rose-700">{formatINR(monthlyStatement.expenseTotal)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{formatINR(monthlyStatement.paidTotal)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{formatINR(monthlyStatement.outstandingTotal)}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    )}
+                  </div>
+
+                  {/* Lazy load footer controls */}
+                  {cashSummaryRightView === 'advances' && filteredAdvancesBreakdownRows.length > advancesBreakdownLimit && (
+                    <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 flex items-center justify-between text-xs text-slate-500 font-body">
+                      <span>Showing {Math.min(advancesBreakdownLimit, filteredAdvancesBreakdownRows.length)} of {filteredAdvancesBreakdownRows.length} items</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAdvancesBreakdownLimit((prev) => prev + 25)}
+                          className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-white border border-slate-200 rounded-md hover:bg-emerald-50 transition-colors shadow-2xs"
+                        >
+                          Load +25 more
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAdvancesBreakdownLimit(filteredAdvancesBreakdownRows.length)}
+                          className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-100 transition-colors shadow-2xs"
+                        >
+                          Show all
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {cashSummaryRightView === 'categories' && filteredCategoriesBreakdownRows.length > categoriesTableLimit && (
+                    <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 flex items-center justify-between text-xs text-slate-500 font-body">
+                      <span>Showing {Math.min(categoriesTableLimit, filteredCategoriesBreakdownRows.length)} of {filteredCategoriesBreakdownRows.length} categories</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCategoriesTableLimit((prev) => prev + 25)}
+                          className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-white border border-slate-200 rounded-md hover:bg-blue-50 transition-colors shadow-2xs"
+                        >
+                          Load +25 more
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCategoriesTableLimit(filteredCategoriesBreakdownRows.length)}
+                          className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-100 transition-colors shadow-2xs"
+                        >
+                          Show all
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-body">
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      Cash Advance
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                      Salary Advance
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-purple-500" />
+                      Given to Others (Transfer)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chart Section - Moved Down as requested */}
+              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-4 bg-slate-50/40">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Visual Analytics</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">
+                      {cashSummaryChartMode === 'expense_categories'
+                        ? 'Expense Category Breakdown'
+                        : cashSummaryChartMode === 'advance_types'
+                        ? 'Advances by Type'
+                        : 'Advances Received by Employees'}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500 font-body">
+                      {cashSummaryChartMode === 'expense_categories'
+                        ? `Effective expense amount by category for ${periodDisplayLabel}`
+                        : `Cash advances, salary advances, and given-to-others received during ${periodDisplayLabel}`}
+                    </p>
+                  </div>
+
+                  <div className="inline-flex h-9 p-0.5 rounded-lg border border-slate-200 bg-slate-100/90 items-center self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setCashSummaryChartMode('employee_advances')}
+                      className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                        cashSummaryChartMode === 'employee_advances'
+                          ? 'bg-white text-emerald-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      By Employee
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCashSummaryChartMode('advance_types')}
+                      className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                        cashSummaryChartMode === 'advance_types'
+                          ? 'bg-white text-emerald-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      By Advance Type
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCashSummaryChartMode('expense_categories')}
+                      className={`h-7.5 px-3 rounded-md text-xs font-semibold transition-all font-body ${
+                        cashSummaryChartMode === 'expense_categories'
+                          ? 'bg-white text-rose-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Expenses
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-5 py-5 border-b border-slate-100">
+                  {cashSummaryChartMode === 'employee_advances' ? (
+                    advancesReceivedStatement.rows.length === 0 ? (
                       <div className="flex min-h-[220px] items-center justify-center text-center">
-                        <p className="text-sm font-normal text-slate-400 font-body">No category expenses are available to chart for this month.</p>
+                        <p className="text-sm font-normal text-slate-400 font-body">No advances received during this {summaryPeriodMode === 'range' ? 'period' : 'month'}.</p>
+                      </div>
+                    ) : (
+                      <Chart
+                        definition={advanceEmployeeChart}
+                        height={260}
+                        initialWidth={720}
+                        ariaLabel={`Advances received by employee for ${periodDisplayLabel}`}
+                        ariaDescription="Bar chart showing advances received per employee including cash advance, salary advance, and given to others."
+                        className="w-full"
+                        renderTooltipBody={({ points, defaultBody }) => {
+                          const item = points[0]?.datum
+                          if (!item) return defaultBody
+                          return (
+                            <div className="min-w-[200px] rounded-lg border border-slate-200 bg-white px-3.5 py-3 shadow-xl font-body">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee Advances</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900 font-heading">{item.name}</p>
+                              <div className="mt-2.5 space-y-1.5 border-t border-slate-100 pt-2 text-xs">
+                                <div className="flex items-center justify-between text-slate-600">
+                                  <span>Cash Advance:</span>
+                                  <span className="font-semibold tabular-nums text-slate-800">{formatINR(item.cash || 0)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-slate-600">
+                                  <span>Salary Advance:</span>
+                                  <span className="font-semibold tabular-nums text-blue-700">{formatINR(item.salary || 0)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-slate-600">
+                                  <span>Given to Others:</span>
+                                  <span className="font-semibold tabular-nums text-purple-700">{formatINR(item.gto || 0)}</span>
+                                </div>
+                                {item.other > 0 && (
+                                  <div className="flex items-center justify-between text-slate-600">
+                                    <span>Other Advances:</span>
+                                    <span className="font-semibold tabular-nums text-amber-700">{formatINR(item.other || 0)}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between border-t border-slate-100 pt-2 font-bold">
+                                  <span className="text-slate-800">Total Advance:</span>
+                                  <span className="font-bold tabular-nums text-emerald-700">{formatINR(item.amount || 0)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }}
+                      />
+                    )
+                  ) : cashSummaryChartMode === 'advance_types' ? (
+                    advanceTypeBreakdown.length === 0 ? (
+                      <div className="flex min-h-[220px] items-center justify-center text-center">
+                        <p className="text-sm font-normal text-slate-400 font-body">No advance categories available for this {summaryPeriodMode === 'range' ? 'period' : 'month'}.</p>
+                      </div>
+                    ) : (
+                      <Chart
+                        definition={advanceTypeChart}
+                        height={260}
+                        initialWidth={720}
+                        ariaLabel={`Advances by category for ${periodDisplayLabel}`}
+                        ariaDescription="Bar chart showing total advances by advance type."
+                        className="w-full"
+                        renderTooltipBody={({ points, defaultBody }) => {
+                          const item = points[0]?.datum
+                          if (!item) return defaultBody
+                          return (
+                            <div className="min-w-[180px] rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 shadow-xl font-body">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance Type</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">{item.type}</p>
+                              <div className="mt-2 flex items-baseline justify-between border-t border-slate-100 pt-2">
+                                <span className="text-xs text-slate-500 font-body">Amount:</span>
+                                <span className="text-sm font-bold tabular-nums text-emerald-700">{formatINR(item.amount)}</span>
+                              </div>
+                            </div>
+                          )
+                        }}
+                      />
+                    )
+                  ) : (
+                    monthlyStatement.categoryRows.length === 0 ? (
+                      <div className="flex min-h-[220px] items-center justify-center text-center">
+                        <p className="text-sm font-normal text-slate-400 font-body">No category expenses are available to chart for this {summaryPeriodMode === 'range' ? 'period' : 'month'}.</p>
                       </div>
                     ) : (
                       <Chart
                         definition={expenseCategoryChart}
-                        height={240}
-                        initialWidth={520}
-                        ariaLabel={`Expense amount by category for ${format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}`}
-                        ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement month."
+                        height={260}
+                        initialWidth={720}
+                        ariaLabel={`Expense amount by category for ${periodDisplayLabel}`}
+                        ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement period."
                         className="w-full"
                         renderTooltipBody={({ points, defaultBody }) => {
                           const category = points[0]?.datum
@@ -7581,50 +8410,157 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           )
                         }}
                       />
-                    )}
+                    )
+                  )}
+                </div>
+
+                {/* KPI Pill Summary Bar */}
+                <div className="bg-slate-50/60 px-5 py-3 flex flex-wrap items-center gap-3 text-xs font-body border-t border-slate-100">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200/70 text-emerald-800 font-medium">
+                    <span>Total Advances:</span>
+                    <span className="font-bold tabular-nums">{formatINR(advancesReceivedStatement.totals.totalAdvance)}</span>
+                    <span className="text-[11px] text-emerald-600">({advancesReceivedStatement.totals.count} vouchers)</span>
                   </div>
-                  <div className="max-h-[360px] overflow-y-auto overflow-x-auto slim-scrollbar">
-                    <table className="w-full border-collapse text-left text-xs font-body">
-                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-2xs">
-                        <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          <th className="px-4 py-2.5">Category</th>
-                          <th className="px-3 py-2.5 text-right">Vouchers</th>
-                          <th className="px-4 py-2.5 text-right">Expense</th>
-                          <th className="px-3 py-2.5 text-right">Paid</th>
-                          <th className="px-3 py-2.5 text-right">Pending</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs">
-                        {monthlyStatement.categoryRows.length === 0 ? (
-                          <tr><td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">No expense vouchers for this month.</td></tr>
-                        ) : monthlyStatement.categoryRows.map((category) => (
-                          <tr key={category.category} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="px-4 py-2.5 font-medium text-slate-800">{category.category}</td>
-                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-600">{category.count}</td>
-                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</td>
-                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td>
-                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700">
+                    <span>Cash:</span>
+                    <span className="font-semibold tabular-nums text-emerald-700">{formatINR(advancesReceivedStatement.totals.cashAdvance)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700">
+                    <span>Salary:</span>
+                    <span className="font-semibold tabular-nums text-blue-700">{formatINR(advancesReceivedStatement.totals.salaryAdvance)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700">
+                    <span>Given to Others:</span>
+                    <span className="font-semibold tabular-nums text-purple-700">{formatINR(advancesReceivedStatement.totals.gtoAdvance)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 border border-rose-200/60 text-rose-800 ml-auto font-medium">
+                    <span>Total Expenses:</span>
+                    <span className="font-bold tabular-nums">{formatINR(monthlyStatement.expenseTotal)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Voucher register</p><h3 className="mt-1 text-sm font-semibold text-slate-900">Transaction detail</h3></div>
-                  <p className="text-xs font-normal text-slate-500">{monthlyStatement.periodRows.length} record{monthlyStatement.periodRows.length === 1 ? '' : 's'} in the statement period</p>
+              {/* Bottom: Voucher Register (Notion-inspired Transaction Detail Table) */}
+              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-3.5 bg-slate-50/40">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 font-heading">Voucher Register</h3>
+                      <p className="text-[11px] text-slate-500 font-body">
+                        {monthlyStatement.periodRows.length} record{monthlyStatement.periodRows.length === 1 ? '' : 's'} in {summaryPeriodMode === 'range' ? 'selected period' : 'statement month'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-48 sm:w-56">
+                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={voucherRegisterSearch}
+                        onChange={(e) => setVoucherRegisterSearch(e.target.value)}
+                        placeholder="Search particulars, employee, voucher..."
+                        className="w-full h-8 pl-8 pr-2.5 text-xs bg-white border border-slate-200 rounded-md outline-none focus:border-blue-600 font-body placeholder:text-slate-400 text-slate-800"
+                      />
+                    </div>
+                  </div>
                 </div>
+
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] border-collapse text-left">
-                    <thead className="bg-slate-50"><tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400"><th className="px-4 py-3">Date</th><th className="px-4 py-3">Voucher no.</th><th className="px-4 py-3">Particulars</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Debit / expense</th><th className="px-4 py-3 text-right">Advance</th><th className="px-4 py-3">Status</th></tr></thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {monthlyStatement.periodRows.length === 0 ? <tr><td colSpan={8} className="px-4 py-10 text-center text-sm font-normal text-slate-400">No advance or expense records for this month.</td></tr> : monthlyStatement.periodRows.map((entry) => <tr key={entry.id} className="hover:bg-slate-50/70"><td className="whitespace-nowrap px-4 py-3 font-normal text-slate-600">{formatDeletedRecordDate(entry.date)}</td><td className="px-4 py-3 font-mono text-xs text-slate-500">{entry.transactionNo || '—'}</td><td className="px-4 py-3"><p className="font-medium text-slate-800">{entry.category || 'Uncategorised'}</p>{entry.reason && <p className="mt-0.5 max-w-[260px] truncate text-[11px] font-normal text-slate-400">{entry.reason}</p>}</td><td className="px-4 py-3 font-normal text-slate-700">{entry.statementEmployeeName}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.accountingType === 'Expense' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>{entry.accountingType}</span></td><td className="px-4 py-3 text-right font-medium tabular-nums text-rose-700">{entry.accountingType === 'Expense' ? formatINR(entry.statementAmount) : '—'}</td><td className="px-4 py-3 text-right font-medium tabular-nums text-emerald-700">{entry.accountingType === 'Advance' ? (<div><div>{formatINR(entry.statementAmount)}</div>{entry.deductionMonth && String(entry.deductionMonth).trim() < summaryMonth && (<span className="inline-block mt-0.5 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-body whitespace-nowrap" title={`Deducted in ${formatMonthLabel(entry.deductionMonth)} salary`}>Deducted in {formatMonthLabel(entry.deductionMonth)}</span>)}</div>) : '—'}</td><td className="px-4 py-3 text-[11px] font-normal text-slate-600">{entry.status || 'Pending'} · {entry.paymentStatus || 'Unpaid'}</td></tr>)}
+                  <table className="w-full min-w-[980px] border-collapse text-left text-xs font-body">
+                    <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                      <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Voucher no.</th>
+                        <th className="px-4 py-3">Particulars</th>
+                        <th className="px-4 py-3">Employee</th>
+                        <th className="px-4 py-3">Type</th>
+                        <th className="px-4 py-3 text-right">Debit / Expense</th>
+                        <th className="px-4 py-3 text-right">Advance</th>
+                        <th className="px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs">
+                      {filteredVoucherRegisterRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-12 text-center text-xs font-normal text-slate-400">
+                            {voucherRegisterSearch ? 'No matching records found.' : `No advance or expense records for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredVoucherRegisterRows.slice(0, voucherRegisterLimit).map((entry) => (
+                          <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="whitespace-nowrap px-4 py-2.5 font-medium tabular-nums text-slate-600">
+                              {formatDeletedRecordDate(entry.date)}
+                            </td>
+                            <td className="px-4 py-2.5 tabular-nums text-[11px] font-medium text-slate-500">
+                              {entry.transactionNo || '—'}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <p className="font-semibold text-slate-800">{entry.category || 'Uncategorised'}</p>
+                              {entry.reason && <p className="mt-0.5 max-w-[260px] truncate text-[11px] font-normal text-slate-400">{entry.reason}</p>}
+                            </td>
+                            <td className="px-4 py-2.5 font-normal text-slate-700">
+                              {entry.statementEmployeeName}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                entry.accountingType === 'Expense' ? 'bg-rose-50 text-rose-700 border border-rose-200/50' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
+                              }`}>
+                                {entry.accountingType}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-medium tabular-nums text-rose-700">
+                              {entry.accountingType === 'Expense' ? formatINR(entry.statementAmount) : <span className="text-slate-300 font-normal">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-medium tabular-nums text-emerald-700">
+                              {entry.accountingType === 'Advance' ? (
+                                <div>
+                                  <div>{formatINR(entry.statementAmount)}</div>
+                                  {entry.deductionMonth && String(entry.deductionMonth).trim() < statementCutoffMonth && (
+                                    <span
+                                      className="inline-block mt-0.5 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-body whitespace-nowrap"
+                                      title={`Deducted in ${formatMonthLabel(entry.deductionMonth)} salary`}
+                                    >
+                                      Deducted in {formatMonthLabel(entry.deductionMonth)}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : <span className="text-slate-300 font-normal">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-[11px] font-normal text-slate-600">
+                              <span className="inline-flex items-center gap-1">
+                                <span className={`w-1.5 h-1.5 rounded-full ${entry.status === 'Approved' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                {entry.status || 'Pending'} · {entry.paymentStatus || 'Unpaid'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
+
+                {filteredVoucherRegisterRows.length > voucherRegisterLimit && (
+                  <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2.5 flex items-center justify-between text-xs text-slate-500 font-body">
+                    <span>Showing {Math.min(voucherRegisterLimit, filteredVoucherRegisterRows.length)} of {filteredVoucherRegisterRows.length} vouchers</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setVoucherRegisterLimit((prev) => prev + 30)}
+                        className="px-3 py-1 text-xs font-medium text-blue-600 bg-white border border-slate-200 rounded-md hover:bg-blue-50 transition-colors shadow-2xs"
+                      >
+                        Load +30 more
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVoucherRegisterLimit(filteredVoucherRegisterRows.length)}
+                        className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-100 transition-colors shadow-2xs"
+                      >
+                        Show all ({filteredVoucherRegisterRows.length})
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -7748,7 +8684,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-2 py-1.5 font-mono text-[10px] text-gray-600 whitespace-nowrap">
+                        <td className="px-2 py-1.5 font-medium tabular-nums text-[10px] text-gray-600 whitespace-nowrap">
                           {new Date(item.date).toLocaleDateString('en-GB', { 
                             day: '2-digit', 
                             month: 'short' 
