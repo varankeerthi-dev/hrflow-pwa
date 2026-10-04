@@ -625,7 +625,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
             disabled={disabled}
             data-row={`${scope}-${rowIdx}`}
             data-field={field}
-            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text"
+            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center tabular-nums text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text font-body"
             placeholder={placeholder || "--:--"}
             />
             <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-gray-500 bg-gray-800/50 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
@@ -859,7 +859,7 @@ function ModalTimeInput({ value, onChange, placeholder = "09:00 AM", backgroundC
             }}
             onBlur={() => setTimeout(commitInput, 150)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/40 h-7 cursor-text"
+            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center tabular-nums text-gray-800 placeholder-gray-400/40 h-7 cursor-text font-body"
             placeholder={placeholder}
           />
         </div>
@@ -1816,19 +1816,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     setAllowanceSelections(map)
   }, [user?.orgId, selectedDate, allowanceClaims])
 
-  // Effect to load fonts
+  // Effect to ensure Inter font
   useEffect(() => {
-    const link = document.createElement('link')
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap'
-    link.rel = 'stylesheet'
-    document.head.appendChild(link)
-    
-    // Add font classes to body
     document.body.style.fontFamily = "'Inter', sans-serif"
-    
-    return () => {
-      document.head.removeChild(link)
-    }
   }, [])
 
   if (empLoading || attLoading) {
@@ -2380,7 +2370,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }
 
   return (
-    <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
+    <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Inter', sans-serif" }}>
       {activeSubTab === 'monthly-summary' ? (
         <div className="flex-1 min-h-0 overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
           <SalarySlipTab attendanceMonthlySummaryOnly />
@@ -2480,21 +2470,19 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                 <button 
                   onClick={() => setShowResetWarning(true)} 
                   disabled={!rows.length || saving}
-                  className="h-8 px-3 text-red-200 font-medium rounded-md text-[11px] hover:bg-red-900/30 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed" 
-                  style={{ fontFamily: "'Roboto', sans-serif" }}
+                  className="h-8 px-3 text-red-200 font-medium rounded-md text-[11px] hover:bg-red-900/30 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed font-body" 
                 >
                   <Trash2 size={13} /> Reset All
                 </button>
                 <div className="w-[1px] h-4 bg-[#4a2b26]"></div>
                 <button 
                   onClick={handleAddRow} 
-                  className="h-8 px-3 text-gray-200 font-medium rounded-md text-[11px] hover:bg-white/10 transition-all flex items-center gap-1.5" 
-                  style={{ fontFamily: "'Roboto', sans-serif" }}
+                  className="h-8 px-3 text-gray-200 font-medium rounded-md text-[11px] hover:bg-white/10 transition-all flex items-center gap-1.5 font-body" 
                 >
                   <Plus size={13} /> Add Row
                 </button>
               </div>
-              <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Roboto', sans-serif" }}>Generate Active</button>
+              <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all font-body">Generate Active</button>
             </div>
           </div>
 
@@ -2617,7 +2605,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             )}
                           </div>
                         </td>
-                        <td className="px-3 text-center align-middle font-medium text-gray-900 text-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                        <td className="px-3 text-center align-middle font-medium text-gray-900 text-sm tabular-nums font-body">
                           {(() => {
                             if (!row.otHours || row.otHours === '00:00') return ''
                             const [h, m] = row.otHours.split(':').map(Number)
@@ -2780,7 +2768,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance Dashboard</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 font-heading">Attendance Dashboard</h2>
                   <p className="text-sm text-gray-500">Monitor employee attendance and working patterns</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

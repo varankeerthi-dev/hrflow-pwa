@@ -570,7 +570,7 @@ export default function EmployeesTab() {
     icon: <UserCheck size={15} />
   }];
   return <div className="flex flex-col h-full" style={{
-    fontFamily: 'Figtree, system-ui, sans-serif'
+    fontFamily: "'Inter', sans-serif"
   }}>
       <ModulePillTabs
         className="mx-4 mt-3"

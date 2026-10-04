@@ -594,15 +594,6 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
 
 // ── MAIN CORRECTION TAB COMPONENT ───────────────────────────────────────
 export default function CorrectionTab() {
-  // Load Inter and Roboto fonts
-    useEffect(() => {
-      const link = document.createElement('link')
-      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Raleway:wght@700;800;900&display=swap'
-      link.rel = 'stylesheet'
-      document.head.appendChild(link)
-      return () => document.head.removeChild(link)
-    }, [])
-  
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance, deleteIndividualAttendance } = useAttendance(user?.orgId)
@@ -983,7 +974,7 @@ export default function CorrectionTab() {
   }
 
   return (
-    <div className="h-full flex flex-col font-['Roboto',sans-serif] overflow-hidden bg-gray-50/50 p-6">
+    <div className="h-full flex flex-col font-body overflow-hidden bg-gray-50/50 p-6">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -997,8 +988,8 @@ export default function CorrectionTab() {
 
       {/* Page Header */}
       <div className="mb-4 no-print">
-        <h1 className="text-lg font-black text-gray-800 uppercase tracking-tight font-['Roboto',sans-serif]">Attendance Correction</h1>
-        <p className="text-xs text-gray-500 mt-0.5 font-['Roboto',sans-serif]">Review and revise employee attendance records.</p>
+        <h1 className="text-lg font-black text-gray-800 uppercase tracking-tight font-heading">Attendance Correction</h1>
+        <p className="text-xs text-gray-500 mt-0.5 font-body">Review and revise employee attendance records.</p>
       </div>
 
       {/* Filter Bar */}

@@ -108,7 +108,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
@@ -499,7 +499,7 @@ export default function MobileDashboard() {
 
   if (authLoading || (user?.orgId && empLoading)) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Inter', sans-serif" }}>
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 mb-6 flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse">
           <span className="text-white text-3xl font-bold">H</span>
         </div>
@@ -794,7 +794,7 @@ export default function MobileDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="min-h-screen bg-[#F8FAFC] flex overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* ─── Desktop Sidebar (Hidden on Mobile) ─── */}
       <aside className="hidden lg:flex flex-col w-[240px] bg-white text-gray-900 border-r border-gray-200/80 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="p-5 flex items-center gap-3 border-b border-gray-200/80">
