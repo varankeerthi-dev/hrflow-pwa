@@ -7767,9 +7767,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             onChange={(date) => {
                               setSummaryFromDate(date ? format(date, 'yyyy-MM-dd') : '')
                             }}
-                            selectsStart
-                            startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
-                            endDate={summaryToDate ? parseISO(summaryToDate) : null}
                             maxDate={summaryToDate ? parseISO(summaryToDate) : undefined}
                             dateFormat="dd MMM yyyy"
                             placeholderText="Start date"
@@ -7790,9 +7787,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             onChange={(date) => {
                               setSummaryToDate(date ? format(date, 'yyyy-MM-dd') : '')
                             }}
-                            selectsEnd
-                            startDate={summaryFromDate ? parseISO(summaryFromDate) : null}
-                            endDate={summaryToDate ? parseISO(summaryToDate) : null}
                             minDate={summaryFromDate ? parseISO(summaryFromDate) : undefined}
                             dateFormat="dd MMM yyyy"
                             placeholderText="End date"
