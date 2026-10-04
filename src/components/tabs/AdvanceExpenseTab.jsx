@@ -8137,49 +8137,31 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                         {/* Hover Popover Preview */}
                                         <div 
                                           onClick={(e) => e.stopPropagation()}
-                                          className="pointer-events-none opacity-0 group-hover/voucher:opacity-100 group-hover/voucher:pointer-events-auto transition-all duration-150 ease-out absolute left-0 top-full mt-1.5 z-40 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl cursor-default"
+                                          className="pointer-events-none opacity-0 group-hover/voucher:opacity-100 group-hover/voucher:pointer-events-auto transition-all duration-150 ease-out absolute left-0 top-full mt-1 z-40 w-auto min-w-[210px] rounded-lg border border-slate-200 bg-white p-2.5 shadow-xl cursor-default whitespace-nowrap"
                                         >
-                                          <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                          <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-1.5 mb-1.5 whitespace-nowrap">
                                             <div>
-                                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-body block">Vouchers Breakdown</span>
+                                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-body block">Vouchers</span>
                                               <span className="text-xs font-semibold text-slate-800 font-body">{row.employeeName}</span>
                                             </div>
                                             <span className="text-xs font-bold text-slate-900 tabular-nums">{formatINR(row.totalAdvance)}</span>
                                           </div>
-                                          <div className="space-y-1.5 max-h-48 overflow-y-auto slim-scrollbar">
-                                            {row.vouchers.map((v, vIdx) => {
-                                              const catLower = String(v.category || '').toLowerCase()
-                                              const isGto = catLower.includes('given to others') || catLower.includes('transfer') || v.isTransfer
-                                              const isSalary = catLower.includes('salary')
-                                              const typeLabel = isGto ? 'Given to Others' : isSalary ? 'Salary' : 'Cash'
-                                              const badgeClass = isGto
-                                                ? 'bg-purple-50 text-purple-700 border-purple-200/60'
-                                                : isSalary
-                                                ? 'bg-blue-50 text-blue-700 border-blue-200/60'
-                                                : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
-
-                                              return (
-                                                <div key={v.id || vIdx} className="flex items-center justify-between text-xs py-1 border-b border-slate-50 last:border-0">
-                                                  <div className="min-w-0 pr-2">
-                                                    <div className="flex items-center gap-1.5">
-                                                      <span className="font-medium text-slate-700 tabular-nums text-[11px]">{formatReportDate(v.date)}</span>
-                                                      {v.transactionNo && (
-                                                        <span className="text-[10px] text-slate-400 font-mono">#{v.transactionNo}</span>
-                                                      )}
-                                                      <span className={`px-1 py-0.2 rounded text-[9px] font-medium border ${badgeClass}`}>{typeLabel}</span>
-                                                    </div>
-                                                    {(v.reason || v.givenBy) && (
-                                                      <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                                                        {v.givenBy ? `from ${v.givenBy}` : v.reason}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                  <span className="font-semibold text-slate-800 tabular-nums shrink-0">{formatINR(v.amount)}</span>
+                                          <div className="space-y-1 max-h-48 overflow-y-auto slim-scrollbar">
+                                            {row.vouchers.map((v, vIdx) => (
+                                              <div key={v.id || vIdx} className="flex items-center justify-between gap-4 text-xs py-0.5 border-b border-slate-50 last:border-0 whitespace-nowrap">
+                                                <div className="flex items-center gap-2 whitespace-nowrap">
+                                                  <span className="font-medium text-slate-700 tabular-nums text-[11px] whitespace-nowrap">{formatReportDate(v.date)}</span>
+                                                  {v.givenBy && (
+                                                    <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                                      ({v.givenBy})
+                                                    </span>
+                                                  )}
                                                 </div>
-                                              )
-                                            })}
+                                                <span className="font-semibold text-slate-800 tabular-nums shrink-0 text-[11px] whitespace-nowrap">{formatINR(v.amount)}</span>
+                                              </div>
+                                            ))}
                                           </div>
-                                          <div className="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between font-body">
+                                          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between font-body whitespace-nowrap">
                                             <span>Click row to keep open</span>
                                             <span className="text-blue-600 font-medium">{row.vouchers.length} item{row.vouchers.length === 1 ? '' : 's'}</span>
                                           </div>
@@ -8222,13 +8204,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   {isExpanded && (
                                     <tr className="bg-slate-50/70 border-b border-slate-200/80">
                                       <td colSpan={5} className="p-0">
-                                        <div className="py-2.5 px-4 pl-6 border-l-2 border-l-blue-500 bg-gradient-to-r from-blue-50/30 via-slate-50/50 to-transparent">
-                                          <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-[11px] font-semibold text-slate-700 font-heading">
-                                                Advance Vouchers Breakdown
+                                        <div className="py-2 px-3 pl-6 border-l-2 border-l-blue-500 bg-slate-50/50">
+                                          <div className="flex items-center justify-between mb-1.5 whitespace-nowrap">
+                                            <div className="flex items-center gap-2 whitespace-nowrap">
+                                              <span className="text-[11px] font-semibold text-slate-700 font-heading whitespace-nowrap">
+                                                Advance Breakdown
                                               </span>
-                                              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 font-medium tabular-nums">
+                                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-medium tabular-nums whitespace-nowrap">
                                                 {row.vouchers.length} voucher{row.vouchers.length === 1 ? '' : 's'} · {formatINR(row.totalAdvance)}
                                               </span>
                                             </div>
@@ -8238,64 +8220,36 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                                 e.stopPropagation()
                                                 toggleAdvanceEmpExpand(row.employeeId)
                                               }}
-                                              className="text-[11px] text-slate-400 hover:text-slate-700 cursor-pointer font-body flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/60"
+                                              className="text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer font-body flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/60 whitespace-nowrap"
                                             >
                                               <span>Collapse</span>
-                                              <X size={12} />
+                                              <X size={11} />
                                             </button>
                                           </div>
 
-                                          <div className="overflow-x-auto rounded-lg border border-slate-200/80 bg-white shadow-2xs">
+                                          <div className="overflow-x-auto rounded border border-slate-200/80 bg-white">
                                             <table className="w-full text-left text-xs font-body border-collapse">
                                               <thead>
-                                                <tr className="bg-slate-50/90 border-b border-slate-200/70 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                                  <th className="px-3 py-1.5">Date</th>
-                                                  <th className="px-2.5 py-1.5">Voucher #</th>
-                                                  <th className="px-3 py-1.5">Advance Type</th>
-                                                  <th className="px-3 py-1.5">Particulars / Given By</th>
-                                                  <th className="px-3 py-1.5 text-right">Amount</th>
+                                                <tr className="bg-slate-50/90 border-b border-slate-200/70 text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                                                  <th className="px-3 py-1.5 whitespace-nowrap">Date</th>
+                                                  <th className="px-3 py-1.5 whitespace-nowrap">Given By</th>
+                                                  <th className="px-3 py-1.5 text-right whitespace-nowrap">Amount</th>
                                                 </tr>
                                               </thead>
                                               <tbody className="divide-y divide-slate-100 text-xs">
-                                                {row.vouchers.map((v, vIdx) => {
-                                                  const catLower = String(v.category || '').toLowerCase()
-                                                  const isGto = catLower.includes('given to others') || catLower.includes('transfer') || v.isTransfer
-                                                  const isSalary = catLower.includes('salary')
-                                                  const typeLabel = isGto ? 'Given to Others' : isSalary ? 'Salary Advance' : 'Cash Advance'
-                                                  const badgeClass = isGto
-                                                    ? 'bg-purple-50 text-purple-700 border-purple-200/60'
-                                                    : isSalary
-                                                    ? 'bg-blue-50 text-blue-700 border-blue-200/60'
-                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
-
-                                                  return (
-                                                    <tr key={v.id || vIdx} className="hover:bg-slate-50/70 transition-colors">
-                                                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-slate-700 font-medium">
-                                                        {formatReportDate(v.date)}
-                                                      </td>
-                                                      <td className="px-2.5 py-2 text-[11px] text-slate-500 font-mono">
-                                                        {v.transactionNo || '—'}
-                                                      </td>
-                                                      <td className="px-3 py-2">
-                                                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium border ${badgeClass}`}>
-                                                          {typeLabel}
-                                                        </span>
-                                                      </td>
-                                                      <td className="px-3 py-2 text-slate-600">
-                                                        {v.reason ? <span className="font-normal">{v.reason}</span> : null}
-                                                        {v.givenBy && (
-                                                          <span className="text-[10px] text-slate-400 block font-normal">
-                                                            from {v.givenBy}
-                                                          </span>
-                                                        )}
-                                                        {!v.reason && !v.givenBy && <span className="text-slate-300 font-normal">—</span>}
-                                                      </td>
-                                                      <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">
-                                                        {formatINR(v.amount)}
-                                                      </td>
-                                                    </tr>
-                                                  )
-                                                })}
+                                                {row.vouchers.map((v, vIdx) => (
+                                                  <tr key={v.id || vIdx} className="hover:bg-slate-50/70 transition-colors whitespace-nowrap">
+                                                    <td className="px-3 py-1.5 whitespace-nowrap tabular-nums text-slate-700 font-medium text-[11px]">
+                                                      {formatReportDate(v.date)}
+                                                    </td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-slate-600 text-[11px]">
+                                                      {v.givenBy || <span className="text-slate-300 font-normal">—</span>}
+                                                    </td>
+                                                    <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-900 text-[11px] whitespace-nowrap">
+                                                      {formatINR(v.amount)}
+                                                    </td>
+                                                  </tr>
+                                                ))}
                                               </tbody>
                                             </table>
                                           </div>
