@@ -8205,7 +8205,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       isSwitchingSummaryEmp ? (
                         /* Smooth Tweenly Loader during employee change */
                         <div className="flex flex-col items-center justify-center py-20 px-4 min-h-[380px] text-center">
-                          <Loader size={64} className="text-blue-600 mb-3" />
+                          <Loader variant="dots" size={48} className="text-blue-600 mb-3" />
                           <p className="text-xs font-bold text-slate-800 font-heading">
                             Loading advance breakdown...
                           </p>

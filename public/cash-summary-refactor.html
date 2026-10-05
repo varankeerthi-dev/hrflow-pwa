@@ -58,6 +58,19 @@
     }
     
     /* Interactive transitions */
+    @keyframes loader-dots-bounce {
+      0%, 100% {
+        transform: translateY(0);
+        opacity: 0.35;
+      }
+      50% {
+        transform: translateY(-10.5px);
+        opacity: 1;
+      }
+    }
+    .loader-dot {
+      animation: loader-dots-bounce 1s ease-in-out infinite;
+    }
     @keyframes tweenly-dash {
       0% {
         stroke-dasharray: 10 150;
@@ -531,15 +544,16 @@
         <!-- RIGHT PANE A: ADVANCES BREAKDOWN FOR SELECTED EMPLOYEE -->
         <div id="advancesPane" class="max-h-[580px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1 flex flex-col">
           
-          <!-- Custom Tweenly Loader Overlay during employee change -->
+          <!-- Custom Dots Loader Overlay during employee change -->
           <div id="tweenlyLoader" class="hidden flex-col items-center justify-center py-24 px-4 min-h-[380px] text-center">
-            <div class="relative w-16 h-16 inline-flex items-center justify-center">
-              <svg class="animate-spin w-16 h-16" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="24" r="19" stroke="currentColor" stroke-width="3" class="text-slate-200" stroke-linecap="round"/>
-                <circle cx="24" cy="24" r="19" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-dasharray="95 150" stroke-dashoffset="0" style="animation: tweenly-dash 1.6s ease-in-out infinite alternate;"/>
-              </svg>
-            </div>
-            <p class="text-xs font-bold text-slate-800 font-heading mt-3.5">Loading advance breakdown...</p>
+            <span role="status" aria-label="Loading" class="inline-flex items-center justify-center text-blue-600 mb-3" style="width: 48px; height: 48px;">
+              <span class="flex items-center" style="gap: 6px;">
+                <span class="loader-dot w-2.5 h-2.5 rounded-full bg-current"></span>
+                <span class="loader-dot w-2.5 h-2.5 rounded-full bg-current" style="animation-delay: 0.16s;"></span>
+                <span class="loader-dot w-2.5 h-2.5 rounded-full bg-current" style="animation-delay: 0.33s;"></span>
+              </span>
+            </span>
+            <p class="text-xs font-bold text-slate-800 font-heading">Loading advance breakdown...</p>
             <p id="loaderEmpName" class="text-[11px] text-slate-400 font-body mt-1">Rahul Sharma</p>
           </div>
 
