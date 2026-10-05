@@ -9,6 +9,7 @@ import { db } from '../../lib/firebase'
 import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal, Wallet } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import { Loader } from '@/components/loader'
 import Dropdown from '../ui/Dropdown'
 import Modal from '../ui/Modal'
 import { SubTabsNav } from '../ui/SubTabsNav'
@@ -823,6 +824,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }, [activeModule, expenseMode])
 
   const [summaryEmployeeSearch, setSummaryEmployeeSearch] = useState('')
+  const [selectedSummaryEmployeeId, setSelectedSummaryEmployeeId] = useState(null)
+  const [isSwitchingSummaryEmp, setIsSwitchingSummaryEmp] = useState(false)
   const [cashSummaryRightView, setCashSummaryRightView] = useState('advances') // 'advances' | 'categories'
   const [cashSummaryRightSearch, setCashSummaryRightSearch] = useState('')
   const [cashSummaryChartMode, setCashSummaryChartMode] = useState('employee_advances') // 'employee_advances' | 'advance_types' | 'expense_categories'
@@ -3862,6 +3865,62 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       svgAnimation: true,
     })
   }, [advanceTypeBreakdown])
+
+  const empSwitchTimerRef = useRef(null)
+  useEffect(() => {
+    return () => {
+      if (empSwitchTimerRef.current) clearTimeout(empSwitchTimerRef.current)
+    }
+  }, [])
+
+  const activeSummaryEmployee = useMemo(() => {
+    if (!filteredEmployeeRows || filteredEmployeeRows.length === 0) return null
+    if (selectedSummaryEmployeeId) {
+      const found = filteredEmployeeRows.find((e) => e.id === selectedSummaryEmployeeId || e.name === selectedSummaryEmployeeId)
+      if (found) return found
+    }
+    return filteredEmployeeRows[0]
+  }, [filteredEmployeeRows, selectedSummaryEmployeeId])
+
+  const handleSelectSummaryEmployee = useCallback((emp) => {
+    if (!emp) return
+    if (activeSummaryEmployee && (emp.id === activeSummaryEmployee.id || emp.name === activeSummaryEmployee.name)) return
+    if (empSwitchTimerRef.current) clearTimeout(empSwitchTimerRef.current)
+    setIsSwitchingSummaryEmp(true)
+    setSelectedSummaryEmployeeId(emp.id || emp.name)
+    empSwitchTimerRef.current = setTimeout(() => {
+      setIsSwitchingSummaryEmp(false)
+    }, 280)
+  }, [activeSummaryEmployee])
+
+  const selectedEmpAdvanceData = useMemo(() => {
+    if (!activeSummaryEmployee) return null
+    const rows = advancesReceivedStatement.rows || []
+    return (
+      rows.find(
+        (r) =>
+          r.employeeId === activeSummaryEmployee.id ||
+          (r.employeeName &&
+            activeSummaryEmployee.name &&
+            r.employeeName.trim().toLowerCase() === activeSummaryEmployee.name.trim().toLowerCase())
+      ) || null
+    )
+  }, [advancesReceivedStatement.rows, activeSummaryEmployee])
+
+  const filteredSelectedEmpVouchers = useMemo(() => {
+    const vouchers = selectedEmpAdvanceData?.vouchers || []
+    if (!cashSummaryRightSearch.trim()) return vouchers
+    const q = cashSummaryRightSearch.toLowerCase()
+    return vouchers.filter(
+      (v) =>
+        (v.date && formatShortReportDate(v.date).toLowerCase().includes(q)) ||
+        (v.givenBy && String(v.givenBy).toLowerCase().includes(q)) ||
+        (v.category && String(v.category).toLowerCase().includes(q)) ||
+        (v.reason && String(v.reason).toLowerCase().includes(q)) ||
+        (v.transactionNo && String(v.transactionNo).toLowerCase().includes(q)) ||
+        String(v.amount).includes(q)
+    )
+  }, [selectedEmpAdvanceData, cashSummaryRightSearch])
 
   const filteredAdvancesBreakdownRows = useMemo(() => {
     const rows = advancesReceivedStatement.rows || []
@@ -7883,7 +7942,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">
                           {summaryPeriodMode === 'range' ? 'Period balances' : 'Monthly balances'}
                         </p>
-                        <h3 className="text-sm font-semibold text-slate-900 font-heading">Employee Summary</h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-semibold text-slate-900 font-heading">Employee Summary</h3>
+                          <span className="hidden sm:inline text-[10px] font-medium text-blue-600 font-body">
+                            (click to view breakdown)
+                          </span>
+                        </div>
                       </div>
                       <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium tabular-nums rounded bg-slate-100 text-slate-600 border border-slate-200/60">
                         {filteredEmployeeRows.length}
@@ -7935,11 +7999,30 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             const isExpenseSurplus = emp.expense > effectiveAdvance
                             const diff = Math.abs(effectiveAdvance - emp.expense)
                             const targetMonthName = formatOnlyMonthName(emp.deductedInPrevMonthTarget) || formatOnlyMonthName(getPreviousMonth(statementCutoffMonth)) || 'prev'
+                            const isSelected = activeSummaryEmployee && (activeSummaryEmployee.id === emp.id || activeSummaryEmployee.name === emp.name)
 
                             return (
-                              <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
+                              <tr
+                                key={emp.id}
+                                onClick={() => handleSelectSummaryEmployee(emp)}
+                                className={`cursor-pointer transition-all select-none ${
+                                  isSelected
+                                    ? 'bg-blue-50/80 border-l-[3px] border-l-blue-600 shadow-2xs'
+                                    : 'hover:bg-slate-50/80 border-l-[3px] border-l-transparent'
+                                }`}
+                                title={`Click to view advance breakdown for ${emp.name}`}
+                              >
                                 <td className="px-4 py-2.5">
-                                  <span className="font-semibold text-slate-800 font-body">{emp.name}</span>
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <span className={`font-semibold font-body transition-colors ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>
+                                      {emp.name}
+                                    </span>
+                                    {isSelected && (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading shrink-0">
+                                        Selected
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
                                   {emp.advance > 0 ? (
@@ -8060,7 +8143,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
                 </div>
 
-                {/* Right Side: Notion-inspired Table (Advances Breakdown & Category Breakdown) */}
+                {/* Right Side: Notion-inspired Table (Advances Breakdown for Selected Employee & Category Breakdown) */}
                 <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
                   {/* Notion-style Header with Tabs and Search */}
                   <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-3.5 bg-slate-50/40">
@@ -8096,7 +8179,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         </button>
                       </div>
                       <span className="px-1.5 py-0.5 text-[10px] font-medium tabular-nums rounded bg-slate-100 text-slate-600 border border-slate-200/60">
-                        {cashSummaryRightView === 'advances' ? filteredAdvancesBreakdownRows.length : filteredCategoriesBreakdownRows.length}
+                        {cashSummaryRightView === 'advances'
+                          ? `${selectedEmpAdvanceData?.vouchers?.length || 0} vouchers`
+                          : filteredCategoriesBreakdownRows.length}
                       </span>
                     </div>
 
@@ -8107,223 +8192,180 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           type="text"
                           value={cashSummaryRightSearch}
                           onChange={(e) => setCashSummaryRightSearch(e.target.value)}
-                          placeholder={cashSummaryRightView === 'advances' ? 'Filter employee...' : 'Filter category...'}
+                          placeholder={cashSummaryRightView === 'advances' ? 'Filter vouchers...' : 'Filter category...'}
                           className="w-full h-8 pl-8 pr-2.5 text-xs bg-white border border-slate-200 rounded-md outline-none focus:border-blue-600 font-body placeholder:text-slate-400 text-slate-800"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Notion Table Content */}
+                  {/* Right Content */}
                   <div className="max-h-[560px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
                     {cashSummaryRightView === 'advances' ? (
-                      /* Advances Received Table */
-                      <table className="w-full border-collapse text-left text-xs font-body">
-                        <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
-                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
-                            <th className="px-4 py-2.5">Employee</th>
-                            <th className="px-2.5 py-2.5 text-right" title="Cash Advance directly given">Cash</th>
-                            <th className="px-2.5 py-2.5 text-right" title="Salary Advance deducted from payroll">Salary</th>
-                            <th className="px-2.5 py-2.5 text-right" title="Received from colleague / transfer">Given to Others</th>
-                            <th className="px-4 py-2.5 text-right">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
-                          {filteredAdvancesBreakdownRows.length === 0 ? (
-                            <tr>
-                              <td colSpan={5} className="px-4 py-12 text-center text-xs font-normal text-slate-400">
-                                {cashSummaryRightSearch ? 'No matching employee found.' : `No advances recorded for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
-                              </td>
-                            </tr>
+                      isSwitchingSummaryEmp ? (
+                        /* Smooth Tweenly Loader during employee change */
+                        <div className="flex flex-col items-center justify-center py-20 px-4 min-h-[380px] text-center">
+                          <Loader size={64} className="text-blue-600 mb-3" />
+                          <p className="text-xs font-bold text-slate-800 font-heading">
+                            Loading advance breakdown...
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-body mt-1">
+                            {activeSummaryEmployee ? activeSummaryEmployee.name : 'Switching employee'}
+                          </p>
+                        </div>
+                      ) : !activeSummaryEmployee ? (
+                        <div className="px-4 py-20 text-center text-xs font-normal text-slate-400">
+                          <User size={32} className="mx-auto text-slate-300 mb-2 stroke-[1.5]" />
+                          <p className="font-semibold text-slate-700 font-heading">No employee selected</p>
+                          <p className="text-slate-400 mt-1 max-w-xs mx-auto">
+                            Click on any employee from the Employee Summary table on the left to view their detailed advance breakdown.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col">
+                          {/* Selected Employee Detail Banner */}
+                          <div className="border-b border-slate-100 bg-slate-50/50 p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-sm font-heading shadow-2xs shrink-0">
+                                  {activeSummaryEmployee.name ? activeSummaryEmployee.name.charAt(0).toUpperCase() : 'E'}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm font-bold text-slate-900 font-heading">{activeSummaryEmployee.name}</h4>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60 font-heading">
+                                      Selected
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 font-body mt-0.5">
+                                    {selectedEmpAdvanceData?.vouchers?.length || 0} advance voucher{(selectedEmpAdvanceData?.vouchers?.length || 0) === 1 ? '' : 's'} recorded for this period
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-left sm:text-right">
+                                <div className="text-[10px] uppercase font-bold text-slate-400 font-heading tracking-wider">Total Advance</div>
+                                <div className="text-base font-bold text-slate-900 tabular-nums font-heading">
+                                  {formatINR(selectedEmpAdvanceData?.totalAdvance || 0)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Sub-breakdown badges */}
+                            {selectedEmpAdvanceData && selectedEmpAdvanceData.totalAdvance > 0 && (
+                              <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-heading mr-1">Types:</span>
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 text-[11px] font-medium tabular-nums">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                  <span>Cash: {formatINR(selectedEmpAdvanceData.cashAdvance)}</span>
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200/60 text-blue-800 text-[11px] font-medium tabular-nums">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                  <span>Salary: {formatINR(selectedEmpAdvanceData.salaryAdvance)}</span>
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200/60 text-purple-800 text-[11px] font-medium tabular-nums">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                  <span>Transfer: {formatINR(selectedEmpAdvanceData.gtoAdvance)}</span>
+                                </div>
+                                {selectedEmpAdvanceData.otherAdvance > 0 && (
+                                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200/60 text-amber-800 text-[11px] font-medium tabular-nums">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                    <span>Other: {formatINR(selectedEmpAdvanceData.otherAdvance)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Detailed Voucher Table for Selected Employee */}
+                          {!selectedEmpAdvanceData || selectedEmpAdvanceData.vouchers.length === 0 ? (
+                            <div className="px-4 py-16 text-center text-xs font-normal text-slate-400">
+                              <Banknote size={36} className="mx-auto text-slate-300 mb-2 stroke-[1.5]" />
+                              <p className="font-semibold text-slate-700 font-heading text-sm">No advances recorded</p>
+                              <p className="text-slate-400 mt-1 max-w-xs mx-auto text-xs font-body">
+                                No cash advances, salary advances, or transfers were issued to <span className="font-medium text-slate-600">{activeSummaryEmployee.name}</span> in this period.
+                              </p>
+                            </div>
                           ) : (
-                            filteredAdvancesBreakdownRows.slice(0, advancesBreakdownLimit).map((row) => {
-                              const isExpanded = expandedAdvanceEmpIds.has(row.employeeId)
-
-                              return (
-                                <React.Fragment key={row.employeeId}>
-                                  <tr 
-                                    onClick={() => toggleAdvanceEmpExpand(row.employeeId)}
-                                    className={`hover:bg-slate-50/80 transition-colors cursor-pointer select-none ${
-                                      isExpanded ? 'bg-slate-50/60' : ''
-                                    }`}
-                                  >
-                                    <td className="px-4 py-2.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            toggleAdvanceEmpExpand(row.employeeId)
-                                          }}
-                                          className="p-0.5 -ml-1 text-slate-400 hover:text-blue-600 transition-colors rounded"
-                                          title={isExpanded ? 'Collapse vouchers' : 'Expand vouchers'}
-                                        >
-                                          {isExpanded ? (
-                                            <ChevronDown size={13} className="text-blue-600" />
-                                          ) : (
-                                            <ChevronRight size={13} />
-                                          )}
-                                        </button>
-                                        <div className="font-semibold text-slate-800 font-body hover:text-blue-600 transition-colors">
-                                          {row.employeeName}
-                                        </div>
-                                      </div>
-
-                                      <div className="relative group/voucher inline-block mt-0.5 ml-4">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            toggleAdvanceEmpExpand(row.employeeId)
-                                          }}
-                                          className="text-[8px] text-slate-400 hover:text-blue-600 font-body inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                        >
-                                          <span>{row.count} voucher{row.count === 1 ? '' : 's'}</span>
-                                          <span className="text-[8px] text-slate-400 font-medium">
-                                            · {isExpanded ? 'collapse' : 'view dates'}
-                                          </span>
-                                        </button>
-
-                                        {/* Hover Popover Preview */}
-                                        <div 
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="pointer-events-none opacity-0 group-hover/voucher:opacity-100 group-hover/voucher:pointer-events-auto transition-all duration-150 ease-out absolute left-0 top-full mt-1 z-40 w-auto min-w-[190px] rounded-lg border border-slate-200 bg-white p-2 shadow-xl cursor-default whitespace-nowrap"
-                                        >
-                                          <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-1 mb-1 whitespace-nowrap">
-                                            <div>
-                                              <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400 font-body block">Vouchers</span>
-                                              <span className="text-[8px] font-semibold text-slate-800 font-body">{row.employeeName}</span>
-                                            </div>
-                                            <span className="text-[8px] font-bold text-slate-900 tabular-nums">{formatINR(row.totalAdvance)}</span>
-                                          </div>
-                                          <div className="space-y-0.5 max-h-48 overflow-y-auto slim-scrollbar">
-                                            {row.vouchers.map((v, vIdx) => (
-                                              <div key={v.id || vIdx} className="flex items-center justify-between gap-3 text-[8px] py-0.5 border-b border-slate-50 last:border-0 whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5 whitespace-nowrap">
-                                                  <span className="font-medium text-slate-700 tabular-nums text-[8px] whitespace-nowrap">{formatShortReportDate(v.date)}</span>
-                                                  {v.givenBy && (
-                                                    <span className="text-[8px] text-slate-500 whitespace-nowrap">
-                                                      ({v.givenBy})
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                <span className="font-semibold text-slate-800 tabular-nums shrink-0 text-[8px] whitespace-nowrap">{formatINR(v.amount)}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                          <div className="mt-1 pt-1 border-t border-slate-100 text-[8px] text-slate-400 flex items-center justify-between font-body whitespace-nowrap">
-                                            <span>Click row to keep open</span>
-                                            <span className="text-blue-600 font-medium text-[8px]">{row.vouchers.length} item{row.vouchers.length === 1 ? '' : 's'}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="px-2.5 py-2.5 text-right tabular-nums">
-                                      {row.cashAdvance > 0 ? (
-                                        <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-medium tabular-nums">
-                                          {formatINR(row.cashAdvance)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-300 font-normal">—</span>
-                                      )}
-                                    </td>
-                                    <td className="px-2.5 py-2.5 text-right tabular-nums">
-                                      {row.salaryAdvance > 0 ? (
-                                        <span className="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-medium tabular-nums">
-                                          {formatINR(row.salaryAdvance)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-300 font-normal">—</span>
-                                      )}
-                                    </td>
-                                    <td className="px-2.5 py-2.5 text-right tabular-nums">
-                                      {row.gtoAdvance > 0 ? (
-                                        <span className="inline-block px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/60 font-medium tabular-nums" title="Received via Given to Others / Transfer from another employee">
-                                          {formatINR(row.gtoAdvance)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-300 font-normal">—</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900">
-                                      {formatINR(row.totalAdvance)}
+                            <table className="w-full border-collapse text-left text-xs font-body">
+                              <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
+                                <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
+                                  <th className="px-4 py-2.5">Date</th>
+                                  <th className="px-3 py-2.5">Type</th>
+                                  <th className="px-3 py-2.5">Given By</th>
+                                  <th className="px-3 py-2.5">Ref / Remarks</th>
+                                  <th className="px-4 py-2.5 text-right">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-xs">
+                                {filteredSelectedEmpVouchers.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">
+                                      {cashSummaryRightSearch ? 'No vouchers matching search query.' : 'No vouchers found.'}
                                     </td>
                                   </tr>
+                                ) : (
+                                  filteredSelectedEmpVouchers.map((v, vIdx) => {
+                                    const isTransfer = v.isTransfer || String(v.category || '').toLowerCase().includes('given to others') || String(v.category || '').toLowerCase().includes('transfer')
+                                    const isSalary = String(v.category || '').toLowerCase().includes('salary')
 
-                                  {/* Inbuilt Notion-style expandable detail row */}
-                                  {isExpanded && (
-                                    <tr className="bg-slate-50/70 border-b border-slate-200/80">
-                                      <td colSpan={5} className="p-0">
-                                        <div className="py-1.5 px-3 pl-6 border-l-2 border-l-blue-500 bg-slate-50/50">
-                                          <div className="flex items-center justify-between mb-1 whitespace-nowrap">
-                                            <div className="flex items-center gap-2 whitespace-nowrap">
-                                              <span className="text-[8px] font-semibold text-slate-700 font-heading whitespace-nowrap">
-                                                Advance Breakdown
-                                              </span>
-                                              <span className="text-[8px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-medium tabular-nums whitespace-nowrap">
-                                                {row.vouchers.length} voucher{row.vouchers.length === 1 ? '' : 's'} · {formatINR(row.totalAdvance)}
-                                              </span>
-                                            </div>
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                toggleAdvanceEmpExpand(row.employeeId)
-                                              }}
-                                              className="text-[8px] text-slate-400 hover:text-slate-700 cursor-pointer font-body flex items-center gap-1 transition-colors px-1 py-0.5 rounded hover:bg-slate-200/60 whitespace-nowrap"
-                                            >
-                                              <span>Collapse</span>
-                                              <X size={10} />
-                                            </button>
-                                          </div>
-
-                                          <div className="overflow-x-auto rounded border border-slate-200/80 bg-white">
-                                            <table className="w-full text-left text-[8px] font-body border-collapse">
-                                              <thead>
-                                                <tr className="bg-slate-100/90 border-b border-slate-200 text-[8px] font-bold uppercase tracking-wider text-slate-600 font-heading whitespace-nowrap">
-                                                  <th className="px-2.5 py-1 whitespace-nowrap text-[8px]">Date</th>
-                                                  <th className="px-2.5 py-1 whitespace-nowrap text-[8px]">Given By</th>
-                                                  <th className="px-2.5 py-1 text-right whitespace-nowrap text-[8px]">Amount</th>
-                                                </tr>
-                                              </thead>
-                                              <tbody className="divide-y divide-slate-100 text-[8px]">
-                                                {row.vouchers.map((v, vIdx) => (
-                                                  <tr key={v.id || vIdx} className="hover:bg-slate-50/70 transition-colors whitespace-nowrap">
-                                                    <td className="px-2.5 py-1 whitespace-nowrap tabular-nums text-slate-700 font-medium text-[8px]">
-                                                      {formatShortReportDate(v.date)}
-                                                    </td>
-                                                    <td className="px-2.5 py-1 whitespace-nowrap text-slate-600 text-[8px]">
-                                                      {v.givenBy || <span className="text-slate-300 font-normal">—</span>}
-                                                    </td>
-                                                    <td className="px-2.5 py-1 text-right font-semibold tabular-nums text-slate-900 text-[8px] whitespace-nowrap">
-                                                      {formatINR(v.amount)}
-                                                    </td>
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )}
-                                </React.Fragment>
-                              )
-                            })
+                                    return (
+                                      <tr key={v.id || vIdx} className="hover:bg-slate-50/80 transition-colors">
+                                        <td className="px-4 py-2.5 font-medium tabular-nums text-slate-800 whitespace-nowrap">
+                                          {formatShortReportDate(v.date)}
+                                        </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                          {isSalary ? (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 font-body">
+                                              Salary Advance
+                                            </span>
+                                          ) : isTransfer ? (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60 font-body" title="Transfer / Given to Others">
+                                              Transfer
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-body">
+                                              Cash Advance
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
+                                          {v.givenBy ? (
+                                            <span className="font-medium text-slate-700">{v.givenBy}</span>
+                                          ) : (
+                                            <span className="text-slate-300 font-normal">—</span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2.5 text-slate-500 max-w-[170px] truncate" title={v.reason || (v.transactionNo ? `#${v.transactionNo}` : '')}>
+                                          {v.reason ? (
+                                            <span>{v.reason}</span>
+                                          ) : v.transactionNo ? (
+                                            <span className="font-mono text-[11px] text-slate-400">#{v.transactionNo}</span>
+                                          ) : (
+                                            <span className="text-slate-300 font-normal">—</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">
+                                          {formatINR(v.amount)}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })
+                                )}
+                              </tbody>
+                              <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                                <tr>
+                                  <td colSpan={4} className="px-4 py-2.5 text-slate-800 font-body">
+                                    Total ({filteredSelectedEmpVouchers.length} voucher{filteredSelectedEmpVouchers.length === 1 ? '' : 's'})
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right tabular-nums text-emerald-700 font-heading text-sm">
+                                    {formatINR(filteredSelectedEmpVouchers.reduce((sum, v) => sum + (Number(v.amount) || 0), 0))}
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
                           )}
-                        </tbody>
-                        {advancesReceivedStatement.rows.length > 0 && (
-                          <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
-                            <tr>
-                              <td className="px-4 py-2.5 text-slate-800 font-body">Total ({advancesReceivedStatement.rows.length})</td>
-                              <td className="px-2.5 py-2.5 text-right tabular-nums text-emerald-700">{formatINR(advancesReceivedStatement.totals.cashAdvance)}</td>
-                              <td className="px-2.5 py-2.5 text-right tabular-nums text-blue-700">{formatINR(advancesReceivedStatement.totals.salaryAdvance)}</td>
-                              <td className="px-2.5 py-2.5 text-right tabular-nums text-purple-700">{formatINR(advancesReceivedStatement.totals.gtoAdvance)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{formatINR(advancesReceivedStatement.totals.totalAdvance)}</td>
-                            </tr>
-                          </tfoot>
-                        )}
-                      </table>
+                        </div>
+                      )
                     ) : (
                       /* Category Breakdown Table */
                       <table className="w-full border-collapse text-left text-xs font-body">
@@ -8369,29 +8411,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       </table>
                     )}
                   </div>
-
-                  {/* Lazy load footer controls */}
-                  {cashSummaryRightView === 'advances' && filteredAdvancesBreakdownRows.length > advancesBreakdownLimit && (
-                    <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 flex items-center justify-between text-xs text-slate-500 font-body">
-                      <span>Showing {Math.min(advancesBreakdownLimit, filteredAdvancesBreakdownRows.length)} of {filteredAdvancesBreakdownRows.length} items</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setAdvancesBreakdownLimit((prev) => prev + 25)}
-                          className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-white border border-slate-200 rounded-md hover:bg-emerald-50 transition-colors shadow-2xs"
-                        >
-                          Load +25 more
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAdvancesBreakdownLimit(filteredAdvancesBreakdownRows.length)}
-                          className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-100 transition-colors shadow-2xs"
-                        >
-                          Show all
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {cashSummaryRightView === 'categories' && filteredCategoriesBreakdownRows.length > categoriesTableLimit && (
                     <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 flex items-center justify-between text-xs text-slate-500 font-body">

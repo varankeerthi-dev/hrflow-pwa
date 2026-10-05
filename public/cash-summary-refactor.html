@@ -58,6 +58,20 @@
     }
     
     /* Interactive transitions */
+    @keyframes tweenly-dash {
+      0% {
+        stroke-dasharray: 10 150;
+        stroke-dashoffset: 0;
+      }
+      50% {
+        stroke-dasharray: 95 150;
+        stroke-dashoffset: -35;
+      }
+      100% {
+        stroke-dasharray: 115 150;
+        stroke-dashoffset: -125;
+      }
+    }
     .drawer-content {
       display: grid;
       grid-template-rows: 0fr;
@@ -255,10 +269,15 @@
             </thead>
             <tbody id="empTableBody" class="divide-y divide-slate-100 font-body">
               
-              <!-- Row 1: Rahul Sharma (Surplus) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <!-- Row 1: Rahul Sharma (Surplus - Selected by default) -->
+              <tr onclick="selectEmployee('EMP-102', this)" class="emp-row bg-blue-50/80 border-l-[3px] border-l-blue-600 transition-all select-none cursor-pointer">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Rahul Sharma</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-blue-700">Rahul Sharma</div>
+                    <span class="sel-badge text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Site Supervisor · ID #EMP-102</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -279,9 +298,14 @@
               </tr>
 
               <!-- Row 2: Suresh Kumar (Expense Surplus / Company Liability) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <tr onclick="selectEmployee('EMP-108', this)" class="emp-row hover:bg-slate-50/80 border-l-[3px] border-l-transparent transition-all select-none cursor-pointer group">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Suresh Kumar</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Suresh Kumar</div>
+                    <span class="sel-badge hidden text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Civil Engineer · ID #EMP-108</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -299,9 +323,14 @@
               </tr>
 
               <!-- Row 3: Priya Patel (Settled) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <tr onclick="selectEmployee('EMP-114', this)" class="emp-row hover:bg-slate-50/80 border-l-[3px] border-l-transparent transition-all select-none cursor-pointer group">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Priya Patel</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Priya Patel</div>
+                    <span class="sel-badge hidden text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Procurement Officer · ID #EMP-114</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -322,9 +351,14 @@
               </tr>
 
               <!-- Row 4: Vikram Singh (Surplus) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <tr onclick="selectEmployee('EMP-121', this)" class="emp-row hover:bg-slate-50/80 border-l-[3px] border-l-transparent transition-all select-none cursor-pointer group">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Vikram Singh</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Vikram Singh</div>
+                    <span class="sel-badge hidden text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Electrical Foreman · ID #EMP-121</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -342,9 +376,14 @@
               </tr>
 
               <!-- Row 5: Amit Verma (Expense Surplus) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <tr onclick="selectEmployee('EMP-135', this)" class="emp-row hover:bg-slate-50/80 border-l-[3px] border-l-transparent transition-all select-none cursor-pointer group">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Amit Verma</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Amit Verma</div>
+                    <span class="sel-badge hidden text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Safety Officer · ID #EMP-135</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -365,9 +404,14 @@
               </tr>
 
               <!-- Row 6: Rajesh Nair (Surplus) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <tr onclick="selectEmployee('EMP-142', this)" class="emp-row hover:bg-slate-50/80 border-l-[3px] border-l-transparent transition-all select-none cursor-pointer group">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Rajesh Nair</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Rajesh Nair</div>
+                    <span class="sel-badge hidden text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Heavy Plant Operator · ID #EMP-142</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -385,9 +429,14 @@
               </tr>
 
               <!-- Row 7: Sneha Reddy (Surplus) -->
-              <tr class="hover:bg-slate-50/80 transition-colors group">
+              <tr onclick="selectEmployee('EMP-150', this)" class="emp-row hover:bg-slate-50/80 border-l-[3px] border-l-transparent transition-all select-none cursor-pointer group">
                 <td class="px-4 py-3">
-                  <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Sneha Reddy</div>
+                  <div class="flex items-center justify-between gap-1.5">
+                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Sneha Reddy</div>
+                    <span class="sel-badge hidden text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading">
+                      Selected
+                    </span>
+                  </div>
                   <div class="text-[10px] text-slate-400 font-mono">Quality Inspector · ID #EMP-150</div>
                 </td>
                 <td class="px-3 py-3 text-right">
@@ -479,322 +528,131 @@
           </div>
         </div>
 
-        <!-- RIGHT PANE A: ADVANCES BREAKDOWN TABLE (Interactive Expandable Drawers) -->
-        <div id="advancesPane" class="max-h-[580px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead class="bg-slate-100/90 text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs border-b border-slate-200">
-              <tr>
-                <th class="px-4 py-2.5">Employee & Vouchers</th>
-                <th class="px-2.5 py-2.5 text-right" title="Cash Advance directly given">Cash</th>
-                <th class="px-2.5 py-2.5 text-right" title="Salary Advance deducted from payroll">Salary</th>
-                <th class="px-2.5 py-2.5 text-right" title="Received from colleague / transfer">Transfer</th>
-                <th class="px-4 py-2.5 text-right">Total Advance</th>
-              </tr>
-            </thead>
-            <tbody id="advancesTableBody" class="divide-y divide-slate-100 font-body">
-              
-              <!-- Row 1: Rahul Sharma (Clickable to expand drawer) -->
-              <tr onclick="toggleDrawer('drawer-1')" class="hover:bg-slate-50/90 transition-colors cursor-pointer group">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <button class="text-slate-400 group-hover:text-blue-600 transition-colors p-0.5 rounded">
-                      <svg id="chevron-drawer-1" class="w-3.5 h-3.5 transition-transform duration-200 text-blue-600 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Rahul Sharma</div>
+        <!-- RIGHT PANE A: ADVANCES BREAKDOWN FOR SELECTED EMPLOYEE -->
+        <div id="advancesPane" class="max-h-[580px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1 flex flex-col">
+          
+          <!-- Custom Tweenly Loader Overlay during employee change -->
+          <div id="tweenlyLoader" class="hidden flex-col items-center justify-center py-24 px-4 min-h-[380px] text-center">
+            <div class="relative w-16 h-16 inline-flex items-center justify-center">
+              <svg class="animate-spin w-16 h-16" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="19" stroke="currentColor" stroke-width="3" class="text-slate-200" stroke-linecap="round"/>
+                <circle cx="24" cy="24" r="19" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-dasharray="95 150" stroke-dashoffset="0" style="animation: tweenly-dash 1.6s ease-in-out infinite alternate;"/>
+              </svg>
+            </div>
+            <p class="text-xs font-bold text-slate-800 font-heading mt-3.5">Loading advance breakdown...</p>
+            <p id="loaderEmpName" class="text-[11px] text-slate-400 font-body mt-1">Rahul Sharma</p>
+          </div>
+
+          <!-- Selected Employee Advance Breakdown Content -->
+          <div id="advancesContent" class="flex flex-col flex-1">
+            <!-- Selected Employee Info Header Card -->
+            <div id="selectedEmpHeader" class="border-b border-slate-100 bg-slate-50/50 p-4">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div id="selectedEmpAvatar" class="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-sm font-heading shadow-2xs shrink-0">
+                    R
                   </div>
-                  <!-- Voucher popover trigger & compact 8px date cue -->
-                  <div class="relative group/popover inline-block mt-0.5 ml-5">
-                    <span class="text-[8px] font-medium text-slate-500 hover:text-blue-600 underline cursor-pointer decoration-dotted">
-                      3 vouchers · Click to expand breakdown
-                    </span>
-                    <!-- Interactive Hover Popover -->
-                    <div class="opacity-0 group-hover/popover:opacity-100 pointer-events-none group-hover/popover:pointer-events-auto transition-opacity absolute left-0 top-full mt-1 z-40 bg-white border border-slate-200 rounded-lg p-2.5 shadow-popover w-60 text-slate-800">
-                      <div class="flex items-center justify-between border-b border-slate-100 pb-1 mb-1.5 text-[8px] font-bold uppercase tracking-wider text-slate-500 font-heading">
-                        <span>Voucher Breakdown</span>
-                        <span class="text-slate-900 font-mono">₹45,000</span>
-                      </div>
-                      <div class="space-y-1 text-[8px] font-mono">
-                        <div class="flex justify-between">
-                          <span class="text-slate-600">04-Oct · Given by Ramesh</span>
-                          <span class="font-semibold">₹20,000</span>
-                        </div>
-                        <div class="flex justify-between">
-                          <span class="text-slate-600">12-Oct · HQ Finance</span>
-                          <span class="font-semibold">₹15,000</span>
-                        </div>
-                        <div class="flex justify-between">
-                          <span class="text-slate-600">21-Oct · Site Cashier</span>
-                          <span class="font-semibold">₹10,000</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹30,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-semibold">
-                    ₹15,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹45,000.00
-                </td>
-              </tr>
-              <!-- Sub-Drawer for Rahul Sharma (Open by default) -->
-              <tr id="drawer-1" class="bg-slate-50/70 border-b border-slate-200">
-                <td colspan="5" class="p-0">
-                  <div class="p-3 pl-8 bg-blue-50/20 border-l-4 border-l-blue-600">
-                    <div class="flex items-center justify-between mb-2">
-                      <span class="text-[9px] font-bold text-slate-700 font-heading uppercase tracking-wider">
-                        Active Advance Vouchers (3)
+                  <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <h4 id="selectedEmpName" class="text-sm font-bold text-slate-900 font-heading">Rahul Sharma</h4>
+                      <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60 font-heading">
+                        Selected
                       </span>
-                      <span class="text-[8px] text-slate-500 font-mono">Sub-ledger verification</span>
                     </div>
-                    <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
-                      <table class="w-full text-left text-[8px] font-body">
-                        <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase">
-                          <tr>
-                            <th class="px-2 py-1">Date</th>
-                            <th class="px-2 py-1">Given By / Source</th>
-                            <th class="px-2 py-1">Type</th>
-                            <th class="px-2 py-1 text-right">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                          <tr>
-                            <td class="px-2 py-1 font-mono text-slate-700">04-Oct</td>
-                            <td class="px-2 py-1 text-slate-800 font-medium">Ramesh (Petty Cash)</td>
-                            <td class="px-2 py-1"><span class="px-1 py-0.2 bg-emerald-50 text-emerald-700 rounded text-[7px] font-bold">Cash</span></td>
-                            <td class="px-2 py-1 text-right font-bold text-slate-900 font-mono">₹20,000</td>
-                          </tr>
-                          <tr>
-                            <td class="px-2 py-1 font-mono text-slate-700">12-Oct</td>
-                            <td class="px-2 py-1 text-slate-800 font-medium">HQ Finance (NEFT)</td>
-                            <td class="px-2 py-1"><span class="px-1 py-0.2 bg-blue-50 text-blue-700 rounded text-[7px] font-bold">Salary</span></td>
-                            <td class="px-2 py-1 text-right font-bold text-slate-900 font-mono">₹15,000</td>
-                          </tr>
-                          <tr>
-                            <td class="px-2 py-1 font-mono text-slate-700">21-Oct</td>
-                            <td class="px-2 py-1 text-slate-800 font-medium">Site Cashier</td>
-                            <td class="px-2 py-1"><span class="px-1 py-0.2 bg-emerald-50 text-emerald-700 rounded text-[7px] font-bold">Cash</span></td>
-                            <td class="px-2 py-1 text-right font-bold text-slate-900 font-mono">₹10,000</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                    <p id="selectedEmpSubtext" class="text-[11px] text-slate-500 font-body mt-0.5">
+                      3 advance vouchers recorded for this period
+                    </p>
                   </div>
-                </td>
-              </tr>
+                </div>
+                <div class="text-left sm:text-right">
+                  <div class="text-[10px] uppercase font-bold text-slate-400 font-heading tracking-wider">Total Advance</div>
+                  <div id="selectedEmpTotalAdv" class="text-base font-bold text-slate-900 tabular-nums font-heading">
+                    ₹45,000.00
+                  </div>
+                </div>
+              </div>
 
-              <!-- Row 2: Suresh Kumar -->
-              <tr onclick="toggleDrawer('drawer-2')" class="hover:bg-slate-50/90 transition-colors cursor-pointer group">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <button class="text-slate-400 group-hover:text-blue-600 transition-colors p-0.5 rounded">
-                      <svg id="chevron-drawer-2" class="w-3.5 h-3.5 transition-transform duration-200 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                    <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">Suresh Kumar</div>
-                  </div>
-                  <div class="text-[8px] font-medium text-slate-500 ml-5">
-                    1 voucher · 08-Oct · Click to expand
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹20,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹20,000.00
-                </td>
-              </tr>
-              <!-- Sub-Drawer for Suresh Kumar (Hidden by default) -->
-              <tr id="drawer-2" class="hidden bg-slate-50/70 border-b border-slate-200">
-                <td colspan="5" class="p-0">
-                  <div class="p-3 pl-8 bg-blue-50/20 border-l-4 border-l-blue-600">
-                    <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
-                      <table class="w-full text-left text-[8px] font-body">
-                        <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase">
-                          <tr>
-                            <th class="px-2 py-1">Date</th>
-                            <th class="px-2 py-1">Given By</th>
-                            <th class="px-2 py-1">Type</th>
-                            <th class="px-2 py-1 text-right">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td class="px-2 py-1 font-mono text-slate-700">08-Oct</td>
-                            <td class="px-2 py-1 text-slate-800 font-medium">Head Office</td>
-                            <td class="px-2 py-1"><span class="px-1 py-0.2 bg-emerald-50 text-emerald-700 rounded text-[7px] font-bold">Cash</span></td>
-                            <td class="px-2 py-1 text-right font-bold text-slate-900 font-mono">₹20,000</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </td>
-              </tr>
+              <!-- Types breakdown chips -->
+              <div id="selectedEmpTypesContainer" class="mt-3 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-2">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-heading mr-1">Types:</span>
+                <div id="chipCash" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 text-[11px] font-medium tabular-nums">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span id="chipCashText">Cash: ₹30,000.00</span>
+                </div>
+                <div id="chipSalary" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200/60 text-blue-800 text-[11px] font-medium tabular-nums">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span id="chipSalaryText">Salary: ₹15,000.00</span>
+                </div>
+                <div id="chipTransfer" class="hidden items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200/60 text-purple-800 text-[11px] font-medium tabular-nums">
+                  <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                  <span id="chipTransferText">Transfer: ₹0.00</span>
+                </div>
+              </div>
+            </div>
 
-              <!-- Row 3: Priya Patel -->
-              <tr class="hover:bg-slate-50/90 transition-colors">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <div class="w-3.5"></div>
-                    <div class="font-semibold text-slate-900">Priya Patel</div>
-                  </div>
-                  <div class="text-[8px] font-medium text-slate-500 ml-5">
-                    2 vouchers · 02-Oct, 15-Oct
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹35,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-semibold">
-                    ₹25,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹60,000.00
-                </td>
-              </tr>
+            <!-- Vouchers Table -->
+            <div id="selectedEmpTableWrapper" class="flex-1 overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse font-body">
+                <thead class="bg-slate-100/90 text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs border-b border-slate-200">
+                  <tr>
+                    <th class="px-4 py-2.5">Date</th>
+                    <th class="px-3 py-2.5">Type</th>
+                    <th class="px-3 py-2.5">Given By</th>
+                    <th class="px-3 py-2.5">Ref / Remarks</th>
+                    <th class="px-4 py-2.5 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="selectedEmpVouchersBody" class="divide-y divide-slate-100 text-xs">
+                  <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="px-4 py-2.5 font-medium tabular-nums text-slate-800 whitespace-nowrap">04-Oct</td>
+                    <td class="px-3 py-2.5 whitespace-nowrap">
+                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-body">Cash Advance</span>
+                    </td>
+                    <td class="px-3 py-2.5 text-slate-600 font-medium">Ramesh (Petty Cash)</td>
+                    <td class="px-3 py-2.5 text-slate-500">Site foundation materials</td>
+                    <td class="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">₹20,000.00</td>
+                  </tr>
+                  <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="px-4 py-2.5 font-medium tabular-nums text-slate-800 whitespace-nowrap">12-Oct</td>
+                    <td class="px-3 py-2.5 whitespace-nowrap">
+                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 font-body">Salary Advance</span>
+                    </td>
+                    <td class="px-3 py-2.5 text-slate-600 font-medium">HQ Finance (NEFT)</td>
+                    <td class="px-3 py-2.5 text-slate-500">Festive advance deduction</td>
+                    <td class="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">₹15,000.00</td>
+                  </tr>
+                  <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="px-4 py-2.5 font-medium tabular-nums text-slate-800 whitespace-nowrap">21-Oct</td>
+                    <td class="px-3 py-2.5 whitespace-nowrap">
+                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-body">Cash Advance</span>
+                    </td>
+                    <td class="px-3 py-2.5 text-slate-600 font-medium">Site Cashier</td>
+                    <td class="px-3 py-2.5 text-slate-500">Diesel generator emergency</td>
+                    <td class="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">₹10,000.00</td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                  <tr>
+                    <td colspan="4" id="vouchersFooterCount" class="px-4 py-2.5 text-slate-800 font-body">
+                      Total (3 vouchers)
+                    </td>
+                    <td id="vouchersFooterTotal" class="px-4 py-2.5 text-right tabular-nums text-emerald-700 font-heading text-sm">
+                      ₹45,000.00
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
-              <!-- Row 4: Vikram Singh -->
-              <tr class="hover:bg-slate-50/90 transition-colors">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <div class="w-3.5"></div>
-                    <div class="font-semibold text-slate-900">Vikram Singh</div>
-                  </div>
-                  <div class="text-[8px] font-medium text-slate-500 ml-5">
-                    2 vouchers · 07-Oct, 19-Oct
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹25,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/60 font-semibold" title="Transferred from colleague">
-                    ₹25,000
-                  </span>
-                </td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹50,000.00
-                </td>
-              </tr>
-
-              <!-- Row 5: Amit Verma -->
-              <tr class="hover:bg-slate-50/90 transition-colors">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <div class="w-3.5"></div>
-                    <div class="font-semibold text-slate-900">Amit Verma</div>
-                  </div>
-                  <div class="text-[8px] font-medium text-slate-500 ml-5">
-                    2 vouchers · 09-Oct, 18-Oct
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹15,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-semibold">
-                    ₹15,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹30,000.00
-                </td>
-              </tr>
-
-              <!-- Row 6: Rajesh Nair -->
-              <tr class="hover:bg-slate-50/90 transition-colors">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <div class="w-3.5"></div>
-                    <div class="font-semibold text-slate-900">Rajesh Nair</div>
-                  </div>
-                  <div class="text-[8px] font-medium text-slate-500 ml-5">
-                    3 vouchers · 05-Oct, 16-Oct, 27-Oct
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹50,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-semibold">
-                    ₹15,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200/60 font-semibold">
-                    ₹15,000
-                  </span>
-                </td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹80,000.00
-                </td>
-              </tr>
-
-              <!-- Row 7: Sneha Reddy -->
-              <tr class="hover:bg-slate-50/90 transition-colors">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-1.5">
-                    <div class="w-3.5"></div>
-                    <div class="font-semibold text-slate-900">Sneha Reddy</div>
-                  </div>
-                  <div class="text-[8px] font-medium text-slate-500 ml-5">
-                    2 vouchers · 11-Oct, 22-Oct
-                  </div>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-semibold">
-                    ₹35,000
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums">
-                  <span class="inline-block px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200/60 font-semibold">
-                    ₹22,500
-                  </span>
-                </td>
-                <td class="px-2.5 py-2.5 text-right tabular-nums text-slate-300">—</td>
-                <td class="px-4 py-2.5 text-right font-extrabold tabular-nums text-slate-900">
-                  ₹57,500.00
-                </td>
-              </tr>
-
-            </tbody>
-
-            <!-- Advances Table Footer Totals -->
-            <tfoot class="bg-slate-100 border-t-2 border-slate-300 font-heading font-bold text-xs sticky bottom-0 z-10 shadow-sm">
-              <tr>
-                <td class="px-4 py-3 text-slate-900">Total (7 Personnel)</td>
-                <td class="px-2.5 py-3 text-right tabular-nums text-emerald-700">₹2,10,000.00</td>
-                <td class="px-2.5 py-3 text-right tabular-nums text-blue-700">₹92,500.00</td>
-                <td class="px-2.5 py-3 text-right tabular-nums text-purple-700">₹40,000.00</td>
-                <td class="px-4 py-3 text-right tabular-nums text-slate-900">₹3,42,500.00</td>
-              </tr>
-            </tfoot>
-          </table>
+            <!-- Empty State if no advances -->
+            <div id="selectedEmpEmptyState" class="hidden px-4 py-16 text-center text-xs font-normal text-slate-400">
+              <svg class="w-10 h-10 mx-auto text-slate-300 mb-2 stroke-[1.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              <p class="font-semibold text-slate-700 font-heading text-sm">No advances recorded</p>
+              <p id="emptyStateMsg" class="text-slate-400 mt-1 max-w-xs mx-auto text-xs font-body">
+                No cash advances, salary advances, or transfers were recorded for this employee in this period.
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- RIGHT PANE B: CATEGORIES BREAKDOWN (Visible on toggle) -->
@@ -1222,6 +1080,201 @@
         }
       });
       document.getElementById('empCountBadge').innerText = count;
+    }
+
+    // Employee dataset for master-detail inspection
+    const employeeAdvanceData = {
+      'EMP-102': {
+        name: 'Rahul Sharma',
+        role: 'Site Supervisor',
+        total: 45000,
+        cash: 30000,
+        salary: 15000,
+        transfer: 0,
+        vouchers: [
+          { date: '04-Oct', type: 'cash', givenBy: 'Ramesh (Petty Cash)', ref: 'Site foundation materials', amount: 20000 },
+          { date: '12-Oct', type: 'salary', givenBy: 'HQ Finance (NEFT)', ref: 'Festive advance deduction', amount: 15000 },
+          { date: '21-Oct', type: 'cash', givenBy: 'Site Cashier', ref: 'Diesel generator emergency', amount: 10000 }
+        ]
+      },
+      'EMP-108': {
+        name: 'Suresh Kumar',
+        role: 'Civil Engineer',
+        total: 20000,
+        cash: 20000,
+        salary: 0,
+        transfer: 0,
+        vouchers: [
+          { date: '08-Oct', type: 'cash', givenBy: 'Head Office', ref: 'Travel & survey expenses', amount: 20000 }
+        ]
+      },
+      'EMP-114': {
+        name: 'Priya Patel',
+        role: 'Procurement Officer',
+        total: 60000,
+        cash: 0,
+        salary: 45000,
+        transfer: 15000,
+        vouchers: [
+          { date: '02-Oct', type: 'salary', givenBy: 'Finance Dept', ref: 'Material procurement tranche 1', amount: 45000 },
+          { date: '15-Oct', type: 'transfer', givenBy: 'Vikram Singh (Transfer)', ref: 'Surplus reallocated', amount: 15000 }
+        ]
+      },
+      'EMP-121': {
+        name: 'Vikram Singh',
+        role: 'Electrical Foreman',
+        total: 50000,
+        cash: 50000,
+        salary: 0,
+        transfer: 0,
+        vouchers: [
+          { date: '05-Oct', type: 'cash', givenBy: 'Site Cashier', ref: 'Substation cable conduit cash', amount: 30000 },
+          { date: '19-Oct', type: 'cash', givenBy: 'Ramesh (Petty Cash)', ref: 'Switchgear testing supplies', amount: 20000 }
+        ]
+      },
+      'EMP-135': {
+        name: 'Amit Verma',
+        role: 'Safety Officer',
+        total: 30000,
+        cash: 15000,
+        salary: 15000,
+        transfer: 0,
+        vouchers: [
+          { date: '07-Oct', type: 'cash', givenBy: 'Site Cashier', ref: 'First aid & safety harness supplies', amount: 15000 },
+          { date: '24-Oct', type: 'salary', givenBy: 'HQ Finance', ref: 'Safety training allowance', amount: 15000 }
+        ]
+      },
+      'EMP-142': {
+        name: 'Rajesh Nair',
+        role: 'Heavy Plant Operator',
+        total: 80000,
+        cash: 55000,
+        salary: 0,
+        transfer: 25000,
+        vouchers: [
+          { date: '01-Oct', type: 'cash', givenBy: 'Site Cashier', ref: 'Excavator transport & fuel', amount: 35000 },
+          { date: '11-Oct', type: 'transfer', givenBy: 'HQ Transfer', ref: 'Hydraulic oil consignment', amount: 25000 },
+          { date: '27-Oct', type: 'cash', givenBy: 'Ramesh (Petty Cash)', ref: 'Operator field per diem', amount: 20000 }
+        ]
+      },
+      'EMP-150': {
+        name: 'Sneha Reddy',
+        role: 'Quality Inspector',
+        total: 57500,
+        cash: 40000,
+        salary: 17500,
+        transfer: 0,
+        vouchers: [
+          { date: '18-Oct', type: 'cash', givenBy: 'Site Cashier', ref: 'Lab core test vendor advance', amount: 40000 },
+          { date: '29-Oct', type: 'salary', givenBy: 'Finance Dept', ref: 'Quality equipment per diem', amount: 17500 }
+        ]
+      }
+    };
+
+    let selectedEmpId = 'EMP-102';
+
+    // Master-Detail selection with custom Tweenly loader animation
+    function selectEmployee(empId, element) {
+      if (empId === selectedEmpId) return;
+      selectedEmpId = empId;
+
+      // Update active highlight on left table
+      document.querySelectorAll('#empTableBody tr.emp-row').forEach(row => {
+        row.classList.remove('bg-blue-50/80', 'border-l-blue-600');
+        row.classList.add('hover:bg-slate-50/80', 'border-l-transparent');
+        const badge = row.querySelector('.sel-badge');
+        if (badge) badge.classList.add('hidden');
+        const nameDiv = row.querySelector('.font-semibold');
+        if (nameDiv) {
+          nameDiv.classList.remove('text-blue-700');
+          nameDiv.classList.add('text-slate-900');
+        }
+      });
+
+      if (element) {
+        element.classList.remove('hover:bg-slate-50/80', 'border-l-transparent');
+        element.classList.add('bg-blue-50/80', 'border-l-blue-600');
+        const badge = element.querySelector('.sel-badge');
+        if (badge) badge.classList.remove('hidden');
+        const nameDiv = element.querySelector('.font-semibold');
+        if (nameDiv) {
+          nameDiv.classList.remove('text-slate-900');
+          nameDiv.classList.add('text-blue-700');
+        }
+      }
+
+      // Trigger custom Tweenly Loader
+      const loader = document.getElementById('tweenlyLoader');
+      const content = document.getElementById('advancesContent');
+      const data = employeeAdvanceData[empId];
+      document.getElementById('loaderEmpName').innerText = data ? data.name : 'Selected employee';
+
+      loader.classList.remove('hidden');
+      loader.classList.add('flex');
+      content.classList.add('hidden');
+
+      setTimeout(() => {
+        renderEmployeeAdvances(data);
+        loader.classList.add('hidden');
+        loader.classList.remove('flex');
+        content.classList.remove('hidden');
+      }, 280);
+    }
+
+    function renderEmployeeAdvances(data) {
+      if (!data) return;
+      document.getElementById('selectedEmpName').innerText = data.name;
+      document.getElementById('selectedEmpAvatar').innerText = data.name.charAt(0);
+      document.getElementById('selectedEmpSubtext').innerText = data.vouchers.length + ' advance voucher' + (data.vouchers.length === 1 ? '' : 's') + ' recorded for this period';
+      document.getElementById('selectedEmpTotalAdv').innerText = '₹' + data.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('rightCountBadge').innerText = data.vouchers.length + ' vouchers';
+
+      // Types chips
+      document.getElementById('chipCashText').innerText = 'Cash: ₹' + data.cash.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('chipSalaryText').innerText = 'Salary: ₹' + data.salary.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      
+      const transferChip = document.getElementById('chipTransfer');
+      if (data.transfer > 0) {
+        transferChip.classList.remove('hidden');
+        transferChip.classList.add('inline-flex');
+        document.getElementById('chipTransferText').innerText = 'Transfer: ₹' + data.transfer.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      } else {
+        transferChip.classList.add('hidden');
+        transferChip.classList.remove('inline-flex');
+      }
+
+      // Render vouchers
+      const tbody = document.getElementById('selectedEmpVouchersBody');
+      const emptyState = document.getElementById('selectedEmpEmptyState');
+      const tableWrapper = document.getElementById('selectedEmpTableWrapper');
+
+      if (!data.vouchers || data.vouchers.length === 0) {
+        tableWrapper.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        document.getElementById('emptyStateMsg').innerText = 'No cash advances, salary advances, or transfers were recorded for ' + data.name + ' in this period.';
+      } else {
+        tableWrapper.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+
+        tbody.innerHTML = data.vouchers.map(v => {
+          const typeBadge = v.type === 'salary'
+            ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 font-body">Salary Advance</span>'
+            : v.type === 'transfer'
+            ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60 font-body">Transfer</span>'
+            : '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-body">Cash Advance</span>';
+
+          return `<tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="px-4 py-2.5 font-medium tabular-nums text-slate-800 whitespace-nowrap">${v.date}</td>
+            <td class="px-3 py-2.5 whitespace-nowrap">${typeBadge}</td>
+            <td class="px-3 py-2.5 text-slate-600 font-medium">${v.givenBy}</td>
+            <td class="px-3 py-2.5 text-slate-500">${v.ref}</td>
+            <td class="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">₹${v.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          </tr>`;
+        }).join('');
+
+        document.getElementById('vouchersFooterCount').innerText = 'Total (' + data.vouchers.length + ' voucher' + (data.vouchers.length === 1 ? '' : 's') + ')';
+        document.getElementById('vouchersFooterTotal').innerText = '₹' + data.total.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      }
     }
 
     // Live search for right side table
