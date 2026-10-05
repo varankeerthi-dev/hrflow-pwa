@@ -9,12 +9,14 @@ export default defineConfig({
     allowedHosts: true
   },
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@capgo/capacitor-updater': fileURLToPath(new URL('./src/lib/capacitor-updater-web.js', import.meta.url))
     }
   },
   optimizeDeps: {
+    include: ['react', 'react-dom', 'motion/react'],
     exclude: ['@capacitor/core', '@capgo/capacitor-updater']
   },
   plugins: [

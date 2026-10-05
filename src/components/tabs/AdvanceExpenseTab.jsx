@@ -8005,21 +8005,31 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               <tr
                                 key={emp.id}
                                 onClick={() => handleSelectSummaryEmployee(emp)}
-                                className={`cursor-pointer transition-all select-none ${
+                                className={`group cursor-pointer transition-colors select-none ${
                                   isSelected
-                                    ? 'bg-blue-50/80 border-l-[3px] border-l-blue-600 shadow-2xs'
-                                    : 'hover:bg-slate-50/80 border-l-[3px] border-l-transparent'
+                                    ? 'bg-blue-50/90'
+                                    : 'hover:bg-slate-50/80'
                                 }`}
                                 title={`Click to view advance breakdown for ${emp.name}`}
                               >
                                 <td className="px-4 py-2.5">
                                   <div className="flex items-center justify-between gap-1.5">
-                                    <span className={`font-semibold font-body transition-colors ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>
+                                    <span
+                                      className={`font-semibold font-body transition-colors inline-flex items-center gap-1.5 ${
+                                        isSelected
+                                          ? 'text-blue-700'
+                                          : 'text-slate-800 group-hover:text-blue-600 hover:text-blue-700 hover:underline'
+                                      }`}
+                                    >
                                       {emp.name}
                                     </span>
-                                    {isSelected && (
+                                    {isSelected ? (
                                       <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading shrink-0">
                                         Selected
+                                      </span>
+                                    ) : (
+                                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-blue-600 font-medium font-body shrink-0">
+                                        View &rarr;
                                       </span>
                                     )}
                                   </div>
