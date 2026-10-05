@@ -7905,8 +7905,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                   <div className="max-h-[560px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
                     <table className="w-full border-collapse text-left text-xs font-body">
-                      <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
-                        <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
+                        <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
                           <th className="px-4 py-2.5">
                             Employee
                           </th>
@@ -8119,8 +8119,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     {cashSummaryRightView === 'advances' ? (
                       /* Advances Received Table */
                       <table className="w-full border-collapse text-left text-xs font-body">
-                        <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
-                          <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
+                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
                             <th className="px-4 py-2.5">Employee</th>
                             <th className="px-2.5 py-2.5 text-right" title="Cash Advance directly given">Cash</th>
                             <th className="px-2.5 py-2.5 text-right" title="Salary Advance deducted from payroll">Salary</th>
@@ -8280,7 +8280,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                           <div className="overflow-x-auto rounded border border-slate-200/80 bg-white">
                                             <table className="w-full text-left text-[8px] font-body border-collapse">
                                               <thead>
-                                                <tr className="bg-slate-50/90 border-b border-slate-200/70 text-[8px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                                                <tr className="bg-slate-100/90 border-b border-slate-200 text-[8px] font-bold uppercase tracking-wider text-slate-600 font-heading whitespace-nowrap">
                                                   <th className="px-2.5 py-1 whitespace-nowrap text-[8px]">Date</th>
                                                   <th className="px-2.5 py-1 whitespace-nowrap text-[8px]">Given By</th>
                                                   <th className="px-2.5 py-1 text-right whitespace-nowrap text-[8px]">Amount</th>
@@ -8327,8 +8327,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     ) : (
                       /* Category Breakdown Table */
                       <table className="w-full border-collapse text-left text-xs font-body">
-                        <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
-                          <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
+                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
                             <th className="px-4 py-2.5">Category</th>
                             <th className="px-3 py-2.5 text-right"># Vouchers</th>
                             <th className="px-4 py-2.5 text-right">Expense</th>
@@ -8652,8 +8652,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] border-collapse text-left text-xs font-body">
-                    <thead className="bg-slate-50/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
-                      <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
+                      <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
                         <th className="px-4 py-3">Date</th>
                         <th className="px-4 py-3">Voucher no.</th>
                         <th className="px-4 py-3">Particulars</th>
