@@ -8023,13 +8023,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     >
                                       {emp.name}
                                     </span>
-                                    {isSelected ? (
+                                    {isSelected && (
                                       <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading shrink-0">
                                         Selected
-                                      </span>
-                                    ) : (
-                                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-blue-600 font-medium font-body shrink-0">
-                                        View &rarr;
                                       </span>
                                     )}
                                   </div>
@@ -8243,47 +8239,37 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <div>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="text-sm font-bold text-slate-900 font-heading">{activeSummaryEmployee.name}</h4>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60 font-heading">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-heading">
                                       Selected
                                     </span>
                                   </div>
-                                  <p className="text-[11px] text-slate-500 font-body mt-0.5">
-                                    {selectedEmpAdvanceData?.vouchers?.length || 0} advance voucher{(selectedEmpAdvanceData?.vouchers?.length || 0) === 1 ? '' : 's'} recorded for this period
-                                  </p>
+                                  {/* Types breakdown moved directly here with clean grey pills */}
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-heading mr-0.5">Types:</span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
+                                      Cash: {formatINR(selectedEmpAdvanceData?.cashAdvance || 0)}
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
+                                      Salary: {formatINR(selectedEmpAdvanceData?.salaryAdvance || 0)}
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
+                                      Transfer: {formatINR(selectedEmpAdvanceData?.gtoAdvance || 0)}
+                                    </span>
+                                    {selectedEmpAdvanceData && selectedEmpAdvanceData.otherAdvance > 0 && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
+                                        Other: {formatINR(selectedEmpAdvanceData.otherAdvance)}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="text-left sm:text-right">
+                              <div className="text-left sm:text-right shrink-0">
                                 <div className="text-[10px] uppercase font-bold text-slate-400 font-heading tracking-wider">Total Advance</div>
                                 <div className="text-base font-bold text-slate-900 tabular-nums font-heading">
                                   {formatINR(selectedEmpAdvanceData?.totalAdvance || 0)}
                                 </div>
                               </div>
                             </div>
-
-                            {/* Sub-breakdown badges */}
-                            {selectedEmpAdvanceData && selectedEmpAdvanceData.totalAdvance > 0 && (
-                              <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-heading mr-1">Types:</span>
-                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-800 text-[11px] font-medium tabular-nums">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                  <span>Cash: {formatINR(selectedEmpAdvanceData.cashAdvance)}</span>
-                                </div>
-                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200/60 text-blue-800 text-[11px] font-medium tabular-nums">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                  <span>Salary: {formatINR(selectedEmpAdvanceData.salaryAdvance)}</span>
-                                </div>
-                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200/60 text-purple-800 text-[11px] font-medium tabular-nums">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                                  <span>Transfer: {formatINR(selectedEmpAdvanceData.gtoAdvance)}</span>
-                                </div>
-                                {selectedEmpAdvanceData.otherAdvance > 0 && (
-                                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200/60 text-amber-800 text-[11px] font-medium tabular-nums">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                    <span>Other: {formatINR(selectedEmpAdvanceData.otherAdvance)}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </div>
 
                           {/* Detailed Voucher Table for Selected Employee */}
