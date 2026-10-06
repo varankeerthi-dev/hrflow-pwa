@@ -429,9 +429,9 @@ export default function Dashboard() {
         onClick={onClick} 
         onMouseEnter={(e) => handleSidebarHover(e, tab.label)}
         onMouseLeave={handleSidebarLeave}
-        className={`group flex items-center gap-2 rounded px-2 text-[13px] font-medium tracking-[0.01em] transition-colors ${small ? 'h-6' : 'h-7'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'} ${isActive ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-black/[0.03] hover:text-neutral-900'}`}
+        className={`group flex items-center gap-2 rounded px-2 text-[13px] font-medium tracking-[0.01em] transition-colors relative ${small ? 'h-6' : 'h-7'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'} ${isActive ? 'bg-blue-50/80 text-blue-700 font-semibold before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:bg-blue-600 before:rounded-r' : 'text-neutral-600 hover:bg-black/[0.03] hover:text-neutral-900'}`}
       >
-        <span className={`shrink-0 ${isActive ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-700'}`}>
+        <span className={`shrink-0 ${isActive ? 'text-blue-600' : 'text-neutral-400 group-hover:text-neutral-700'}`}>
           {tab.icon && React.cloneElement(tab.icon, { size: 14, strokeWidth: isActive ? 2 : 1.75 })}
         </span>
         {!isCollapsed && (
@@ -712,12 +712,16 @@ export default function Dashboard() {
                           if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
                         }} 
                         className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition duration-150 flex items-center gap-1.5 cursor-pointer ${
-                          isActive
-                            ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
-                            : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
+                          item.label === 'Daily Checklist'
+                            ? isActive
+                              ? 'bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs'
+                              : 'bg-transparent text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent shadow-none'
+                            : isActive
+                              ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
+                              : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
                         }`}
                       >
-                        <span className={isActive ? 'text-indigo-600' : 'text-zinc-400'}>
+                        <span className={item.label === 'Daily Checklist' ? (isActive ? 'text-slate-700' : 'text-slate-400') : (isActive ? 'text-indigo-600' : 'text-zinc-400')}>
                           {item.icon}
                         </span>
                         {item.label}
@@ -910,6 +914,9 @@ export default function Dashboard() {
                         </div>
                       )
                     }
+                    if (activeTab === 'tasks') {
+                      return null
+                    }
                     return (
                       <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
                         <div className="flex items-center px-4 max-w-[1300px] mx-auto">
@@ -922,7 +929,7 @@ export default function Dashboard() {
                   }
                   return null
                 })()}
-                <div className={`module-content-frame w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px] mx-auto'}`}>
+                <div className={`module-content-frame w-full flex-1 ${['salary-slip', 'tasks'].includes(activeTab) ? 'max-w-none p-0' : 'max-w-[1300px] mx-auto p-4'}`}>
                   {renderTabContent()}
                 </div>
               </ErrorBoundary>

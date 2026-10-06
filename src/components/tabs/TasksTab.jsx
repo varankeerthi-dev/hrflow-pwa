@@ -36,7 +36,12 @@ import {
   ChevronRight,
   CheckSquare,
   Sparkles,
-  ChevronUp
+  ChevronUp,
+  MessageSquare,
+  Paperclip,
+  Building2,
+  AlertCircle,
+  Minimize2
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -207,6 +212,9 @@ export default function TasksTab({ defaultSubTab }) {
   // Close popovers and menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (!event.target.closest('.mention-dropdown-container') && !event.target.closest('.mention-input-container')) {
+        setMentionState({ active: false, query: '', cursorPos: 0, targetField: null, targetId: null })
+      }
       if (!event.target.closest('.task-popover-container') && !event.target.closest('.status-menu-container')) {
         setStatusMenuOpen(null)
         setCardMenuOpen(null)
@@ -287,13 +295,28 @@ export default function TasksTab({ defaultSubTab }) {
   }, [activeTab, searchParams, setSearchParams])
 
   const [focusedColumn, setFocusedColumn] = useState(null)
-  const [quickFilter, setQuickFilter] = useState('all') // 'all', 'today', 'me', 'high'
+  const [quickFilter, setQuickFilter] = useState('all') // 'all', 'today', 'me', 'high', 'overdue'
+  const [expandedComposerStatus, setExpandedComposerStatus] = useState(null)
+  const [dragOverColumn, setDragOverColumn] = useState(null)
+  const [manuallyExpandedColumns, setManuallyExpandedColumns] = useState({})
+  const [showAllCompleted, setShowAllCompleted] = useState(false)
+  const [undoToast, setUndoToast] = useState(null)
+  const [mobileStatusTab, setMobileStatusTab] = useState('To Do')
+  const undoToastTimerRef = useRef(null)
+  const composerInputRefs = useRef({})
+  const searchInputRef = useRef(null)
 
-  // Keyboard Shortcuts
+  useEffect(() => {
+    return () => {
+      if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current)
+    }
+  }, [])
+
+  // Keyboard Shortcuts: "/" focuses search, "C" (and "N") opens new task modal
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger shortcuts if user is typing in an input/textarea
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      // Don't trigger shortcuts if user is typing in an input/textarea/select
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && editingInlineTask) {
           handleStatusChange(editingInlineTask, 'Completed')
           setEditingInlineTask(null)
@@ -301,7 +324,10 @@ export default function TasksTab({ defaultSubTab }) {
         return
       }
 
-      if (e.key.toLowerCase() === 'n') {
+      if (e.key === '/') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      } else if (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'n') {
         e.preventDefault()
         setShowAddModal(true)
       }
@@ -345,6 +371,15 @@ export default function TasksTab({ defaultSubTab }) {
       tasksToFilter = tasksToFilter.filter(t => (t.assignedTo || []).includes(user?.uid))
     } else if (quickFilter === 'high') {
       tasksToFilter = tasksToFilter.filter(t => t.priority === 'urgent' || t.priority === 'high')
+    } else if (quickFilter === 'overdue') {
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      tasksToFilter = tasksToFilter.filter(t => {
+        if (!t.dueDate || t.status === 'Completed') return false
+        const d = t.dueDate.toDate ? t.dueDate.toDate() : new Date(t.dueDate)
+        const dueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+        return dueDay < today
+      })
     }
 
     if (clientFilter !== 'all') {
@@ -356,6 +391,10 @@ export default function TasksTab({ defaultSubTab }) {
     }
     return tasksToFilter
   }, [tasks, activeTab, clientFilter, quickFilter, searchQuery, user?.uid])
+
+  const openTasksCount = useMemo(() => {
+    return filteredTasks.filter(t => t.status !== 'Completed').length
+  }, [filteredTasks])
 
   const taskEmployees = useMemo(() => {
     return employees.filter(emp => {
@@ -690,20 +729,54 @@ export default function TasksTab({ defaultSubTab }) {
     return ids.map(id => employees.find(e => e.id === id)).filter(Boolean)
   }
 
+  const getDueDateInfo = (dueDate) => {
+    if (!dueDate) return null
+    const d = dueDate.toDate ? dueDate.toDate() : new Date(dueDate)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const dueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    if (dueDay < today) {
+      return {
+        label: `Overdue (${format(d, 'MMM d')})`,
+        shortLabel: 'Overdue',
+        dateText: format(d, 'MMM d'),
+        isOverdue: true,
+        badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200/90 font-medium',
+        iconColor: 'text-rose-600'
+      }
+    }
+    if (dueDay.getTime() === today.getTime()) {
+      return {
+        label: 'Today',
+        shortLabel: 'Today',
+        dateText: 'Today',
+        isToday: true,
+        badgeClass: 'bg-amber-50 text-amber-700 border border-amber-300 font-semibold',
+        iconColor: 'text-amber-600'
+      }
+    }
+    return {
+      label: format(d, 'MMM d'),
+      shortLabel: format(d, 'MMM d'),
+      dateText: format(d, 'MMM d'),
+      isFuture: true,
+      badgeClass: 'bg-slate-50 text-slate-600 border border-slate-200/80 font-medium',
+      iconColor: 'text-slate-400'
+    }
+  }
+
   const formatDueDate = (date) => {
     if (!date) return null
-    const d = date.toDate ? date.toDate() : new Date(date)
-    return format(d, 'MMM d')
+    const info = getDueDateInfo(date)
+    return info ? info.label : null
   }
 
   const getDueDateColor = (date) => {
     if (!date) return 'text-slate-400'
-    const d = date.toDate ? date.toDate() : new Date(date)
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const dueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    if (dueDay < today) return 'text-rose-600 bg-rose-50 border-rose-200'
-    if (dueDay.getTime() === today.getTime()) return 'text-amber-700 bg-amber-50 border-amber-200'
+    const info = getDueDateInfo(date)
+    if (info?.isOverdue) return 'text-rose-600 bg-rose-50 border-rose-200'
+    if (info?.isToday) return 'text-amber-700 bg-amber-50 border-amber-200'
     return 'text-slate-600 bg-slate-50 border-slate-200/70'
   }
 
@@ -716,34 +789,55 @@ export default function TasksTab({ defaultSubTab }) {
 
   const getDueDateBadgeClass = (dueDate) => {
     if (!dueDate) return 'border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50'
-    const d = dueDate.toDate ? dueDate.toDate() : new Date(dueDate)
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const dueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    if (dueDay < today) return 'bg-rose-50 text-rose-700 border border-rose-200/90'
-    if (dueDay.getTime() === today.getTime()) return 'bg-amber-50 text-amber-700 border border-amber-200/90'
-    return 'bg-amber-50 text-amber-700 border border-amber-200/60'
+    const info = getDueDateInfo(dueDate)
+    return info ? info.badgeClass : 'bg-slate-50 text-slate-600 border border-slate-200/80 font-medium'
   }
 
   const getDueDateIconColor = (dueDate) => {
     if (!dueDate) return 'text-slate-400'
-    const d = dueDate.toDate ? dueDate.toDate() : new Date(dueDate)
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const dueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    if (dueDay < today) return 'text-rose-600'
-    if (dueDay.getTime() === today.getTime()) return 'text-amber-600'
-    return 'text-amber-600'
+    const info = getDueDateInfo(dueDate)
+    return info ? info.iconColor : 'text-slate-400'
   }
 
   const toggleTaskCompletion = async (task) => {
     try {
       setAnimatingTaskId(task.id)
-      const newStatus = task.status === 'Completed' ? 'To Do' : 'Completed'
-      await updateTask(task.id, { status: newStatus })
+      const previousStatus = task.status
+      const isCompleting = previousStatus !== 'Completed'
+      const newStatus = isCompleting ? 'Completed' : 'To Do'
+      await updateTask(task.id, { 
+        status: newStatus,
+        ...(isCompleting ? { completedAt: new Date() } : {})
+      })
       setTimeout(() => setAnimatingTaskId(null), 500)
+
+      if (isCompleting) {
+        if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current)
+        setUndoToast({
+          taskId: task.id,
+          previousStatus: previousStatus || 'To Do',
+          title: task.title
+        })
+        undoToastTimerRef.current = setTimeout(() => {
+          setUndoToast(null)
+        }, 5000)
+      } else {
+        setUndoToast(null)
+      }
     } catch (err) {
       console.error("Failed to toggle task completion:", err)
+    }
+  }
+
+  const handleUndoComplete = async () => {
+    if (!undoToast) return
+    const { taskId, previousStatus } = undoToast
+    setUndoToast(null)
+    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current)
+    try {
+      await updateTask(taskId, { status: previousStatus })
+    } catch (err) {
+      console.error("Failed to undo task completion:", err)
     }
   }
 
@@ -995,24 +1089,41 @@ export default function TasksTab({ defaultSubTab }) {
   const MentionList = () => {
     if (!mentionState.active || filteredMentions.length === 0) return null
     return (
-      <div className="absolute z-[100] mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-heading">Assign Personnel</span>
+      <div className="mention-dropdown-container absolute z-[100] mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10">
+        <div className="bg-slate-100/90 px-3 py-2 border-b border-slate-200/80 flex items-center justify-between">
+          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest font-heading flex items-center gap-1.5">
+            <User size={11} className="text-blue-600" />
+            <span>Assign Personnel</span>
+          </span>
+          <span className="text-[9px] font-mono text-slate-500 font-semibold bg-slate-200/70 px-1.5 py-0.5 rounded">
+            {filteredMentions.length} found
+          </span>
         </div>
         <div className="max-h-60 overflow-y-auto">
           {filteredMentions.map(emp => (
             <button
               key={emp.id}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+              }}
               onClick={() => applyMention(emp)}
-              className="w-full text-left px-3.5 py-2 flex items-center gap-2.5 hover:bg-blue-50/60 transition-colors border-b border-slate-50 last:border-0 font-body"
+              className="w-full text-left px-3.5 py-2 flex items-center gap-2.5 hover:bg-blue-100 active:bg-blue-200 transition-colors border-b border-slate-100 last:border-0 font-body cursor-pointer group select-none"
             >
-              <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-[9px] font-bold font-mono">
+              <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-[9px] font-bold font-mono transition-colors shrink-0 shadow-2xs">
                 {getInitials(emp.name)}
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-[12px] font-semibold text-slate-800 truncate">{emp.name}</span>
-                <span className="text-[10px] text-slate-400 font-medium">{emp.department || 'Team'}</span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-[12px] font-semibold text-slate-900 group-hover:text-blue-950 transition-colors truncate">
+                  {emp.name}
+                </span>
+                <span className="text-[10px] text-slate-500 group-hover:text-blue-800 transition-colors font-medium truncate">
+                  {emp.department || 'Team'}
+                </span>
               </div>
+              <span className="text-[10px] font-bold text-blue-900 bg-blue-200/90 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity font-heading shrink-0 shadow-2xs">
+                Assign
+              </span>
             </button>
           ))}
         </div>
@@ -1028,75 +1139,191 @@ export default function TasksTab({ defaultSubTab }) {
     ]
 
     return (
-      <main className="flex-1 w-full bg-[#f8fafc]/60 px-4 pb-4 pt-1 overflow-x-auto no-scrollbar" data-purpose="kanban-container">
-        <div className="w-full flex items-start gap-3">
-          {reorderedStatuses.map(status => {
-            const columnTasks = filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
-            const isCompletedColumn = status.id === 'Completed'
-            
+      <div className="flex-1 w-full flex flex-col min-w-0" data-purpose="kanban-wrapper">
+        {/* Mobile Status Switcher (<768px) */}
+        <div className="md:hidden flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2 px-3 bg-slate-50 border-b border-slate-200 sticky top-0 z-20 shrink-0">
+          {reorderedStatuses.map(s => {
+            const count = filteredTasks.filter(t => t.status === s.id || (s.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length
+            const isSelected = mobileStatusTab === s.id
             return (
-              <section 
-                key={status.id} 
-                className={`bg-slate-100/60 border border-slate-200/80 rounded-2xl p-3 flex flex-col min-h-[580px] gap-2.5 shadow-2xs w-[290px] min-w-[290px] shrink-0 transition-all duration-200 ${isCompletedColumn ? 'opacity-95' : ''}`}
-                data-purpose={`kanban-column-${status.id.toLowerCase().replace(/\s+/g, '')}`}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  e.dataTransfer.dropEffect = 'move'
-                }}
-                onDrop={async (e) => {
-                  e.preventDefault()
-                  if (!draggedTaskId) return
-                  await updateTask(draggedTaskId, { status: status.id })
-                  setDraggedTaskId(null)
-                }}
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setMobileStatusTab(s.id)}
+                className={`shrink-0 min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer font-body ${
+                  isSelected
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
               >
-                {/* Column Header */}
-                <div className="flex items-center justify-between px-1 py-0.5">
-                  <div className="flex items-center gap-2">
-                    {status.icon}
-                    <h2 className="text-xs font-semibold text-slate-800">{status.label}</h2>
-                    <span className="px-1.5 py-0.2 rounded-full text-[11px] font-medium bg-slate-200/70 text-slate-600 font-mono">
-                      {columnTasks.length}
-                    </span>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => { setNewTask({ ...newTask, status: status.id }); setShowAddModal(true); }} 
-                    aria-label={`Add task to ${status.label}`}
-                    className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
-                    title={`Add task to ${status.label}`}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
+                <span className="flex items-center gap-1.5">{s.icon}<span>{s.label}</span></span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                  isSelected ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
-                {/* Quick Add Box */}
-                <div className="bg-white border border-dashed border-slate-200 rounded-xl p-3 hover:border-slate-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all cursor-text group relative">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 group-hover:text-slate-600 mb-2.5">
-                    <Plus size={14} className="shrink-0" />
-                    <input
-                      type="text"
-                      placeholder={`Add task to ${status.label}...`}
-                      className="w-full bg-transparent text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none"
-                      value={inlineInputs[status.id] || ''}
-                      onChange={(e) => handleTextChange('inline', e.target.value, status.id)}
-                      onKeyDown={(e) => handleInlineCreate(status.id, e)}
-                    />
+        <main className="flex-1 w-full bg-[#f8fafc]/60 px-4 pb-4 pt-1 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth" data-purpose="kanban-container">
+          <div className="w-full flex items-start gap-3">
+            {reorderedStatuses.map(status => {
+              const columnTasks = filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
+              const isCompletedColumn = status.id === 'Completed'
+              const isCollapsibleEmpty = (status.id === 'On Hold' || status.id === 'Review') && columnTasks.length === 0
+              const isCollapsed = isCollapsibleEmpty && !manuallyExpandedColumns[status.id] && dragOverColumn !== status.id
+              const isHiddenOnMobile = status.id !== mobileStatusTab
+
+              // Collapsed Column Thin Rail (~48px)
+              if (isCollapsed) {
+                return (
+                  <section
+                    key={status.id}
+                    onClick={() => setManuallyExpandedColumns(prev => ({ ...prev, [status.id]: true }))}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      setDragOverColumn(status.id)
+                    }}
+                    onDragLeave={() => setDragOverColumn(null)}
+                    onDrop={async (e) => {
+                      e.preventDefault()
+                      setDragOverColumn(null)
+                      if (!draggedTaskId) return
+                      await updateTask(draggedTaskId, { status: status.id })
+                      setDraggedTaskId(null)
+                    }}
+                    className={`bg-slate-100/70 hover:bg-slate-100 border border-slate-200/80 rounded-2xl p-2 flex flex-col items-center min-h-[580px] w-12 min-w-12 shrink-0 cursor-pointer select-none transition-all duration-200 snap-start shadow-2xs ${
+                      isHiddenOnMobile ? 'hidden md:flex' : 'flex'
+                    }`}
+                    title={`Click to expand ${status.label} (0 tasks)`}
+                    data-purpose={`kanban-column-collapsed-${status.id.toLowerCase().replace(/\s+/g, '')}`}
+                  >
+                    <div className="text-slate-500 mb-3 mt-1 shrink-0">{status.icon}</div>
+                    <div className="flex-1 flex items-center justify-center [writing-mode:vertical-rl] rotate-180 text-xs font-semibold text-slate-600 tracking-wider">
+                      {status.label}
+                    </div>
+                    <span className="mt-3 mb-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-white border border-slate-200 text-slate-600 font-mono">
+                      0
+                    </span>
+                  </section>
+                )
+              }
+
+              // Completed column recent 7 days calculation
+              let displayTasks = columnTasks
+              let hasOlderTasks = false
+              if (isCompletedColumn && !showAllCompleted) {
+                const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+                const recent = columnTasks.filter(t => {
+                  const tDate = t.completedAt?.toDate ? t.completedAt.toDate().getTime()
+                    : (t.completedAt ? new Date(t.completedAt).getTime()
+                    : (t.updatedAt?.toDate ? t.updatedAt.toDate().getTime()
+                    : (t.dueDate?.toDate ? t.dueDate.toDate().getTime()
+                    : (t.dueDate ? new Date(t.dueDate).getTime() : Date.now()))))
+                  return tDate >= sevenDaysAgo
+                })
+                if (recent.length < columnTasks.length) {
+                  displayTasks = recent
+                  hasOlderTasks = true
+                }
+              }
+
+              return (
+                <section 
+                  key={status.id} 
+                  className={`bg-slate-100/60 border border-slate-200/80 rounded-2xl p-3 flex flex-col min-h-[580px] gap-2.5 shadow-2xs w-full min-w-full md:w-[285px] md:min-w-[285px] shrink-0 transition-all duration-200 snap-start ${
+                    isCompletedColumn ? 'opacity-95' : ''
+                  } ${isHiddenOnMobile ? 'hidden md:flex' : 'flex'}`}
+                  data-purpose={`kanban-column-${status.id.toLowerCase().replace(/\s+/g, '')}`}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault()
+                    if (!draggedTaskId) return
+                    await updateTask(draggedTaskId, { status: status.id })
+                    setDraggedTaskId(null)
+                  }}
+                >
+                  {/* Sticky Column Header */}
+                  <div className={`sticky top-0 bg-slate-100/95 backdrop-blur-xs z-10 flex items-center justify-between px-1 py-1 -mt-1 rounded-t-xl transition-opacity ${
+                    columnTasks.length === 0 ? 'opacity-60' : 'opacity-100'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {status.icon}
+                      <h2 className="text-xs font-semibold text-slate-800">{status.label}</h2>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white border border-slate-200/90 text-slate-700 shadow-2xs font-mono">
+                        {columnTasks.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isCollapsibleEmpty && (
+                        <button
+                          type="button"
+                          onClick={() => setManuallyExpandedColumns(prev => ({ ...prev, [status.id]: false }))}
+                          className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1 rounded transition-colors cursor-pointer"
+                          title="Collapse column"
+                        >
+                          <Minimize2 size={13} />
+                        </button>
+                      )}
+                      <button 
+                        type="button"
+                        onClick={() => composerInputRefs.current[status.id]?.focus()} 
+                        aria-label={`Add task to ${status.label}`}
+                        className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors p-1 rounded cursor-pointer"
+                        title={`Add task to ${status.label}`}
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-normal">
-                    <span>Press Enter ↵ to add</span>
-                    <span>@ to assign</span>
+
+                  {/* Direct Quick Add Box */}
+                  <div className="mention-input-container bg-white border border-slate-200/90 hover:border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-xl p-2.5 shadow-2xs transition-all cursor-text group relative">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 group-hover:text-slate-600">
+                      <Plus size={14} className="shrink-0 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                      <input
+                        ref={el => { if (el) composerInputRefs.current[status.id] = el }}
+                        type="text"
+                        placeholder={`Add task to ${status.label}...`}
+                        className="w-full bg-transparent text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none"
+                        value={inlineInputs[status.id] || ''}
+                        onFocus={() => setCardMenuOpen(null)}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setMentionState(prev => (prev.active && prev.targetId === status.id ? { active: false, query: '', cursorPos: 0, targetField: null, targetId: null } : prev))
+                          }, 200)
+                        }}
+                        onChange={(e) => handleTextChange('inline', e.target.value, status.id)}
+                        onKeyDown={(e) => handleInlineCreate(status.id, e)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-normal mt-2 pt-1 border-t border-slate-100">
+                      <span>Press Enter ↵ to add</span>
+                      <span>@ to assign</span>
+                    </div>
+                    {mentionState.active && mentionState.targetId === status.id && (
+                      <div className="mention-dropdown-container absolute top-full left-0 z-50 mt-1">
+                        <MentionList />
+                      </div>
+                    )}
                   </div>
-                  {mentionState.active && mentionState.targetId === status.id && (
-                    <div className="absolute top-full left-0 z-50 mt-1">
-                      <MentionList />
+
+                  {/* Empty State Dashed Drop Zone */}
+                  {columnTasks.length === 0 && (
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200/80 rounded-xl text-slate-400 text-xs text-center font-body min-h-[120px] select-none">
+                      <span>Drop tasks here</span>
                     </div>
                   )}
-                </div>
 
-                {/* Task Cards Container */}
-                <div className="flex flex-col gap-2">
-                  {columnTasks.map(task => {
+                  {/* Task Cards Container */}
+                  <div className="flex flex-col gap-2">
+                    {displayTasks.map(task => {
                     const assignees = getAssigneeInfo(task.assignedTo)
                     const dueDateText = formatDueDate(task.dueDate)
                     const isAnimating = animatingTaskId === task.id
@@ -1113,7 +1340,7 @@ export default function TasksTab({ defaultSubTab }) {
                         }}
                         onDragEnd={() => setDraggedTaskId(null)}
                         onClick={() => openSideDrawer(task)}
-                        className={`bg-white border border-slate-200/90 rounded-xl p-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all duration-150 cursor-pointer group relative ${
+                        className={`bg-white border border-slate-200/90 rounded-xl p-3 shadow-2xs hover:border-slate-300 hover:shadow-md transition-all duration-150 cursor-grab active:cursor-grabbing group relative ${
                           isCurrentDragging ? 'opacity-40 scale-[0.98] border-blue-400' : ''
                         } ${isAnimating ? 'animate-pulse scale-95' : ''}`}
                         data-purpose="task-card"
@@ -1127,14 +1354,14 @@ export default function TasksTab({ defaultSubTab }) {
                               e.stopPropagation()
                               toggleTaskCompletion(task)
                             }}
-                            className={`mt-0.5 w-4 h-4 rounded-full border shrink-0 transition-colors flex items-center justify-center ${
+                            className={`mt-0.5 w-4.5 h-4.5 rounded-full border shrink-0 transition-transform active:scale-90 hover:scale-110 flex items-center justify-center cursor-pointer ${
                               task.status === 'Completed'
                                 ? 'border-emerald-500 bg-emerald-500 text-white'
                                 : 'border-slate-300 hover:border-slate-400 bg-white text-transparent hover:text-slate-300'
                             }`}
                             title={task.status === 'Completed' ? 'Completed (Click to uncomplete)' : 'Mark complete'}
                           >
-                            <Check size={10} strokeWidth={3} />
+                            <Check size={11} strokeWidth={3} />
                           </button>
 
                           <div className="flex-1 min-w-0">
@@ -1157,7 +1384,7 @@ export default function TasksTab({ defaultSubTab }) {
                                     e.stopPropagation()
                                     startInlineEdit(task)
                                   }}
-                                  className={`text-xs font-semibold text-slate-800 leading-snug line-clamp-2 transition-colors ${
+                                  className={`text-[13px] font-semibold text-slate-900 leading-snug line-clamp-2 transition-colors ${
                                     task.status === 'Completed' ? 'line-through text-slate-400' : 'group-hover:text-blue-600'
                                   }`}
                                   title={task.title}
@@ -1167,21 +1394,63 @@ export default function TasksTab({ defaultSubTab }) {
                               )}
 
                               {/* Quick hover menu button */}
-                              <div className="task-popover-container relative shrink-0 -mr-1 -mt-1" onClick={(e) => e.stopPropagation()}>
+                              <div className="task-popover-container relative shrink-0 -mr-1 -mt-1 z-30" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation()
+                                    // Autohide mention dropdown when opening card menu
+                                    setMentionState({ active: false, query: '', cursorPos: 0, targetField: null, targetId: null })
                                     setCardMenuOpen(cardMenuOpen === task.id ? null : task.id)
                                   }}
-                                  className="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all"
+                                  className="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                                   title="More actions"
                                 >
                                   <MoreHorizontal size={13} />
                                 </button>
 
                                 {cardMenuOpen === task.id && (
-                                  <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-150">
+                                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl z-[150] py-1.5 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10">
+                                    <div className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest font-heading border-b border-slate-100 mb-1">
+                                      Move Category
+                                    </div>
+                                    {[
+                                      { id: 'To Do', label: 'To Do', dot: 'bg-slate-400' },
+                                      { id: 'In Progress', label: 'In Progress', dot: 'bg-blue-500' },
+                                      { id: 'Review', label: 'Review', dot: 'bg-purple-600' },
+                                      { id: 'On Hold', label: 'On Hold', dot: 'bg-amber-500' }
+                                    ].map(s => {
+                                      const isCurrent = task.status === s.id || (s.id === 'To Do' && (task.status === 'Inbox' || task.status === 'To-do'))
+                                      return (
+                                        <button
+                                          key={s.id}
+                                          type="button"
+                                          onClick={async (e) => {
+                                            e.stopPropagation()
+                                            setCardMenuOpen(null)
+                                            if (!isCurrent) {
+                                              await handleStatusChange(task.id, s.id)
+                                            }
+                                          }}
+                                          className={`w-full text-left px-3 py-1.5 text-[11px] font-medium flex items-center justify-between transition-colors cursor-pointer group ${
+                                            isCurrent 
+                                              ? 'text-blue-900 font-bold bg-blue-100 hover:bg-blue-200/90' 
+                                              : 'text-slate-800 hover:bg-blue-100 hover:text-blue-950'
+                                          }`}
+                                        >
+                                          <span className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full transition-transform group-hover:scale-125 ${s.dot}`} />
+                                            <span className="group-hover:translate-x-0.5 transition-transform font-medium group-hover:font-semibold">{s.label}</span>
+                                          </span>
+                                          {isCurrent ? (
+                                            <Check size={12} className="text-blue-700 shrink-0" />
+                                          ) : (
+                                            <ArrowRight size={11} className="text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                          )}
+                                        </button>
+                                      )
+                                    })}
+                                    <div className="my-1 border-t border-slate-100" />
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -1189,9 +1458,9 @@ export default function TasksTab({ defaultSubTab }) {
                                         setCardMenuOpen(null)
                                         openEditModal(task)
                                       }}
-                                      className="w-full text-left px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                      className="w-full text-left px-3 py-1.5 text-[12px] font-medium text-slate-800 hover:bg-slate-100 hover:text-slate-950 flex items-center gap-2 transition-colors cursor-pointer group"
                                     >
-                                      <Edit3 size={13} className="text-slate-400" /> Edit
+                                      <Edit3 size={13} className="text-slate-500 group-hover:text-slate-800 transition-colors" /> Edit
                                     </button>
                                     <button
                                       type="button"
@@ -1200,9 +1469,9 @@ export default function TasksTab({ defaultSubTab }) {
                                         setCardMenuOpen(null)
                                         startInlineEdit(task)
                                       }}
-                                      className="w-full text-left px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                      className="w-full text-left px-3 py-1.5 text-[12px] font-medium text-slate-800 hover:bg-slate-100 hover:text-slate-950 flex items-center gap-2 transition-colors cursor-pointer group"
                                     >
-                                      <FileText size={13} className="text-slate-400" /> Rename
+                                      <FileText size={13} className="text-slate-500 group-hover:text-slate-800 transition-colors" /> Rename
                                     </button>
                                     <div className="my-1 border-t border-slate-100" />
                                     <button
@@ -1212,23 +1481,21 @@ export default function TasksTab({ defaultSubTab }) {
                                         setCardMenuOpen(null)
                                         if (confirm('Delete this task?')) deleteTask(task.id)
                                       }}
-                                      className="w-full text-left px-3 py-1.5 text-[12px] font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                      className="w-full text-left px-3 py-1.5 text-[12px] font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-950 flex items-center gap-2 transition-colors cursor-pointer group"
                                     >
-                                      <Trash2 size={13} className="text-rose-500" /> Delete
+                                      <Trash2 size={13} className="text-rose-500 group-hover:text-rose-700 transition-colors" /> Delete
                                     </button>
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            {/* Optional Client / Project Identifier Badge */}
+                            {/* Client Tag */}
                             {(task.clientName || task.clientType) && (
                               <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100/80 border border-slate-200/70 text-[10px] font-medium text-slate-600">
-                                  {task.clientType && (
-                                    <span>{CLIENT_TYPES.find(c => c.id === task.clientType)?.icon || '🏢'}</span>
-                                  )}
-                                  <span className="truncate max-w-[170px]">{task.clientName || task.clientType}</span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100/90 border border-slate-200/70 text-[10px] font-medium text-slate-600 truncate max-w-[170px]" title={task.clientName || task.clientType}>
+                                  <Building2 size={10} className="shrink-0 text-slate-400" />
+                                  <span className="truncate">{task.clientName || task.clientType}</span>
                                 </span>
                               </div>
                             )}
@@ -1277,90 +1544,114 @@ export default function TasksTab({ defaultSubTab }) {
                               </div>
                             )}
 
+                            {/* Subtask / Comment / Attachment Counts */}
+                            {((Array.isArray(task.comments) && task.comments.length > 0) || task.commentCount > 0 || (Array.isArray(task.attachments) && task.attachments.length > 0) || task.attachmentCount > 0) && (
+                              <div className="mt-2 flex items-center gap-2.5 text-slate-400">
+                                {((Array.isArray(task.comments) && task.comments.length > 0) || task.commentCount > 0) && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500" title="Comments">
+                                    <MessageSquare size={11} className="shrink-0 text-slate-400" />
+                                    <span>{task.comments?.length || task.commentCount}</span>
+                                  </span>
+                                )}
+                                {((Array.isArray(task.attachments) && task.attachments.length > 0) || task.attachmentCount > 0) && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500" title="Attachments">
+                                    <Paperclip size={11} className="shrink-0 text-slate-400" />
+                                    <span>{task.attachments?.length || task.attachmentCount}</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
                             {/* Bottom Metadata: Priority, Due Date, Avatar Group */}
                             <div className="flex items-center justify-between mt-3 pt-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                {/* Priority Pill */}
-                                <div className="task-popover-container relative" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { 
-                                      e.stopPropagation()
-                                      setPriorityMenuOpen(priorityMenuOpen === task.id ? null : task.id)
-                                    }}
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border transition-all ${
-                                      task.priority === 'urgent'
-                                        ? 'bg-rose-50 border-rose-200/90 text-rose-700'
-                                        : task.priority === 'high'
-                                        ? 'bg-amber-50 border-amber-200/90 text-amber-700'
-                                        : 'bg-slate-100/90 text-slate-600 border-slate-200/60 hover:bg-slate-200/60'
-                                    }`}
-                                    title={`Priority: ${task.priority || 'Normal'}`}
-                                  >
-                                    <span className={`w-1.5 h-1.5 rounded-full ${
-                                      task.priority === 'urgent' ? 'bg-rose-600' : task.priority === 'high' ? 'bg-amber-600' : 'bg-slate-400'
-                                    }`}></span>
-                                    <span className="capitalize">{task.priority || 'Normal'}</span>
-                                  </button>
+                                {/* Priority Pill (Shown only for High / Urgent) */}
+                                {(task.priority === 'urgent' || task.priority === 'high') && (
+                                  <div className="task-popover-container relative" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { 
+                                        e.stopPropagation()
+                                        setPriorityMenuOpen(priorityMenuOpen === task.id ? null : task.id)
+                                      }}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all ${
+                                        task.priority === 'urgent'
+                                          ? 'bg-rose-50 border-rose-200/90 text-rose-700'
+                                          : 'bg-amber-50 border-amber-200/90 text-amber-700'
+                                      }`}
+                                      title={`Priority: ${task.priority}`}
+                                    >
+                                      <span className={`w-1.5 h-1.5 rounded-full ${
+                                        task.priority === 'urgent' ? 'bg-rose-600' : 'bg-amber-600'
+                                      }`}></span>
+                                      <span className="capitalize">{task.priority}</span>
+                                    </button>
 
-                                  {priorityMenuOpen === task.id && (
-                                    <div className="absolute left-0 top-full mt-1 w-32 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-150">
-                                      {['urgent', 'high', 'normal'].map((p) => (
-                                        <button
-                                          key={p}
-                                          type="button"
-                                          onClick={async (e) => {
-                                            e.stopPropagation()
-                                            await updateTask(task.id, { priority: p })
-                                            setPriorityMenuOpen(null)
-                                          }}
-                                          className={`w-full text-left px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors ${task.priority === p ? 'text-blue-600 bg-blue-50/50 font-semibold' : 'text-slate-700'}`}
-                                        >
-                                          <span className={`w-1.5 h-1.5 rounded-full ${p === 'urgent' ? 'bg-rose-600' : p === 'high' ? 'bg-amber-600' : 'bg-slate-400'}`}></span>
-                                          <span className="capitalize">{p}</span>
-                                          {task.priority === p && <Check size={11} className="text-blue-600 ml-auto" />}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
+                                    {priorityMenuOpen === task.id && (
+                                      <div className="absolute left-0 top-full mt-1 w-32 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-150">
+                                        {['urgent', 'high', 'normal'].map((p) => (
+                                          <button
+                                            key={p}
+                                            type="button"
+                                            onClick={async (e) => {
+                                              e.stopPropagation()
+                                              await updateTask(task.id, { priority: p })
+                                              setPriorityMenuOpen(null)
+                                            }}
+                                            className={`w-full text-left px-3 py-1.5 text-[11px] font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors ${task.priority === p ? 'text-blue-600 bg-blue-50/50 font-semibold' : 'text-slate-700'}`}
+                                          >
+                                            <span className={`w-1.5 h-1.5 rounded-full ${p === 'urgent' ? 'bg-rose-600' : p === 'high' ? 'bg-amber-600' : 'bg-slate-400'}`}></span>
+                                            <span className="capitalize">{p}</span>
+                                            {task.priority === p && <Check size={11} className="text-blue-600 ml-auto" />}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
 
                                 {/* Due Date Pill */}
-                                <div className="task-popover-container relative" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { 
-                                      e.stopPropagation()
-                                      setQuickDatePicker(quickDatePicker === task.id ? null : task.id)
-                                    }}
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border transition-all ${
-                                      task.dueDate
-                                        ? getDueDateBadgeClass(task.dueDate)
-                                        : 'border-dashed border-slate-300 text-slate-500 font-normal hover:bg-slate-50'
-                                    }`}
-                                    title={task.dueDate ? `Due: ${dueDateText}` : 'Set due date'}
-                                  >
-                                    <svg className={`w-3 h-3 ${getDueDateIconColor(task.dueDate)}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                      <circle cx="12" cy="12" r="9"></circle>
-                                      <path d="M12 7v5l3 2" strokeLinecap="round"></path>
-                                    </svg>
-                                    <span className="tabular-nums">{dueDateText || 'Due date'}</span>
-                                  </button>
+                                {task.dueDate && (() => {
+                                  const info = getDueDateInfo(task.dueDate)
+                                  if (!info) return null
+                                  return (
+                                    <div className="task-popover-container relative" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { 
+                                          e.stopPropagation()
+                                          setQuickDatePicker(quickDatePicker === task.id ? null : task.id)
+                                        }}
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border transition-all ${info.badgeClass}`}
+                                        title={`Due: ${info.label}`}
+                                      >
+                                        {info.isOverdue ? (
+                                          <AlertCircle size={11} className="shrink-0 text-rose-600" />
+                                        ) : (
+                                          <svg className={`w-3 h-3 ${info.iconColor}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="12" r="9"></circle>
+                                            <path d="M12 7v5l3 2" strokeLinecap="round"></path>
+                                          </svg>
+                                        )}
+                                        <span className="tabular-nums">{info.label}</span>
+                                      </button>
 
-                                  {quickDatePicker === task.id && (
-                                    <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-2 animate-in fade-in zoom-in-95 duration-150">
-                                      <DatePicker
-                                        selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
-                                        onChange={(date) => handleQuickDateChange(task.id, date)}
-                                        onClickOutside={() => setQuickDatePicker(null)}
-                                        inline
-                                      />
+                                      {quickDatePicker === task.id && (
+                                        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-2 animate-in fade-in zoom-in-95 duration-150">
+                                          <DatePicker
+                                            selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
+                                            onChange={(date) => handleQuickDateChange(task.id, date)}
+                                            onClickOutside={() => setQuickDatePicker(null)}
+                                            inline
+                                          />
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
+                                  )
+                                })()}
                               </div>
 
-                              {/* Assignee Avatar Stack */}
+                              {/* Assignee Avatar Stack (Enlarged to 24px) */}
                               <div className="task-popover-container relative shrink-0" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
@@ -1384,7 +1675,7 @@ export default function TasksTab({ defaultSubTab }) {
                                         return (
                                           <span
                                             key={emp.id}
-                                            className={`w-5 h-5 rounded-full ${colorClass} flex items-center justify-center ring-2 ring-white text-[9px] font-bold font-mono`}
+                                            className={`w-6 h-6 rounded-full ${colorClass} flex items-center justify-center ring-2 ring-white text-[10px] font-bold font-mono`}
                                             title={emp.name}
                                           >
                                             {getInitials(emp.name)}
@@ -1392,14 +1683,14 @@ export default function TasksTab({ defaultSubTab }) {
                                         )
                                       })}
                                       {assignees.length > 3 && (
-                                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center ring-2 ring-white text-[9px] font-bold font-mono">
+                                        <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center ring-2 ring-white text-[10px] font-bold font-mono">
                                           +{assignees.length - 3}
                                         </span>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="w-5 h-5 rounded-full border border-dashed border-slate-300 text-slate-400 flex items-center justify-center hover:border-slate-400 hover:text-slate-600 transition-colors">
-                                      <User size={10} />
+                                    <span className="w-6 h-6 rounded-full border border-dashed border-slate-300 text-slate-400 flex items-center justify-center hover:border-slate-400 hover:text-slate-600 transition-colors">
+                                      <User size={12} />
                                     </span>
                                   )}
                                 </button>
@@ -1768,13 +2059,25 @@ export default function TasksTab({ defaultSubTab }) {
                     )
                   })}
                 </div>
+
+                {/* Show all older tasks for Completed column */}
+                {isCompletedColumn && (hasOlderTasks || showAllCompleted) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCompleted(prev => !prev)}
+                    className="w-full py-1 text-center text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors cursor-pointer"
+                  >
+                    {showAllCompleted ? 'Show recent 7 days only' : `Show all (${columnTasks.length} tasks)`}
+                  </button>
+                )}
               </section>
             )
           })}
         </div>
       </main>
-    )
-  }
+    </div>
+  )
+}
 
 
   const renderTableView = () => {
@@ -2754,105 +3057,100 @@ export default function TasksTab({ defaultSubTab }) {
         }
       `}</style>
 
-      {/* BEGIN: MainHeader */}
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 pt-4 px-6 shrink-0">
-        <div className="w-full mx-auto">
-          {/* Top Title Bar and Controls */}
-          <div className="flex items-center justify-between pb-3">
-            {/* Title & Breadcrumbs */}
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-950 font-heading">TASKS</h1>
-              <span className="text-slate-300 font-light text-xl">/</span>
-              <span className="text-xl font-bold tracking-tight text-blue-600 font-heading uppercase">
-                {TABS.find(t => t.id === activeTab)?.label || 'TEAM'}
-              </span>
-            </div>
-          </div>
+      {/* BEGIN: Compact Toolbar Row (Row 1) */}
+      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 px-4 md:px-6 shrink-0">
+        <div className="w-full flex items-center justify-between gap-3 h-12 flex-wrap sm:flex-nowrap">
+          {/* Sub-tabs Navigation */}
+          <nav className="flex items-center gap-1 sm:gap-2 text-xs font-medium overflow-x-auto no-scrollbar py-1">
+            {TABS.map(tab => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-50 text-blue-700 font-semibold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  }`}
+                >
+                  <span className="shrink-0">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </nav>
 
-          {/* Navigation Tabs, View Selectors, and Primary Action Button */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-1 -mb-px pb-1 flex-wrap gap-3">
-            <nav className="flex items-center space-x-7 text-xs font-medium">
-              {TABS.map(tab => {
-                const isActive = activeTab === tab.id
-                return (
+          {/* Right Controls: Open tasks counter, View Switcher & New Task button */}
+          {['team', 'personal'].includes(activeTab) && (
+            <div className="flex items-center gap-2.5 shrink-0 py-1">
+              <span className="hidden lg:inline-flex text-xs font-medium text-slate-500 font-body">
+                {openTasksCount} open {openTasksCount === 1 ? 'task' : 'tasks'}
+              </span>
+
+              {/* View Switcher */}
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 text-xs font-medium text-slate-600">
+                {[
+                  { id: 'board', icon: <Layout size={13} />, label: 'Board' },
+                  { id: 'table', icon: <Table size={13} />, label: 'Table' },
+                  { id: 'calendar', icon: <CalendarIcon size={13} />, label: 'Calendar' },
+                  { id: 'dashboard', icon: <BarChart2 size={13} />, label: 'Stats' }
+                ].map(m => (
                   <button
-                    key={tab.id}
+                    key={m.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 py-2 transition-colors ${
-                      isActive
-                        ? 'text-blue-600 border-b-2 border-blue-600 font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
+                    onClick={() => setViewMode(m.id)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      viewMode === m.id
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                     }`}
                   >
-                    {tab.icon}
-                    <span>{tab.label}</span>
+                    {m.icon}
+                    <span className="hidden sm:inline">{m.label}</span>
                   </button>
-                )
-              })}
-            </nav>
-
-            {['team', 'personal'].includes(activeTab) && (
-              <div className="flex items-center gap-3 pb-1">
-                <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 text-xs font-medium text-slate-600">
-                  {[
-                    { id: 'board', icon: <Layout size={13} />, label: 'Board' },
-                    { id: 'table', icon: <Table size={13} />, label: 'Table' },
-                    { id: 'calendar', icon: <CalendarIcon size={13} />, label: 'Calendar' },
-                    { id: 'dashboard', icon: <BarChart2 size={13} />, label: 'Stats' }
-                  ].map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setViewMode(m.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all ${
-                        viewMode === m.id
-                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60 font-semibold'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                      }`}
-                    >
-                      {m.icon}
-                      <span>{m.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(true)}
-                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-3.5 py-1.5 rounded-xl shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all"
-                >
-                  <Plus size={14} className="stroke-[2.5]" />
-                  <span>New Task</span>
-                </button>
+                ))}
               </div>
-            )}
-          </div>
+
+              {/* Primary Action Button */}
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg shadow-2xs shadow-blue-500/20 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <Plus size={14} className="stroke-[2.5]" />
+                <span>New Task</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
-      {/* END: MainHeader */}
+      {/* END: Compact Toolbar Row */}
 
-      {/* BEGIN: FilterSubheader */}
+      {/* BEGIN: Filter Row (Row 2) */}
       {['team', 'personal'].includes(activeTab) && (
-        <section className="bg-white border-b border-slate-200/70 px-6 py-2 shrink-0 font-body" data-purpose="filter-bar">
-          <div className="w-full mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-wrap">
+        <section className="bg-white border-b border-slate-200/70 px-4 md:px-6 py-1.5 shrink-0 font-body" data-purpose="filter-bar">
+          <div className="w-full flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
               {/* Search Input */}
-              <div className="relative w-56">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Search size={14} />
+              <div className="relative w-48 sm:w-56">
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                  <Search size={13} />
                 </span>
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search issues..."
-                  className="w-full text-xs bg-slate-50/70 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-none"
+                  placeholder="Search tasks..."
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-7 py-1 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-none h-8"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                     title="Clear search"
                   >
                     <X size={12} />
@@ -2860,22 +3158,23 @@ export default function TasksTab({ defaultSubTab }) {
                 )}
               </div>
 
-              {/* Quick Filter Buttons */}
-              <div className="flex items-center gap-1.5">
+              {/* Consistent Chip Family */}
+              <div className="flex items-center gap-1 flex-wrap">
                 {[
                   { id: 'all', label: 'All' },
                   { id: 'me', label: 'Assigned to me' },
                   { id: 'today', label: 'Due today' },
+                  { id: 'overdue', label: 'Overdue' },
                   { id: 'high', label: 'High Priority' }
                 ].map(f => (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => setQuickFilter(f.id)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    className={`px-2.5 py-1 text-xs rounded-lg transition-colors border h-8 font-medium cursor-pointer ${
                       quickFilter === f.id
-                        ? 'bg-slate-100 text-slate-900 border border-slate-200/80 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-2xs'
+                        : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-slate-200/80'
                     }`}
                   >
                     {f.label}
@@ -2883,22 +3182,20 @@ export default function TasksTab({ defaultSubTab }) {
                 ))}
               </div>
 
-              {/* Dropdown Filter: All Clients */}
-              <div className="relative">
-                <select
-                  value={clientFilter}
-                  onChange={(e) => setClientFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  <option value="all">All Clients</option>
-                  <option value="internal">Internal Only</option>
-                  {CLIENT_TYPES.map(c => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Client Filter Dropdown */}
+              <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="h-8 px-2.5 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200/80 rounded-lg hover:border-slate-300 transition-colors focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                <option value="all">All Clients</option>
+                <option value="internal">Internal Only</option>
+                {CLIENT_TYPES.map(c => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
 
-              {/* Clear All Filters */}
+              {/* Clear Filters Action */}
               {(searchQuery || quickFilter !== 'all' || clientFilter !== 'all') && (
                 <button
                   type="button"
@@ -2907,20 +3204,21 @@ export default function TasksTab({ defaultSubTab }) {
                     setQuickFilter('all')
                     setClientFilter('all')
                   }}
-                  className="px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1 hover:bg-slate-100/70 rounded-lg transition-colors"
+                  className="px-2 py-1 text-xs font-medium text-rose-600 hover:text-rose-700 flex items-center gap-1 hover:bg-rose-50 rounded-lg transition-colors h-8 cursor-pointer"
                 >
-                  <X size={12} /> Clear
+                  <X size={12} /> Clear filters
                 </button>
               )}
             </div>
 
-            {/* Task Count Indicator */}
-            <div className="text-xs font-medium text-slate-400 shrink-0 pr-1 font-mono">
-              <span>{filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}</span>
+            {/* Mobile / fallback open task counter */}
+            <div className="lg:hidden text-xs font-medium text-slate-500 shrink-0 font-body">
+              <span>{openTasksCount} open tasks</span>
             </div>
           </div>
         </section>
       )}
+      {/* END: Filter Row */}
       {/* END: FilterSubheader */}
 
       <div className={`flex-1 overflow-auto ${viewMode === 'board' ? 'p-0' : 'p-2.5'}`}>
@@ -3575,200 +3873,273 @@ export default function TasksTab({ defaultSubTab }) {
         )}
       </Modal>
 
-      {/* Side Drawer for Task Editing */}
+      {/* Side Drawer for Task Editing - Single Window No-Scroll Layout */}
       {showSideDrawer && drawerTask && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
             onClick={closeSideDrawer}
           />
           
-          {/* Drawer Panel */}
-          <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl transform transition-transform duration-300 ease-out flex flex-col font-body">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0 bg-white">
-              <h2 className="text-lg font-bold text-slate-900 font-heading">Edit Task</h2>
-              <button 
-                type="button"
-                onClick={closeSideDrawer}
-                className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-slate-700"
-              >
-                <X size={18} />
-              </button>
+          {/* Drawer Panel: Accommodates all fields in a single window on desktop without page scrolldown */}
+          <div className="absolute inset-y-0 right-0 w-full lg:w-[1100px] xl:w-[1240px] 2xl:w-[1360px] max-w-full bg-white shadow-2xl flex flex-col font-body h-full max-h-screen overflow-hidden animate-in slide-in-from-right-4 duration-200">
+            {/* Header: Title, Actions & Close */}
+            <div className="h-14 px-5 border-b border-slate-200 shrink-0 bg-white flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-heading shrink-0">
+                  {STATUSES.find(s => s.id === drawerTask.status)?.label || 'Task'}
+                </span>
+                <h2 className="text-base font-bold text-slate-900 font-heading truncate">
+                  {drawerTask.title || 'Edit Task'}
+                </h2>
+                {drawerTask.clientName && (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                    <Building2 size={11} />
+                    <span>{drawerTask.clientName}</span>
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete this task?')) {
+                      await deleteTask(drawerTask.id)
+                      closeSideDrawer()
+                    }
+                  }}
+                  className="h-8 px-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors text-xs font-semibold flex items-center gap-1 font-heading cursor-pointer"
+                  title="Delete Task"
+                >
+                  <Trash2 size={13} />
+                  <span className="hidden sm:inline">Delete</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={closeSideDrawer}
+                  className="h-8 px-3 border border-slate-200 text-slate-600 rounded-md text-xs font-semibold font-heading hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDrawerSave}
+                  className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold font-heading shadow-xs active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Check size={14} />
+                  <span>Save Changes</span>
+                </button>
+                <div className="h-4 w-px bg-slate-200 mx-0.5" />
+                <button 
+                  type="button"
+                  onClick={closeSideDrawer}
+                  className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-slate-700 cursor-pointer"
+                  title="Close drawer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
-            
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Task Title</label>
+
+            {/* Properties Strip: Title, Status, Priority, Due Date in one horizontal row */}
+            <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/70 shrink-0 flex flex-wrap items-center gap-2.5">
+              <div className="flex-1 min-w-[220px]">
                 <input
                   type="text"
-                  value={drawerTask.title}
+                  value={drawerTask.title || ''}
                   onChange={(e) => setDrawerTask({ ...drawerTask, title: e.target.value })}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-heading font-semibold"
-                  placeholder="Task title"
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-heading font-semibold text-slate-900 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-blue-600 shadow-2xs"
+                  placeholder="Task title..."
                 />
               </div>
-              
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Description</label>
-                <textarea
-                  value={drawerTask.description || ''}
-                  onChange={(e) => setDrawerTask({ ...drawerTask, description: e.target.value })}
-                  rows={4}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all resize-y min-h-[90px] font-body text-slate-800 placeholder:text-slate-400"
-                  placeholder="Add description..."
-                />
-              </div>
-              
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Status</label>
+
+              <div className="shrink-0 w-32">
                 <select
                   value={drawerTask.status}
                   onChange={(e) => setDrawerTask({ ...drawerTask, status: e.target.value })}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 py-0 text-xs font-medium text-slate-800 font-body cursor-pointer shadow-2xs focus-visible:ring-1 focus-visible:ring-blue-600 hover:border-blue-400 hover:bg-slate-50 transition-all"
                 >
                   {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                 </select>
               </div>
-              
-              {/* Priority */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Priority</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'normal', label: 'Normal', dot: 'bg-slate-400', activeCls: 'bg-blue-50 text-blue-700 border-blue-300' },
-                    { id: 'high', label: 'High', dot: 'bg-amber-500', activeCls: 'bg-amber-50 text-amber-700 border-amber-300' },
-                    { id: 'urgent', label: 'Urgent', dot: 'bg-red-500', activeCls: 'bg-red-50 text-red-700 border-red-300' }
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setDrawerTask({ ...drawerTask, priority: p.id })}
-                      className={`h-9 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border font-heading ${
-                        drawerTask.priority === p.id 
-                          ? `${p.activeCls} shadow-xs font-bold`
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Due Date */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Due Date</label>
-                <div className="relative">
-                  <DatePicker
-                    selected={drawerTask.dueDate ? (drawerTask.dueDate.toDate ? drawerTask.dueDate.toDate() : new Date(drawerTask.dueDate)) : null}
-                    onChange={(date) => setDrawerTask({ ...drawerTask, dueDate: date })}
-                    wrapperClassName="w-full"
-                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 pr-10 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body cursor-pointer shadow-2xs"
-                    dateFormat="MMM d, yyyy"
-                    placeholderText="Select date (optional)"
-                  />
-                  <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-              </div>
-              
-              {/* Assignees */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Assignees</label>
-                <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/50 border border-slate-200 rounded-lg min-h-[44px] max-h-36 overflow-y-auto">
-                  {taskEmployees.map(emp => {
-                    const isAssigned = (drawerTask.assignedTo || []).includes(emp.id)
-                    return (
-                      <button
-                        key={emp.id}
-                        type="button"
-                        onClick={() => {
-                          const current = drawerTask.assignedTo || []
-                          const updated = isAssigned 
-                            ? current.filter(id => id !== emp.id)
-                            : [...current, emp.id]
-                          setDrawerTask({ ...drawerTask, assignedTo: updated })
-                        }}
-                        className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 border font-body ${
-                          isAssigned 
-                            ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold shadow-xs' 
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[8px] font-bold font-mono flex items-center justify-center">
-                          {getInitials(emp.name)}
-                        </div>
-                        <span>{emp.name}</span>
-                        {isAssigned && <Check size={12} className="text-blue-600" />}
-                      </button>
-                    )
-                  })}
-                  {taskEmployees.length === 0 && (
-                    <p className="text-xs text-slate-400 italic py-1">No employees found</p>
-                  )}
-                </div>
+
+              <div className="shrink-0 flex items-center bg-white border border-slate-200 rounded-md p-0.5 shadow-2xs">
+                {[
+                  { id: 'normal', label: 'Normal', dot: 'bg-slate-400', activeCls: 'bg-slate-100 text-slate-800 font-bold' },
+                  { id: 'high', label: 'High', dot: 'bg-amber-500', activeCls: 'bg-amber-50 text-amber-700 font-bold' },
+                  { id: 'urgent', label: 'Urgent', dot: 'bg-red-500', activeCls: 'bg-red-50 text-red-700 font-bold' }
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setDrawerTask({ ...drawerTask, priority: p.id })}
+                    className={`h-7 px-2 rounded text-[11px] font-semibold flex items-center gap-1 transition-all font-heading cursor-pointer ${
+                      drawerTask.priority === p.id 
+                        ? p.activeCls
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+                    {p.label}
+                  </button>
+                ))}
               </div>
 
-              {/* 1. CHECKLIST & VALIDATIONS SECTION */}
-              <div className="space-y-3 pt-3 border-t border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-900 font-heading flex items-center gap-1.5">
-                      <CheckSquare size={14} className="text-emerald-600" />
-                      <span>Checklist & Validations</span>
+              <div className="shrink-0 relative w-36">
+                <DatePicker
+                  selected={drawerTask.dueDate ? (drawerTask.dueDate.toDate ? drawerTask.dueDate.toDate() : new Date(drawerTask.dueDate)) : null}
+                  onChange={(date) => setDrawerTask({ ...drawerTask, dueDate: date })}
+                  wrapperClassName="w-full"
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 pr-7 py-0 text-xs text-slate-800 font-body cursor-pointer shadow-2xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                  dateFormat="MMM d, yyyy"
+                  placeholderText="Due date"
+                />
+                <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+              </div>
+            </div>
+
+            {/* 3-Column Single-Window Layout: No page scroll down */}
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 p-4 bg-slate-50/50 overflow-y-auto lg:overflow-hidden">
+              {/* Column 1: Description & Assignees */}
+              <div className="lg:col-span-4 flex flex-col gap-3 min-h-0 h-full">
+                {/* Description Card */}
+                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col shrink-0 min-h-[140px] max-h-[200px]">
+                  <div className="flex items-center justify-between mb-1.5 shrink-0">
+                    <label className="text-[11px] font-bold text-slate-800 font-heading uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText size={12} className="text-slate-500" />
+                      <span>Description</span>
                     </label>
-                    <p className="text-[11px] text-slate-400">Mark as done or provide response</p>
                   </div>
-                  {Array.isArray(drawerTask.checklists) && drawerTask.checklists.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono tabular-nums">
-                        {drawerTask.checklists.filter(c => c.completed).length}/{drawerTask.checklists.length}
-                      </span>
-                      {drawerTask.checklists.length > 1 && (
+                  <textarea
+                    value={drawerTask.description || ''}
+                    onChange={(e) => setDrawerTask({ ...drawerTask, description: e.target.value })}
+                    rows={4}
+                    className="flex-1 w-full bg-slate-50/50 border border-slate-200 rounded-lg p-2 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none transition-all resize-none font-body text-slate-800 placeholder:text-slate-400"
+                    placeholder="Add description or notes..."
+                  />
+                </div>
+
+                {/* Assignees Card */}
+                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col flex-1 min-h-0">
+                  <div className="flex items-center justify-between mb-2 shrink-0">
+                    <label className="text-[11px] font-bold text-slate-800 font-heading uppercase tracking-wider flex items-center gap-1.5">
+                      <User size={12} className="text-slate-500" />
+                      <span>Assignees</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {(drawerTask.assignedTo || []).length} assigned
+                    </span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                    {taskEmployees.map(emp => {
+                      const isAssigned = (drawerTask.assignedTo || []).includes(emp.id)
+                      return (
                         <button
+                          key={emp.id}
                           type="button"
                           onClick={() => {
-                            const allDone = drawerTask.checklists.every(c => c.completed)
-                            setDrawerTask({
-                              ...drawerTask,
-                              checklists: drawerTask.checklists.map(c => ({ ...c, completed: !allDone }))
-                            })
+                            const current = drawerTask.assignedTo || []
+                            const updated = isAssigned 
+                              ? current.filter(id => id !== emp.id)
+                              : [...current, emp.id]
+                            setDrawerTask({ ...drawerTask, assignedTo: updated })
                           }}
-                          className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 underline cursor-pointer"
+                          className={`w-full h-8 px-2 rounded-lg text-xs font-medium transition-all flex items-center justify-between border font-body cursor-pointer ${
+                            isAssigned 
+                              ? 'bg-blue-50/80 text-blue-700 border-blue-200 font-semibold shadow-2xs' 
+                              : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50'
+                          }`}
                         >
-                          {drawerTask.checklists.every(c => c.completed) ? 'Uncheck all' : 'Check all'}
+                          <div className="flex items-center gap-2 truncate">
+                            <div className={`w-5 h-5 rounded-full text-[8px] font-bold font-mono flex items-center justify-center shrink-0 ${
+                              isAssigned ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {getInitials(emp.name)}
+                            </div>
+                            <span className="truncate">{emp.name}</span>
+                          </div>
+                          {isAssigned && <Check size={12} className="text-blue-600 shrink-0" />}
                         </button>
-                      )}
-                    </div>
-                  )}
+                      )
+                    })}
+                    {taskEmployees.length === 0 && (
+                      <p className="text-xs text-slate-400 italic py-2 text-center">No employees found</p>
+                    )}
+                  </div>
                 </div>
+              </div>
 
-                {(!drawerTask.checklists || drawerTask.checklists.length === 0) ? (
-                  <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center">
-                    <p className="text-xs text-slate-400 italic mb-1.5">No checklist validations added yet</p>
+              {/* Column 2: Checklist & Validations */}
+              <div className="lg:col-span-4 flex flex-col min-h-0 h-full bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                {/* Header */}
+                <div className="px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <CheckSquare size={13} className="text-emerald-600" />
+                    <span className="text-[11px] font-bold text-slate-900 font-heading uppercase tracking-wider">
+                      Checklist & Validations
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {Array.isArray(drawerTask.checklists) && drawerTask.checklists.length > 0 && (
+                      <>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                          {drawerTask.checklists.filter(c => c.completed).length}/{drawerTask.checklists.length}
+                        </span>
+                        {drawerTask.checklists.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const allDone = drawerTask.checklists.every(c => c.completed)
+                              setDrawerTask({
+                                ...drawerTask,
+                                checklists: drawerTask.checklists.map(c => ({ ...c, completed: !allDone }))
+                              })
+                            }}
+                            className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-800 underline cursor-pointer"
+                          >
+                            {drawerTask.checklists.every(c => c.completed) ? 'Uncheck' : 'Check all'}
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
-                        const newItem = createDefaultChecklistItem(`Validation #1`)
-                        setDrawerTask({ ...drawerTask, checklists: [newItem] })
+                        const newItem = createDefaultChecklistItem(`Validation #${(drawerTask.checklists || []).length + 1}`)
+                        setDrawerTask({ ...drawerTask, checklists: [...(drawerTask.checklists || []), newItem] })
                       }}
-                      className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors inline-flex items-center gap-1 cursor-pointer font-heading"
+                      className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-0.5 cursor-pointer font-heading ml-1"
                     >
-                      <Plus size={13} />
-                      <span>Add Checklist Field</span>
+                      <Plus size={12} />
+                      <span>Add</span>
                     </button>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {drawerTask.checklists.map((item, idx) => (
-                      <div key={item.id || idx} className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center justify-between gap-2">
+                </div>
+
+                {/* Items Container */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  {(!drawerTask.checklists || drawerTask.checklists.length === 0) ? (
+                    <div className="h-full flex flex-col items-center justify-center p-6 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                      <CheckSquare size={22} className="text-slate-300 mb-1.5" />
+                      <p className="text-xs text-slate-400 italic mb-2">No checklist validations added yet</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newItem = createDefaultChecklistItem('Validation #1')
+                          setDrawerTask({ ...drawerTask, checklists: [newItem] })
+                        }}
+                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 cursor-pointer font-heading"
+                      >
+                        <Plus size={12} />
+                        <span>Add Checklist Field</span>
+                      </button>
+                    </div>
+                  ) : (
+                    drawerTask.checklists.map((item, idx) => (
+                      <div key={item.id || idx} className="p-2.5 bg-white border border-slate-200 rounded-lg space-y-2 shadow-2xs">
+                        <div className="flex items-center justify-between gap-1.5">
                           <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none">
                             <input
                               type="checkbox"
@@ -3777,7 +4148,7 @@ export default function TasksTab({ defaultSubTab }) {
                                 const updated = drawerTask.checklists.map((c, i) => i === idx ? { ...c, completed: !c.completed } : c)
                                 setDrawerTask({ ...drawerTask, checklists: updated })
                               }}
-                              className="w-4 h-4 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                              className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
                             />
                             <input
                               type="text"
@@ -3792,17 +4163,17 @@ export default function TasksTab({ defaultSubTab }) {
                               }`}
                             />
                           </label>
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             <button
                               type="button"
                               onClick={() => {
                                 const updated = drawerTask.checklists.map((c, i) => i === idx ? { ...c, completed: !c.completed } : c)
                                 setDrawerTask({ ...drawerTask, checklists: updated })
                               }}
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition-all border cursor-pointer ${
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-semibold transition-all border cursor-pointer ${
                                 item.completed
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                               }`}
                             >
                               {item.completed ? '✓ Done' : '○ To do'}
@@ -3816,27 +4187,23 @@ export default function TasksTab({ defaultSubTab }) {
                               className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
                               title="Delete checklist item"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </div>
 
                         {/* Validation badges */}
                         <div className="flex flex-wrap gap-1">
-                          {item.required && <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200">Required</span>}
-                          {item.validations?.text && <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md border border-slate-200">Manual text</span>}
-                          {item.validations?.dropdown && <span className="text-[9px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-200">Dropdown</span>}
-                          {item.validations?.image && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Photo</span>}
-                          {item.validations?.file && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">File</span>}
-                          {item.validations?.video && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Video</span>}
-                          {item.validations?.audio && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Audio</span>}
-                          {item.validations?.geoTag && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md border border-slate-200">Location</span>}
+                          {item.required && <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Required</span>}
+                          {item.validations?.text && <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">Manual text</span>}
+                          {item.validations?.dropdown && <span className="text-[9px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded border border-emerald-200">Dropdown</span>}
+                          {item.validations?.image && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded border border-slate-200">Photo</span>}
+                          {item.validations?.file && <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded border border-slate-200">File</span>}
                         </div>
 
-                        {/* Manual typing */}
+                        {/* Manual text */}
                         {item.validations?.text && (
-                          <div className="space-y-1 pt-1">
-                            <label className="text-[9px] font-medium text-slate-500 block uppercase tracking-wider">Response</label>
+                          <div className="pt-0.5">
                             <input
                               type="text"
                               value={item.textResponse || ''}
@@ -3850,12 +4217,12 @@ export default function TasksTab({ defaultSubTab }) {
                                 setDrawerTask({ ...drawerTask, checklists: updated })
                               }}
                               placeholder="Type response, findings or notes..."
-                              className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-body transition-all"
+                              className="h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-body"
                             />
                           </div>
                         )}
 
-                        {/* Dropdown Options with a Checkbox for EACH Option */}
+                        {/* Dropdown Options */}
                         {item.validations?.dropdown && Array.isArray(item.dropdownConfig?.options) && item.dropdownConfig.options.length > 0 ? (
                           (() => {
                             let currentSelected = []
@@ -3880,10 +4247,10 @@ export default function TasksTab({ defaultSubTab }) {
                             }
 
                             return (
-                              <div className="space-y-1.5 pt-1">
+                              <div className="space-y-1 pt-1">
                                 <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                                  <span className="flex items-center gap-1.5 font-heading">
-                                    <List size={12} className="text-emerald-600" />
+                                  <span className="flex items-center gap-1 font-heading">
+                                    <List size={10} className="text-emerald-600" />
                                     <span>Options <span className="text-emerald-700 font-mono">{currentSelected.length}/{item.dropdownConfig.options.length}</span></span>
                                   </span>
                                   {item.dropdownConfig.options.length > 1 && (
@@ -3901,14 +4268,14 @@ export default function TasksTab({ defaultSubTab }) {
                                         } : c)
                                         setDrawerTask({ ...drawerTask, checklists: updated })
                                       }}
-                                      className="text-[9px] text-emerald-600 hover:text-emerald-800 font-semibold underline underline-offset-2 cursor-pointer normal-case tracking-normal"
+                                      className="text-[9px] text-emerald-600 hover:text-emerald-800 font-semibold underline cursor-pointer normal-case"
                                     >
-                                      {item.dropdownConfig.options.map(o => o.label).filter(Boolean).every(l => currentSelected.includes(l)) ? 'Uncheck all' : 'Check all'}
+                                      {item.dropdownConfig.options.map(o => o.label).filter(Boolean).every(l => currentSelected.includes(l)) ? 'Uncheck' : 'Check all'}
                                     </button>
                                   )}
                                 </div>
 
-                                <div className="space-y-0.5 bg-white rounded-lg border border-slate-200 p-2 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                                <div className="space-y-0.5 bg-slate-50/50 rounded-md border border-slate-200 p-1.5 max-h-36 overflow-y-auto">
                                   {item.dropdownConfig.options.map((opt, optIdx) => {
                                     const optLabel = opt.label || `Option ${optIdx + 1}`
                                     const isChecked = currentSelected.includes(optLabel) || (opt.id && currentSelected.includes(opt.id))
@@ -3916,35 +4283,26 @@ export default function TasksTab({ defaultSubTab }) {
                                       <div
                                         key={opt.id || optIdx}
                                         onClick={() => toggleDrawerOption(optLabel)}
-                                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-all select-none group ${
+                                        className={`flex items-center justify-between px-2 py-1 rounded border text-xs cursor-pointer transition-all select-none ${
                                           isChecked
                                             ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-medium'
-                                            : 'bg-white border-slate-200/70 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                                            : 'bg-white border-slate-200/70 text-slate-700 hover:bg-slate-50'
                                         }`}
                                       >
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                           <input
                                             type="checkbox"
                                             checked={isChecked}
                                             onChange={() => toggleDrawerOption(optLabel)}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="w-3.5 h-3.5 rounded-md text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                                            className="w-3 h-3 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
                                           />
-                                          <span className={`text-xs truncate transition-colors ${
-                                            isChecked ? 'font-semibold text-emerald-800' : 'text-slate-800 group-hover:text-emerald-700'
-                                          }`}>
-                                            {optLabel}
-                                          </span>
+                                          <span className="text-[11px] truncate">{optLabel}</span>
                                         </div>
-
-                                        <span
-                                          className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold shrink-0 border transition-all ${
-                                            isChecked
-                                              ? 'bg-emerald-600 text-white border-emerald-600'
-                                              : 'bg-white text-slate-400 border-slate-200 group-hover:border-slate-300'
-                                          }`}
-                                        >
-                                          {isChecked ? '✓ Done' : '○ To do'}
+                                        <span className={`text-[8px] px-1 rounded font-bold shrink-0 ${
+                                          isChecked ? 'bg-emerald-600 text-white' : 'text-slate-400'
+                                        }`}>
+                                          {isChecked ? '✓' : '○'}
                                         </span>
                                       </div>
                                     )
@@ -3953,121 +4311,123 @@ export default function TasksTab({ defaultSubTab }) {
                               </div>
                             )
                           })()
-                        ) : item.validations?.dropdown ? (
-                          <div className="space-y-1 pt-1">
-                            <label className="text-[10px] font-medium text-slate-600 block">📋 Select option:</label>
-                            <select
-                              value={item.dropdownResponse || ''}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                const updated = drawerTask.checklists.map((c, i) => i === idx ? { 
-                                  ...c, 
-                                  dropdownResponse: val,
-                                  completed: Boolean(val && val.trim())
-                                } : c)
-                                setDrawerTask({ ...drawerTask, checklists: updated })
-                              }}
-                              className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer font-body"
-                            >
-                              <option value="">-- Choose option --</option>
-                              {item.dropdownConfig?.options?.map(opt => (
-                                <option key={opt.id} value={opt.label}>{opt.label}</option>
-                              ))}
-                            </select>
-                          </div>
                         ) : null}
                       </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newItem = createDefaultChecklistItem(`Validation #${(drawerTask.checklists || []).length + 1}`)
-                        setDrawerTask({ ...drawerTask, checklists: [...(drawerTask.checklists || []), newItem] })
-                      }}
-                      className="text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-heading pt-1"
-                    >
-                      <Plus size={13} />
-                      <span>Add another checklist field</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* 2. SUB-TASKS SECTION */}
-              <div className="space-y-3 pt-4 border-t border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-900 font-heading flex items-center gap-1.5">
-                      <List size={14} className="text-blue-600" />
-                      <span>Sub Tasks</span>
-                    </label>
-                    <p className="text-[11px] text-slate-400">Child tasks with assignees, dates, reminders & checklists</p>
-                  </div>
-                  {Array.isArray(drawerTask.subtasks) && drawerTask.subtasks.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        {drawerTask.subtasks.filter(s => s.completed).length} / {drawerTask.subtasks.length} Completed
-                      </span>
-                      {drawerTask.subtasks.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const allDone = drawerTask.subtasks.every(s => s.completed)
-                            setDrawerTask({
-                              ...drawerTask,
-                              subtasks: drawerTask.subtasks.map(s => ({ ...s, completed: !allDone }))
-                            })
-                          }}
-                          className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
-                        >
-                          {drawerTask.subtasks.every(s => s.completed) ? 'Unmark all' : 'Mark all done'}
-                        </button>
-                      )}
-                    </div>
+                    ))
                   )}
                 </div>
+              </div>
 
-                {(!drawerTask.subtasks || drawerTask.subtasks.length === 0) ? (
-                  <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center">
-                    <p className="text-xs text-slate-400 italic mb-1.5">No sub-tasks for this task</p>
+              {/* Column 3: Sub Tasks */}
+              <div className="lg:col-span-4 flex flex-col min-h-0 h-full bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                {/* Header */}
+                <div className="px-3.5 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <List size={13} className="text-blue-600" />
+                    <span className="text-[11px] font-bold text-slate-900 font-heading uppercase tracking-wider">
+                      Sub Tasks
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {Array.isArray(drawerTask.subtasks) && drawerTask.subtasks.length > 0 && (
+                      <>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                          {drawerTask.subtasks.filter(s => s.completed).length}/{drawerTask.subtasks.length}
+                        </span>
+                        {drawerTask.subtasks.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const allDone = drawerTask.subtasks.every(s => s.completed)
+                              setDrawerTask({
+                                ...drawerTask,
+                                subtasks: drawerTask.subtasks.map(s => ({ ...s, completed: !allDone }))
+                              })
+                            }}
+                            className="text-[10px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+                          >
+                            {drawerTask.subtasks.every(s => s.completed) ? 'Unmark' : 'Mark all'}
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
-                        const newItem = createDefaultSubtask(`Sub Task #1`)
-                        setDrawerTask({ ...drawerTask, subtasks: [newItem] })
+                        const newItem = createDefaultSubtask(`Sub Task #${(drawerTask.subtasks || []).length + 1}`)
+                        setDrawerTask({ ...drawerTask, subtasks: [...(drawerTask.subtasks || []), newItem] })
                       }}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer font-heading"
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-0.5 cursor-pointer font-heading ml-1"
                     >
-                      <Plus size={13} />
-                      <span>Add First Sub Task</span>
+                      <Plus size={12} />
+                      <span>Add</span>
                     </button>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {drawerTask.subtasks.map((st, idx) => {
+                </div>
+
+                {/* Subtasks Body */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+                  {(!drawerTask.subtasks || drawerTask.subtasks.length === 0) ? (
+                    <div className="h-full flex flex-col items-center justify-center p-6 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                      <List size={22} className="text-slate-300 mb-1.5" />
+                      <p className="text-xs text-slate-400 italic mb-2">No sub-tasks for this task</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newItem = createDefaultSubtask('Sub Task #1')
+                          setDrawerTask({ ...drawerTask, subtasks: [newItem] })
+                        }}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 cursor-pointer font-heading"
+                      >
+                        <Plus size={12} />
+                        <span>Add First Sub Task</span>
+                      </button>
+                    </div>
+                  ) : (
+                    drawerTask.subtasks.map((st, idx) => {
                       const subAssignees = Array.isArray(st.assignedTo) ? st.assignedTo : st.assignedTo ? [st.assignedTo] : []
                       return (
-                        <div key={st.id || idx} className="p-3.5 bg-slate-50/80 border border-slate-200/90 rounded-xl space-y-3 shadow-2xs">
-                          {/* Header: Sub Task #, Status & Delete */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800 font-heading">
-                              Sub Task #{idx + 1}
-                            </span>
-                            <div className="flex items-center gap-1.5">
+                        <div key={st.id || idx} className="p-2.5 bg-slate-50/70 border border-slate-200/90 rounded-lg space-y-2 shadow-2xs">
+                          {/* Sub Task Title & Checkbox */}
+                          <div className="flex items-center justify-between gap-1.5">
+                            <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={!!st.completed}
+                                onChange={() => {
+                                  const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, completed: !s.completed } : s)
+                                  setDrawerTask({ ...drawerTask, subtasks: updated })
+                                }}
+                                className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                              />
+                              <input
+                                type="text"
+                                value={st.title || ''}
+                                onChange={(e) => {
+                                  const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, title: e.target.value } : s)
+                                  setDrawerTask({ ...drawerTask, subtasks: updated })
+                                }}
+                                placeholder="Sub-task title..."
+                                className={`w-full text-xs font-semibold bg-transparent border-0 p-0 focus:ring-0 ${
+                                  st.completed ? 'line-through text-slate-400' : 'text-slate-800'
+                                }`}
+                              />
+                            </label>
+
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => {
                                   const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, completed: !s.completed } : s)
                                   setDrawerTask({ ...drawerTask, subtasks: updated })
                                 }}
-                                className={`text-[10px] px-2 py-0.5 rounded font-semibold transition-colors border cursor-pointer ${
+                                className={`text-[9px] px-1.5 py-0.5 rounded font-semibold transition-colors border cursor-pointer ${
                                   st.completed
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                                 }`}
                               >
-                                {st.completed ? '✓ Completed' : 'To Do'}
+                                {st.completed ? '✓' : 'To Do'}
                               </button>
                               <button
                                 type="button"
@@ -4078,48 +4438,23 @@ export default function TasksTab({ defaultSubTab }) {
                                 className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
                                 title="Delete sub-task"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           </div>
 
-                          {/* Subtask Checkbox & Title */}
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={!!st.completed}
-                              onChange={() => {
-                                const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, completed: !s.completed } : s)
-                                setDrawerTask({ ...drawerTask, subtasks: updated })
-                              }}
-                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
-                            />
-                            <input
-                              type="text"
-                              value={st.title || ''}
-                              onChange={(e) => {
-                                const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, title: e.target.value } : s)
-                                setDrawerTask({ ...drawerTask, subtasks: updated })
-                              }}
-                              placeholder="Sub-task title: What needs to be done?"
-                              className={`w-full text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs ${
-                                st.completed ? 'line-through text-slate-400' : ''
-                              }`}
-                            />
-                          </div>
-
-                          {/* Subtask Assignee selector */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-[11px] font-semibold text-slate-700 font-heading flex items-center gap-1">
-                                <User size={12} className="text-slate-500" />
+                          {/* Assignees chips for subtask */}
+                          <div className="space-y-1 pt-1 border-t border-slate-200/60">
+                            <div className="flex items-center justify-between text-[10px] text-slate-600">
+                              <span className="font-semibold flex items-center gap-1">
+                                <User size={10} className="text-slate-400" />
                                 <span>Assignee</span>
-                              </label>
+                              </span>
                               {subAssignees.length > 0 && (
-                                <span className="text-[10px] text-blue-600 font-semibold">{subAssignees.length} selected</span>
+                                <span className="text-[9px] text-blue-600 font-semibold">{subAssignees.length} selected</span>
                               )}
                             </div>
-                            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-white rounded-lg border border-slate-200">
+                            <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto p-1 bg-white rounded border border-slate-200">
                               {taskEmployees.map(emp => {
                                 const isAssigned = subAssignees.includes(emp.id)
                                 return (
@@ -4133,19 +4468,19 @@ export default function TasksTab({ defaultSubTab }) {
                                       const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, assignedTo: updatedAssignees } : s)
                                       setDrawerTask({ ...drawerTask, subtasks: updated })
                                     }}
-                                    className={`h-6 px-1.5 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 border cursor-pointer ${
+                                    className={`h-5 px-1.5 rounded text-[9px] font-medium transition-all flex items-center gap-1 border cursor-pointer ${
                                       isAssigned
                                         ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold'
                                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                                     }`}
                                   >
-                                    <div className={`w-3.5 h-3.5 rounded-full text-[7px] font-bold flex items-center justify-center shrink-0 ${
+                                    <div className={`w-3 h-3 rounded-full text-[6px] font-bold flex items-center justify-center shrink-0 ${
                                       isAssigned ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
                                     }`}>
                                       {getInitials(emp.name)}
                                     </div>
-                                    <span className="truncate max-w-[90px]">{emp.name}</span>
-                                    {isAssigned && <Check size={9} className="text-blue-600 shrink-0" />}
+                                    <span className="truncate max-w-[70px]">{emp.name}</span>
+                                    {isAssigned && <Check size={8} className="text-blue-600 shrink-0" />}
                                   </button>
                                 )
                               })}
@@ -4153,60 +4488,50 @@ export default function TasksTab({ defaultSubTab }) {
                           </div>
 
                           {/* Due Date & Reminder */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[11px] font-semibold text-slate-700 font-heading block mb-1">
-                                Due Date & Time
-                              </label>
-                              <div className="relative">
-                                <DatePicker
-                                  selected={st.dueDate ? (st.dueDate.toDate ? st.dueDate.toDate() : new Date(st.dueDate)) : null}
-                                  onChange={(date) => {
-                                    const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, dueDate: date } : s)
-                                    setDrawerTask({ ...drawerTask, subtasks: updated })
-                                  }}
-                                  showTimeSelect
-                                  timeIntervals={15}
-                                  dateFormat="MMM d, yyyy h:mm aa"
-                                  wrapperClassName="w-full"
-                                  className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
-                                  placeholderText="Sub-task due date"
-                                />
-                                <CalendarIcon size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                              </div>
+                          <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            <div className="relative">
+                              <DatePicker
+                                selected={st.dueDate ? (st.dueDate.toDate ? st.dueDate.toDate() : new Date(st.dueDate)) : null}
+                                onChange={(date) => {
+                                  const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, dueDate: date } : s)
+                                  setDrawerTask({ ...drawerTask, subtasks: updated })
+                                }}
+                                showTimeSelect
+                                timeIntervals={15}
+                                dateFormat="MMM d, h:mm aa"
+                                wrapperClassName="w-full"
+                                className="h-7 w-full rounded border border-slate-200 bg-white px-2 pr-6 text-[10px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 cursor-pointer"
+                                placeholderText="Due date"
+                              />
+                              <CalendarIcon size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
 
-                            <div>
-                              <label className="text-[11px] font-semibold text-slate-700 font-heading block mb-1">
-                                Reminder
+                            <div className="flex items-center justify-between h-7 px-2 bg-white rounded border border-slate-200">
+                              <span className="text-[10px] text-slate-600">Reminder</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={!!st.reminder?.enabled}
+                                  onChange={(e) => {
+                                    const updated = drawerTask.subtasks.map((s, i) => i === idx ? {
+                                      ...s,
+                                      reminder: { ...(s.reminder || {}), enabled: e.target.checked }
+                                    } : s)
+                                    setDrawerTask({ ...drawerTask, subtasks: updated })
+                                  }}
+                                />
+                                <div className="w-6 h-3.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
                               </label>
-                              <div className="flex items-center gap-2 h-8 px-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={!!st.reminder?.enabled}
-                                    onChange={(e) => {
-                                      const updated = drawerTask.subtasks.map((s, i) => i === idx ? {
-                                        ...s,
-                                        reminder: { ...(s.reminder || {}), enabled: e.target.checked }
-                                      } : s)
-                                      setDrawerTask({ ...drawerTask, subtasks: updated })
-                                    }}
-                                  />
-                                  <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
-                                </label>
-                                <span className="text-[11px] text-slate-600 font-body">Alert assignee</span>
-                              </div>
                             </div>
                           </div>
 
-                          {/* Sub-task's own checklist items */}
-                          <div className="pt-1.5 border-t border-slate-200/70">
+                          {/* Sub-task's nested checklist */}
+                          <div className="pt-1 border-t border-slate-200/60">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-[11px] font-semibold text-slate-700 font-heading flex items-center gap-1">
-                                <CheckSquare size={12} className="text-emerald-600" />
-                                <span>Sub-task Checklist ({st.checklists?.length || 0})</span>
+                              <span className="text-[10px] font-semibold text-slate-700 flex items-center gap-1">
+                                <CheckSquare size={10} className="text-emerald-600" />
+                                <span>Checklist ({st.checklists?.length || 0})</span>
                               </span>
                               <button
                                 type="button"
@@ -4215,17 +4540,17 @@ export default function TasksTab({ defaultSubTab }) {
                                   const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: [...(s.checklists || []), newCl] } : s)
                                   setDrawerTask({ ...drawerTask, subtasks: updated })
                                 }}
-                                className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5 cursor-pointer font-heading"
+                                className="text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5 cursor-pointer font-heading"
                               >
-                                <Plus size={11} />
-                                <span>Add item</span>
+                                <Plus size={10} />
+                                <span>Add</span>
                               </button>
                             </div>
 
                             {st.checklists?.length > 0 && (
-                              <div className="space-y-1.5">
+                              <div className="space-y-1">
                                 {st.checklists.map((sc, scIdx) => (
-                                  <div key={sc.id || scIdx} className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200">
+                                  <div key={sc.id || scIdx} className="flex items-center gap-1.5 bg-white p-1 rounded border border-slate-200">
                                     <input
                                       type="checkbox"
                                       checked={!!sc.completed}
@@ -4234,18 +4559,18 @@ export default function TasksTab({ defaultSubTab }) {
                                         const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: updatedCl } : s)
                                         setDrawerTask({ ...drawerTask, subtasks: updated })
                                       }}
-                                      className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                                      className="w-3 h-3 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
                                     />
                                     <input
                                       type="text"
-                                      placeholder="Checklist item title..."
+                                      placeholder="Checklist item..."
                                       value={sc.title || ''}
                                       onChange={(e) => {
                                         const updatedCl = st.checklists.map((c, i) => i === scIdx ? { ...c, title: e.target.value } : c)
                                         const updated = drawerTask.subtasks.map((s, i) => i === idx ? { ...s, checklists: updatedCl } : s)
                                         setDrawerTask({ ...drawerTask, subtasks: updated })
                                       }}
-                                      className={`flex-1 text-xs text-slate-800 placeholder:text-slate-400 border-0 bg-transparent p-0 focus:ring-0 ${
+                                      className={`flex-1 text-[11px] text-slate-800 placeholder:text-slate-400 border-0 bg-transparent p-0 focus:ring-0 ${
                                         sc.completed ? 'line-through text-slate-400' : ''
                                       }`}
                                     />
@@ -4258,7 +4583,7 @@ export default function TasksTab({ defaultSubTab }) {
                                       }}
                                       className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
                                     >
-                                      <X size={12} />
+                                      <X size={10} />
                                     </button>
                                   </div>
                                 ))}
@@ -4267,40 +4592,10 @@ export default function TasksTab({ defaultSubTab }) {
                           </div>
                         </div>
                       )
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newItem = createDefaultSubtask(`Sub Task #${(drawerTask.subtasks || []).length + 1}`)
-                        setDrawerTask({ ...drawerTask, subtasks: [...(drawerTask.subtasks || []), newItem] })
-                      }}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-heading pt-1"
-                    >
-                      <Plus size={13} />
-                      <span>Add another sub-task</span>
-                    </button>
-                  </div>
-                )}
+                    })
+                  )}
+                </div>
               </div>
-            </div>
-            
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 shrink-0 flex items-center justify-end gap-3 bg-white">
-              <button
-                type="button"
-                onClick={closeSideDrawer}
-                className="h-9 px-4 border border-slate-200 text-slate-700 rounded-md text-sm font-semibold font-heading hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDrawerSave}
-                className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all"
-              >
-                Save Changes
-              </button>
             </div>
           </div>
         </div>
@@ -4333,6 +4628,28 @@ export default function TasksTab({ defaultSubTab }) {
           </div>
         )}
       </Modal>
+
+      {/* Undo Toast */}
+      {undoToast && (
+        <div className="fixed bottom-6 right-6 z-[100] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-800 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+          <span className="text-xs font-medium">Task marked as completed</span>
+          <button
+            type="button"
+            onClick={handleUndoComplete}
+            className="text-xs font-bold text-blue-400 hover:text-blue-300 underline underline-offset-2 ml-1 cursor-pointer"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => setUndoToast(null)}
+            className="text-slate-400 hover:text-white p-0.5 ml-1 rounded cursor-pointer"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
