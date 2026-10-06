@@ -675,7 +675,7 @@ export default function CorrectionTab() {
           out: record?.outTime || (record.sundayHoliday ? 'HOLIDAY' : record.sundayWorked ? 'WORKED' : '-'),
           ot: record?.otHours || '-',
           site: record?.remarks || '-',
-          status: record.isAbsent ? 'ABSENT' : record.isHalfDay ? 'HALF-DAY' : record.sundayHoliday ? 'SUNDAY' : record.sundayWorked ? 'SUNWORKED' : 'PRESENT',
+          status: record.isAbsent ? 'ABSENT' : record.isHalfDay ? 'HALF-DAY' : (record.status === 'Off Day' || record.status === 'OffDay') ? 'OFF DAY' : record.sundayHoliday ? 'SUNDAY' : record.sundayWorked ? 'SUNWORKED' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
           isHalfDay: record?.isHalfDay || false,
           sundayHoliday: record?.sundayHoliday || false,
@@ -747,7 +747,7 @@ export default function CorrectionTab() {
       outTime: row.out === '-' ? '' : row.out,
       ot: row.ot === '-' ? '00:00' : row.ot,
       site: row.site === '-' ? '' : row.site,
-      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'HALF-DAY' ? 'Half-Day' : row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'SunWorked' : row.status === 'SUNHOLIDAY' ? 'SunHoliday' : row.status === 'WORKED' ? 'Worked' : row.status === 'HOLIDAY' ? 'Holiday' : 'Present',
+      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'HALF-DAY' ? 'Half-Day' : row.status === 'OFF DAY' ? 'Off Day' : row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'SunWorked' : row.status === 'SUNHOLIDAY' ? 'SunHoliday' : row.status === 'WORKED' ? 'Worked' : row.status === 'HOLIDAY' ? 'Holiday' : 'Present',
       shiftType: row.shiftType || 'Day',
       minDailyHours: row.minDailyHours || 8,
     })
@@ -773,27 +773,28 @@ export default function CorrectionTab() {
       
       const isAbsent = inlineForm.status === 'Absent'
       const isHalfDay = inlineForm.status === 'Half-Day'
+      const isOffDay = inlineForm.status === 'Off Day'
       const isSunWorked = inlineForm.status === 'SunWorked'
       const isSunHoliday = inlineForm.status === 'SunHoliday'
       const isWorked = inlineForm.status === 'Worked'  // Holiday worked (2x)
       const isNotWorkedHoliday = inlineForm.status === 'Holiday'  // Holiday not worked (1x)
-      const otHours = (isAbsent || isHalfDay || isSunHoliday || isNotWorkedHoliday) ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
+      const otHours = (isAbsent || isHalfDay || isSunHoliday || isNotWorkedHoliday || isOffDay) ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
       
       const rows = [{
         employeeId: row.id,
         name: row.name,
         date: row.date,
         inDate: inlineForm.inDate,
-        inTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.inTime,
+        inTime: (isAbsent || isSunHoliday || isNotWorkedHoliday || isOffDay) ? '' : inlineForm.inTime,
         outDate: inlineForm.outDate,
-        outTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.outTime,
+        outTime: (isAbsent || isSunHoliday || isNotWorkedHoliday || isOffDay) ? '' : inlineForm.outTime,
         otHours,
         remarks: inlineForm.site,
         isAbsent,
         isHalfDay,
         status: inlineForm.status,
         sundayWorked: isSunWorked,
-        sundayHoliday: isSunHoliday,
+        sundayHoliday: isSunHoliday || isOffDay,
         holidayWorked: isWorked,
       }]
       
@@ -1238,6 +1239,7 @@ export default function CorrectionTab() {
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
+                          <option value="Off Day">Off Day</option>
                           <option value="Half-Day">Half Day — 0.5 paid day</option>
                           <option value="SunWorked">SunWorked (1x)</option>
                           <option value="SunHoliday">SunHoliday (1x)</option>
@@ -1251,6 +1253,7 @@ export default function CorrectionTab() {
                           row.status === 'HALF-DAY' ? 'bg-amber-100 text-amber-600' :
                           row.status === 'SUNWORKED' ? 'bg-amber-100 text-amber-600' :
                           row.status === 'WORKED' ? 'bg-purple-100 text-purple-600' :
+                          (row.status === 'OFF DAY' || row.status === 'Off Day') ? 'bg-blue-100 text-blue-600' :
                           'bg-gray-100 text-gray-400'
                         }`}>
                           {row.status}

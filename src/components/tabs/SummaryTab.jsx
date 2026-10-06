@@ -270,6 +270,10 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
       let label = 'Half-Day'
       return { bg: 'bg-amber-50', text: label, color: 'text-amber-600', type: 'halfday' }
     }
+    const statusLower = String(att.status || '').toLowerCase().trim();
+    if (statusLower === 'off day' || statusLower === 'offday' || statusLower === 'off') {
+      return { bg: 'bg-blue-50', text: 'Off', color: 'text-blue-600', type: 'offday' }
+    }
 
     const hasInTime = !!(att.inTime && att.inTime !== 'Absent' && att.inTime !== '-') || !!(att.checkIn && att.checkIn !== 'Absent');
     const isExplicitAbsent = att.isAbsent && !hasInTime;
@@ -755,17 +759,19 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                               const empCodeStr = String(emp.empCode || '').trim();
                               const att = monthlyViewData.attendanceMap?.[emp.id]?.[day] || monthlyViewData.attendanceMap?.[empIdStr]?.[day] || (empCodeStr ? monthlyViewData.attendanceMap?.[empCodeStr]?.[day] : null);
                               const st = getStatusBadge(att, day, emp, monthlyViewData.holidays || [], monthlyViewData.sandwichSet || new Set())
-                              const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday' || st?.type === 'sandwich'
+                              const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday' || st?.type === 'sandwich' || st?.type === 'offday'
                               
                               const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
                               const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
                               return (
                                 <React.Fragment key={emp.id}>
-                                  {isOff ? (<td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[1.5px] border-slate-300 ${st.type === 'sunday' ? 'chronos-sunday-stripe' : st.type === 'holiday' ? 'bg-violet-50' : 'bg-rose-50/50'}`}>
+                                  {isOff ? (<td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[1.5px] border-slate-300 ${st.type === 'sunday' ? 'chronos-sunday-stripe' : st.type === 'holiday' ? 'bg-violet-50' : st.type === 'offday' ? 'bg-blue-50/50' : 'bg-rose-50/50'}`}>
                                     {st.type === 'sunday' ? (
                                       <span className="bg-slate-800 text-white text-[11px] leading-[14px] font-bold tracking-widest uppercase px-3 py-0.5 rounded-full inline-flex items-center gap-1.5 shadow-sm max-w-[130px] h-[22px]">☀ Sunday</span>
                                     ) : st.type === 'holiday' ? (
                                       <span className="bg-violet-100 text-violet-700 border border-violet-200 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-md inline-flex items-center">{st.text}</span>
+                                    ) : st.type === 'offday' ? (
+                                      <span className="bg-blue-600 text-white text-[11px] leading-[14px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md shadow-sm inline-flex items-center justify-center gap-1.5 max-w-[140px] h-[22px]">Off Day</span>
                                     ) : (
                                       <span className="bg-rose-600 text-white text-[11px] leading-[14px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md shadow-sm inline-flex items-center justify-center gap-1.5 max-w-[140px] h-[22px]">✕ {st.type === 'sandwich' ? 'Absent (S)' : 'Absent'}</span>
                                     )}

@@ -17,7 +17,7 @@ import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode 
 import SummaryTab from './SummaryTab'
 import SalarySlipTab from './SalarySlipTab'
 import { SubTabsNav } from '../ui/SubTabsNav'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, AlertTriangle, CalendarX, LayoutGrid, List, MapPin, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, AlertTriangle, CalendarX, LayoutGrid, List, MapPin, Clock, MoreVertical, CalendarOff, UserX } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { leaveCoverageCol } from '../../lib/firestore'
 import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy, calculateChargeableLateMinutes } from '../../lib/attendancePolicy'
@@ -609,28 +609,30 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
         <div 
           className="flex-1 flex flex-col items-center min-w-0 py-0.5 cursor-text"
         >
-          <div className="relative group w-full">
+          <div className="relative w-full">
             <input
               type="text"
               value={tempValue}
               onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
               onFocus={(e) => { 
-              setIsEditing(true); 
-              e.target.select();
-            }}
-            onBlur={() => {
-              commitParsedTime(tempValue);
-            }}
-            onKeyDown={handleKeyDown}
-            disabled={disabled}
-            data-row={`${scope}-${rowIdx}`}
-            data-field={field}
-            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center tabular-nums text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text font-body"
-            placeholder={placeholder || "--:--"}
+                setIsEditing(true); 
+                e.target.select();
+              }}
+              onBlur={() => {
+                commitParsedTime(tempValue);
+              }}
+              onKeyDown={handleKeyDown}
+              disabled={disabled}
+              data-row={`${scope}-${rowIdx}`}
+              data-field={field}
+              className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center tabular-nums text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text font-body"
+              placeholder={placeholder || "--:--"}
             />
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-gray-500 bg-gray-800/50 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-              Type 08a for 08:00 AM, 1210p for 12:10 PM
-            </span>
+            {isEditing && (
+              <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] bg-gray-800 text-white px-2 py-0.5 rounded shadow-sm whitespace-nowrap pointer-events-none z-50 font-body">
+                Type 08a for 08:00 AM, 1210p for 12:10 PM
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -638,7 +640,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
           onClick={(e) => { e.stopPropagation(); if (!disabled) onShowPicker(); }}
           disabled={disabled}
           className="pr-2 text-gray-400 hover:text-indigo-600 cursor-pointer text-xs"
-          title="Open time picker"
+          aria-label="Open time picker"
         >
           🕐
         </button>
@@ -648,11 +650,11 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   );
 };
 
-function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, siteConfig, onOpenSiteTimings, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday }) {
+function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, siteConfig, onOpenSiteTimings, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday, onOpenStatusModal }) {
   const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
   const selectedAllowances = allowanceSelections[row.employeeId] || []
-  const statusOptions = [{ id: 'Present', label: 'Present' }, { id: 'Absent', label: 'Absent' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked' }, { id: 'SunHoliday', label: 'Holiday' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked' }, { id: 'Holiday', label: 'Holiday' }] : [])]
-  const disabled = row.isAbsent || row.status === 'SunHoliday'
+  const statusOptions = [{ id: 'Present', label: 'Present' }, { id: 'Absent', label: 'Absent' }, ...((row.status === 'Half-Day' || row.isHalfDay) ? [{ id: 'Half-Day', label: 'Half-Day' }] : []), ...(row.status === 'Off Day' ? [{ id: 'Off Day', label: 'Off Day' }] : []), ...(isSunday ? [{ id: 'SunWorked', label: 'Worked' }, { id: 'SunHoliday', label: 'Holiday' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked' }, { id: 'Holiday', label: 'Holiday' }] : [])]
+  const disabled = row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'
 
   if (!row.employeeId) {
     return (
@@ -667,13 +669,14 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
   }
 
 	  return (
-	    <div className={`px-1 py-2 ${row.isAbsent ? 'bg-red-50/40' : ''}`}>
+	    <div className={`px-1 py-2 ${row.isAbsent ? 'bg-red-50/40' : (row.status === 'Half-Day' || row.isHalfDay) ? 'bg-amber-50/30' : row.status === 'Off Day' ? 'bg-blue-50/30' : ''}`}>
 	              <div className="relative flex items-center gap-1.5 min-w-0">
 	        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{row.name}</div>
 	        <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={disabled} employeeName={row.name} />
-	        <select aria-label={`${row.name} attendance status`} value={row.status || 'Present'} onChange={(e) => handleStatusChange(row.employeeId, e.target.value)} className={`h-8 w-[72px] shrink-0 rounded-md px-1.5 text-[10px] font-semibold outline-none ${row.status === 'Absent' ? 'bg-red-50 text-red-700' : row.status === 'SunHoliday' || row.status === 'Holiday' ? 'bg-indigo-50 text-indigo-700' : row.status === 'SunWorked' || row.status === 'Worked' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+	        <select aria-label={`${row.name} attendance status`} value={row.status || 'Present'} onChange={(e) => { if (e.target.value === 'Half-Day') { onOpenStatusModal?.(row, 'Half-Day') } else if (e.target.value === 'Off Day') { onOpenStatusModal?.(row, 'Off Day') } else { handleStatusChange(row.employeeId, e.target.value) } }} className={`h-8 w-[72px] shrink-0 rounded-md px-1.5 text-[10px] font-semibold outline-none ${row.status === 'Absent' ? 'bg-red-50 text-red-700' : (row.status === 'Half-Day' || row.isHalfDay) ? 'bg-amber-50 text-amber-700 font-bold' : row.status === 'Off Day' ? 'bg-blue-50 text-blue-700 font-bold' : row.status === 'SunHoliday' || row.status === 'Holiday' ? 'bg-indigo-50 text-indigo-700' : row.status === 'SunWorked' || row.status === 'Worked' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
           {statusOptions.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
         </select>
+        <button type="button" onClick={() => onOpenStatusModal?.(row, 'Half-Day')} className="h-8 w-6 shrink-0 text-gray-400 hover:text-amber-600 flex items-center justify-center active:bg-amber-50" title="More actions" aria-label="More actions"><MoreVertical size={14} /></button>
         <button onClick={() => handleClearRow(row.employeeId)} className="h-8 w-7 shrink-0 text-gray-400 active:text-red-500" aria-label="Clear attendance row"><X size={14} /></button>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)] items-start gap-1.5 pt-1.5">
@@ -1364,6 +1367,21 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const [saved, setSaved] = useState(false)
   const [orgData, setOrgData] = useState(null)
   const [existingRecords, setExistingRecords] = useState([])
+  const [openMenuEmpId, setOpenMenuEmpId] = useState(null)
+  const [statusModalTarget, setStatusModalTarget] = useState(null)
+  const [modalReason, setModalReason] = useState('')
+  const [modalRemarks, setModalRemarks] = useState('')
+  const statusMenuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target)) {
+        setOpenMenuEmpId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Dirty tracking: warn user when leaving with unsaved attendance edits
   const [dirty, setDirty] = useState(false)
@@ -2088,6 +2106,89 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }))
   }
 
+  const handleOpenStatusModal = (row, type = 'Half-Day') => {
+    setStatusModalTarget({
+      employeeId: row.employeeId,
+      employeeName: row.name,
+      type
+    })
+    setModalReason(
+      type === 'Half-Day' 
+        ? (row.halfDayReason || 'First Half Off') 
+        : type === 'Off Day' 
+          ? (row.offDayReason || 'Weekly Off') 
+          : (row.absentReason || '')
+    )
+    setModalRemarks(row.remarks || '')
+    setOpenMenuEmpId(null)
+  }
+
+  const handleSaveStatusModal = async () => {
+    if (!statusModalTarget) return
+    const reasonTrimmed = modalReason.trim()
+    if (!reasonTrimmed) {
+      alert('Please enter or select a reason.')
+      return
+    }
+
+    const { employeeId, type } = statusModalTarget
+    const isHalfDay = type === 'Half-Day'
+    const isOffDay = type === 'Off Day'
+    const isAbsent = type === 'Absent'
+
+    const currentRow = rows.find(r => r.employeeId === employeeId)
+    if (!currentRow) return
+
+    if (isLeaveProtected(currentRow) && !currentRow.leaveOverride?.confirmed) {
+      setLeaveOverrideTarget(currentRow)
+      setLeaveOverrideReason('')
+      setStatusModalTarget(null)
+      return
+    }
+
+    const updatedRow = {
+      ...currentRow,
+      status: type,
+      isAbsent,
+      isHalfDay,
+      sundayHoliday: isOffDay,
+      sundayWorked: false,
+      holidayWorked: false,
+      inTime: (isAbsent || isOffDay) ? '' : (currentRow.inTime || ''),
+      outTime: (isAbsent || isOffDay) ? '' : (currentRow.outTime || ''),
+      otHours: '00:00',
+      halfDayReason: isHalfDay ? reasonTrimmed : '',
+      offDayReason: isOffDay ? reasonTrimmed : '',
+      absentReason: isAbsent ? reasonTrimmed : '',
+      remarks: modalRemarks.trim() || reasonTrimmed,
+      checkIn: null,
+      checkOut: null
+    }
+
+    setRows(prev => prev.map(r => r.employeeId === employeeId ? updatedRow : r))
+    setDirty(true)
+    setStatusModalTarget(null)
+    setModalReason('')
+    setModalRemarks('')
+
+    setSaving(true)
+    try {
+      await upsertAttendance([updatedRow])
+      await logActivity(user?.orgId, user, {
+        module: 'Attendance',
+        action: `Marked as ${type} for ${currentRow.name} on ${selectedDate}`,
+        detail: `Reason: ${reasonTrimmed}${modalRemarks.trim() ? ` | Remarks: ${modalRemarks.trim()}` : ''}`
+      })
+      const updatedRecords = await fetchByDate(selectedDate)
+      setExistingRecords(updatedRecords)
+    } catch (err) {
+      console.error('Failed to save attendance record:', err)
+      alert(err?.message || 'Failed to persist attendance change.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleStatusChange = (empId, newStatus) => {
     const currentRow = rows.find((row) => row.employeeId === empId)
     if (isLeaveProtected(currentRow) && !currentRow.leaveOverride?.confirmed) {
@@ -2100,9 +2201,19 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       if (r.employeeId !== empId) return r
       const updated = { ...r, status: newStatus }
       updated.isAbsent = newStatus === 'Absent'
+      updated.isHalfDay = newStatus === 'Half-Day'
       updated.sundayWorked = newStatus === 'SunWorked'
-      updated.sundayHoliday = newStatus === 'SunHoliday' || newStatus === 'Holiday'
+      updated.sundayHoliday = newStatus === 'SunHoliday' || newStatus === 'Holiday' || newStatus === 'Off Day'
       updated.holidayWorked = newStatus === 'Worked'
+      if (newStatus !== 'Half-Day') {
+        updated.halfDayReason = ''
+      }
+      if (newStatus !== 'Off Day') {
+        updated.offDayReason = ''
+      }
+      if (newStatus !== 'Absent') {
+        updated.absentReason = ''
+      }
       if (updated.isAbsent || updated.sundayHoliday || updated.holidayWorked === false) {
         updated.inTime = ''; updated.outTime = ''; updated.otHours = '00:00'
         if (updated.isAbsent) {
@@ -2392,16 +2503,16 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               {(isSunday || isConfiguredHoliday) && <div className="flex items-center justify-end gap-3 pt-3"><span className={`text-[11px] font-semibold uppercase tracking-wide ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>{isSunday ? 'Sunday' : 'Holiday'}</span><button onClick={handleMarkAllHoliday} disabled={saving || !rows.length} className="min-h-10 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11px] font-semibold disabled:opacity-50">{saving ? 'Marking…' : 'Mark all holiday'}</button></div>}
             </div>
             <div className="grid grid-cols-2 gap-2"><button onClick={handleAddRow} className="min-h-11 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold flex items-center justify-center gap-2"><Plus size={15} /> Add row</button><button onClick={handleGenerate} className="min-h-11 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2">Generate active</button></div>
-            <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
+            <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && r.status !== 'Off Day' && r.status !== 'Half-Day' && !r.isHalfDay && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-100/80 p-1"><span className="pl-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Roster view</span><div className="flex items-center gap-1"><button type="button" onClick={() => setCompactMode(false)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${!compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={!compactMode}><LayoutGrid size={13} /> Cards</button><button type="button" onClick={() => setCompactMode(true)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={compactMode}><List size={13} /> Compact</button></div></div>
             <div className={compactMode ? 'divide-y divide-gray-100' : 'flex flex-col gap-3'}>{empLoading ? <div className="bg-white rounded-xl border border-gray-200 py-16 flex justify-center"><Spinner /></div> : rows.length === 0 ? <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">Generate active employees to begin.</div> : rows.map((row, idx) => {
-              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} siteConfig={siteConfig} onOpenSiteTimings={handleOpenSiteTimings} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} />
-              const mobileStatusOptions = [{ id: 'Present', label: 'Present', color: 'green' }, { id: 'Absent', label: 'Absent', color: 'red' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked', color: 'amber' }, { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked', color: 'amber' }, { id: 'Holiday', label: 'Holiday', color: 'indigo' }] : [])]
+              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} siteConfig={siteConfig} onOpenSiteTimings={handleOpenSiteTimings} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} onOpenStatusModal={handleOpenStatusModal} />
+              const mobileStatusOptions = [{ id: 'Present', label: 'Present', color: 'green' }, { id: 'Absent', label: 'Absent', color: 'red' }, ...((row.status === 'Half-Day' || row.isHalfDay) ? [{ id: 'Half-Day', label: 'Half-Day', color: 'amber' }] : []), ...(row.status === 'Off Day' ? [{ id: 'Off Day', label: 'Off Day', color: 'blue' }] : []), ...(isSunday ? [{ id: 'SunWorked', label: 'Worked', color: 'amber' }, { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked', color: 'amber' }, { id: 'Holiday', label: 'Holiday', color: 'indigo' }] : [])]
               const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
               const selectedAllowances = allowanceSelections[row.employeeId] || []
-              return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : ''}`}>
-                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
-                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
+              return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : (row.status === 'Half-Day' || row.isHalfDay) ? 'border-amber-200 bg-amber-50/20' : row.status === 'Off Day' ? 'border-blue-200 bg-blue-50/20' : ''}`}>
+                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div>{(row.status === 'Half-Day' || row.isHalfDay) && <div className="text-[10px] font-semibold text-amber-600">HD: {row.halfDayReason || 'Half Day'}</div>}{row.status === 'Off Day' && <div className="text-[10px] font-semibold text-blue-600">Off: {row.offDayReason || 'Weekly Off'}</div>}</div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><div className="flex items-center gap-1"><button type="button" onClick={() => handleOpenStatusModal(row, 'Half-Day')} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 hover:text-amber-600 flex items-center justify-center active:bg-amber-50 disabled:opacity-30" title="More actions" aria-label="More actions"><MoreVertical size={16} /></button><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div></div>
+                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
               </div>
             })}</div>
             {pendingRemoval && <div className="fixed inset-x-3 bottom-[78px] z-[90] flex items-center justify-between gap-3 rounded-lg bg-gray-900 px-3 py-2.5 text-white shadow-xl md:hidden" role="status" aria-live="polite"><span className="min-w-0 truncate text-xs">Removed {pendingRemoval.row.name || 'attendance row'}</span><button type="button" onClick={handleUndoClearRow} className="shrink-0 rounded-md bg-white/15 px-3 py-1.5 text-xs font-semibold text-white active:bg-white/25">Undo</button></div>}
@@ -2509,8 +2620,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                         </span>
                       </button>
                     </th>
-                    <th className="w-[100px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Status</th>
-                    <th className="w-[36px] border-b border-gray-200 bg-orange-50 px-1 text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}></th>
+                    <th className="w-[120px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Status</th>
+                    <th className="w-[64px] border-b border-gray-200 bg-orange-50 px-1 text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -2520,14 +2631,30 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                     <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${isLeaveProtected(row) ? 'bg-indigo-50/40' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
+                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`group/row transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${(row.status === 'Half-Day' || row.isHalfDay) ? 'bg-amber-50/20' : ''} ${row.status === 'Off Day' ? 'bg-blue-50/20' : ''} ${isLeaveProtected(row) ? 'bg-indigo-50/40' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
                         <td className="px-4 min-w-[220px] align-middle">
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
                               <span className="min-w-0 flex-1 truncate font-medium text-gray-800 text-sm" style={{ fontFamily: "'Inter', sans-serif" }}>{row.name}</span>
+                              {(row.status === 'Half-Day' || row.isHalfDay) && (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700 border border-amber-200 truncate max-w-[130px]"
+                                  title={row.halfDayReason ? `Half-Day: ${row.halfDayReason}` : 'Half-Day'}
+                                >
+                                  HD: {row.halfDayReason || 'Half Day'}
+                                </span>
+                              )}
+                              {row.status === 'Off Day' && (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 border border-blue-200 truncate max-w-[130px]"
+                                  title={row.offDayReason ? `Off Day: ${row.offDayReason}` : 'Off Day'}
+                                >
+                                  Off: {row.offDayReason || 'Weekly Off'}
+                                </span>
+                              )}
                               {isLeaveProtected(row) && !row.leaveOverride?.confirmed && <button type="button" onClick={() => { setLeaveOverrideTarget(row); setLeaveOverrideReason('') }} className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold text-indigo-700" title="Approved leave is protected"><span aria-hidden="true">🔒</span>{row.leaveCoverage.leaveType || 'Leave'}</button>}
                               {row.leaveOverride?.confirmed && <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">Override ready</span>}
-                              <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday' || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)} employeeName={row.name} />
+                              <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day' || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)} employeeName={row.name} />
                             </div>
                           ) : (
                             <select
@@ -2549,7 +2676,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                               value={row.inTime}
                               onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
                               onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
+                              disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day' || !row.employeeId || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
                               backgroundColor="#e8f4f8"
                               rowIdx={idx}
                               field="inTime"
@@ -2571,7 +2698,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                               value={row.outTime}
                               onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
                               onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
+                              disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day' || !row.employeeId || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
                               backgroundColor="#fff4e8"
                               rowIdx={idx}
                               field="outTime"
@@ -2665,50 +2792,148 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                         </td>
                         <td className="px-4 align-middle">
                           <div className="flex items-center gap-2 justify-end">
-                            {!row.isPlaceholder && [
-                              { id: 'Present', label: 'Present', color: 'green' },
-                              { id: 'Absent', label: 'Absent', color: 'red' },
-                              ...(isSunday ? [
-                                { id: 'SunWorked', label: 'Worked (1x)', color: 'amber' },
-                                { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }
-                              ] : []),
-                              ...(isConfiguredHoliday ? [
-                                { id: 'Worked', label: 'Holiday Worked (2x)', color: 'amber' },
-                                { id: 'Holiday', label: 'Holiday', color: 'indigo' }
-                              ] : [])
-                            ].map(st => (
-                              <button
-                                key={st.id}
-                                onClick={() => handleStatusChange(row.employeeId, st.id)}
-                                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                                  row.status === st.id
-                                    ? st.color === 'green' ? 'bg-green-100 text-green-700 border border-green-200'
-                                      : st.color === 'red' ? 'bg-red-100 text-red-700 border border-red-200'
-                                        : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                                          : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                                    : 'bg-gray-100 text-gray-400 border border-gray-200 hover:bg-gray-200'
-                                }`}
-                                style={{ fontFamily: "'Inter', sans-serif" }}
-                              >
-                                {row.status === st.id && st.color === 'green' && <span className="mr-1">✓</span>}
-                                {row.status === st.id && st.color === 'red' && <span className="mr-1">✕</span>}
-                                {st.label}
-                              </button>
-                            ))}
+                            {(row.status === 'Half-Day' || row.isHalfDay) ? (
+                              <>
+                                <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 shadow-2xs font-heading">
+                                  Half-Day
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(row.employeeId, 'Present')}
+                                  className="px-3 py-1 rounded-full text-[11px] font-medium transition-all bg-gray-100 text-gray-400 border border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 font-body"
+                                >
+                                  Present
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(row.employeeId, 'Absent')}
+                                  className="px-3 py-1 rounded-full text-[11px] font-medium transition-all bg-gray-100 text-gray-400 border border-gray-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 font-body"
+                                >
+                                  Absent
+                                </button>
+                              </>
+                            ) : row.status === 'Off Day' ? (
+                              <>
+                                <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200 shadow-2xs font-heading">
+                                  Off Day
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(row.employeeId, 'Present')}
+                                  className="px-3 py-1 rounded-full text-[11px] font-medium transition-all bg-gray-100 text-gray-400 border border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 font-body"
+                                >
+                                  Present
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(row.employeeId, 'Absent')}
+                                  className="px-3 py-1 rounded-full text-[11px] font-medium transition-all bg-gray-100 text-gray-400 border border-gray-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 font-body"
+                                >
+                                  Absent
+                                </button>
+                              </>
+                            ) : (
+                              !row.isPlaceholder && [
+                                { id: 'Present', label: 'Present', color: 'green' },
+                                { id: 'Absent', label: 'Absent', color: 'red' },
+                                ...(isSunday ? [
+                                  { id: 'SunWorked', label: 'Worked (1x)', color: 'amber' },
+                                  { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }
+                                ] : []),
+                                ...(isConfiguredHoliday ? [
+                                  { id: 'Worked', label: 'Holiday Worked (2x)', color: 'amber' },
+                                  { id: 'Holiday', label: 'Holiday', color: 'indigo' }
+                                ] : [])
+                              ].map(st => (
+                                <button
+                                  key={st.id}
+                                  onClick={() => handleStatusChange(row.employeeId, st.id)}
+                                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                                    row.status === st.id
+                                      ? st.color === 'green' ? 'bg-green-100 text-green-700 border border-green-200'
+                                        : st.color === 'red' ? 'bg-red-100 text-red-700 border border-red-200'
+                                          : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                            : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                      : 'bg-gray-100 text-gray-400 border border-gray-200 hover:bg-gray-200'
+                                  }`}
+                                  style={{ fontFamily: "'Inter', sans-serif" }}
+                                >
+                                  {row.status === st.id && st.color === 'green' && <span className="mr-1">✓</span>}
+                                  {row.status === st.id && st.color === 'red' && <span className="mr-1">✕</span>}
+                                  {st.label}
+                                </button>
+                              ))
+                            )}
                             {row.isPlaceholder && (
                               <span className="text-xs text-gray-400 italic">Select employee</span>
                             )}
                           </div>
                         </td>
                         <td className="px-2 text-center align-middle">
-                          <button
-                            onClick={() => handleClearRow(row.employeeId)}
-                            disabled={!row.employeeId}
-                            className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30"
-                            title="Clear row"
-                          >
-                            <X size={14} />
-                          </button>
+                          <div className="flex items-center justify-center gap-0.5">
+                            {row.employeeId && !row.isPlaceholder && (
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setOpenMenuEmpId(openMenuEmpId === row.employeeId ? null : row.employeeId)
+                                  }}
+                                  className={`p-1.5 rounded-md hover:bg-gray-200/70 text-gray-400 hover:text-gray-700 transition-all ${
+                                    openMenuEmpId === row.employeeId
+                                      ? 'opacity-100 bg-gray-200/80 text-gray-800'
+                                      : 'opacity-0 group-hover/row:opacity-100'
+                                  }`}
+                                  title="More actions"
+                                  aria-label="More actions"
+                                >
+                                  <MoreVertical size={14} />
+                                </button>
+                                {openMenuEmpId === row.employeeId && (
+                                  <div
+                                    ref={statusMenuRef}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={`absolute right-0 ${
+                                      idx > rows.length - 3 && rows.length > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
+                                    } w-44 bg-white border border-slate-200 rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-left`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenStatusModal(row, 'Half-Day')}
+                                      className="w-full px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Clock size={14} className="text-amber-500" />
+                                      <span>Mark as Half-Day</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenStatusModal(row, 'Off Day')}
+                                      className="w-full px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                                    >
+                                      <CalendarOff size={14} className="text-blue-600" />
+                                      <span>Mark as Off Day</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenStatusModal(row, 'Absent')}
+                                      className="w-full px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                                    >
+                                      <UserX size={14} className="text-red-500" />
+                                      <span>Mark as Absent</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            <button
+                              onClick={() => handleClearRow(row.employeeId)}
+                              disabled={!row.employeeId}
+                              className="p-1.5 rounded-md hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30"
+                              title="Clear row"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -2723,12 +2948,24 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             <div className="flex gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</span>
+                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday && r.status !== 'Off Day' && r.status !== 'Half-Day' && !r.isHalfDay && !r.isPlaceholder).length}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Absent: {rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</span>
               </div>
+              {rows.some(r => (r.status === 'Half-Day' || r.isHalfDay) && !r.isPlaceholder) && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Half-Day: {rows.filter(r => (r.status === 'Half-Day' || r.isHalfDay) && !r.isPlaceholder).length}</span>
+                </div>
+              )}
+              {rows.some(r => r.status === 'Off Day' && !r.isPlaceholder) && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Off Day: {rows.filter(r => r.status === 'Off Day' && !r.isPlaceholder).length}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                 <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Total: {rows.filter(r => !r.isPlaceholder).length}</span>
@@ -3504,6 +3741,139 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
           </>}
         </div>
       </Modal>
+
+      {/* Mark as Off Day / Absent Modal */}
+      {statusModalTarget && (
+        <div
+          className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6"
+          onClick={() => setStatusModalTarget(null)}
+        >
+          <div
+            className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                  statusModalTarget.type === 'Half-Day' ? 'bg-amber-50 text-amber-600' :
+                  statusModalTarget.type === 'Off Day' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
+                }`}>
+                  {statusModalTarget.type === 'Half-Day' ? <Clock size={18} /> :
+                   statusModalTarget.type === 'Off Day' ? <CalendarOff size={18} /> : <UserX size={18} />}
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base text-slate-900">
+                    Mark as {statusModalTarget.type}
+                  </h3>
+                  <p className="font-body text-xs text-slate-500">
+                    {statusModalTarget.employeeName} · {displayDate(selectedDate)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatusModalTarget(null)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Reason <span className="text-red-500">*</span>
+                </label>
+                {/* Presets */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(statusModalTarget.type === 'Half-Day'
+                    ? ['First Half Off', 'Second Half Off', 'Personal Work', 'Health Issue', 'Emergency']
+                    : statusModalTarget.type === 'Off Day'
+                      ? ['Weekly Off', 'Comp Off', 'Shift Off', 'Festival Off', 'Personal Off']
+                      : ['Casual Leave', 'Sick / Medical', 'Unplanned Absence', 'Personal Emergency']
+                  ).map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setModalReason(preset)}
+                      className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-all ${
+                        modalReason === preset
+                          ? statusModalTarget.type === 'Half-Day'
+                            ? 'bg-amber-100 text-amber-700 border border-amber-300 font-semibold'
+                            : statusModalTarget.type === 'Off Day'
+                              ? 'bg-blue-100 text-blue-700 border border-blue-300 font-semibold'
+                              : 'bg-red-100 text-red-700 border border-red-300 font-semibold'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={modalReason}
+                  onChange={(e) => setModalReason(e.target.value)}
+                  placeholder={statusModalTarget.type === 'Half-Day' ? "e.g. First Half Off, Personal Work" : statusModalTarget.type === 'Off Day' ? "e.g. Weekly Off, Comp Off" : "e.g. Sick Leave, Personal Emergency"}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                  Remarks / Notes <span className="text-slate-400 text-xs font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  value={modalRemarks}
+                  onChange={(e) => setModalRemarks(e.target.value)}
+                  rows={3}
+                  placeholder="Additional remarks or notes..."
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body outline-none resize-none"
+                />
+              </div>
+
+              {statusModalTarget.type === 'Half-Day' && (
+                <div className="rounded-lg bg-amber-50/70 border border-amber-200 p-3 text-xs text-amber-800 flex items-start gap-2">
+                  <span className="font-bold">ℹ️</span>
+                  <span>
+                    Marking as <strong>Half-Day</strong> records 0.5 worked day and 0.5 LOP day in payroll. Overtime is reset to 0:00.
+                  </span>
+                </div>
+              )}
+              {statusModalTarget.type === 'Off Day' && (
+                <div className="rounded-lg bg-blue-50/70 border border-blue-100 p-3 text-xs text-blue-800 flex items-start gap-2">
+                  <span className="font-bold">ℹ️</span>
+                  <span>
+                    Marking as <strong>Off Day</strong> designates this date as an authorized non-working day for this employee. Punch times will be cleared and this will count towards paid off-days without Loss of Pay.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setStatusModalTarget(null)}
+                className="h-9 px-4 rounded-md border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors font-body"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStatusModal}
+                disabled={saving || !modalReason.trim()}
+                className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : 'Save Record'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Multi-Site Timings Modal */}
       {siteTimingsModalRow && (

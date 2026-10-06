@@ -13,7 +13,7 @@ const attendanceRowSchema = z.object({
   inTime: z.string().optional(),
   outTime: z.string().optional(),
   remarks: z.string().optional(),
-  status: z.enum(['Present', 'Absent', 'Worked', 'Holiday', 'SunWorked', 'SunHoliday', 'Half-Day']),
+  status: z.enum(['Present', 'Absent', 'Worked', 'Holiday', 'SunWorked', 'SunHoliday', 'Half-Day', 'Off Day']),
 });
 
 const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect, placeholder = 'Select Staff...', disabled = false }) => {
@@ -233,14 +233,14 @@ const BulkAttendanceModal = ({ isOpen, onClose, employees, orgId }) => {
           date: r.date,
           inDate: r.date,
           outDate: r.date,
-          inTime: (r.status === 'Absent' || r.status === 'Holiday') ? '' : r.inTime,
-          outTime: (r.status === 'Absent' || r.status === 'Holiday') ? '' : r.outTime,
-          otHours: r.otHours,
+          inTime: (r.status === 'Absent' || r.status === 'Holiday' || r.status === 'Off Day') ? '' : r.inTime,
+          outTime: (r.status === 'Absent' || r.status === 'Holiday' || r.status === 'Off Day') ? '' : r.outTime,
+          otHours: r.status === 'Off Day' ? '00:00' : r.otHours,
           remarks: r.remarks,
           status: r.status,
           isAbsent: r.status === 'Absent',
           sundayWorked: r.status === 'SunWorked',
-          sundayHoliday: r.status === 'SunHoliday',
+          sundayHoliday: r.status === 'SunHoliday' || r.status === 'Off Day',
           holidayWorked: r.status === 'Worked',
           shiftType: 'Day',
         };

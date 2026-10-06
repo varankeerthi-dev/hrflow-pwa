@@ -1695,6 +1695,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           else if (isS) { if (isPresent) { sunW++; sunWDatesList.push(i); } }
           else if (isH) { if (isPresent) { holW++; holWDatesList.push(i); } }
           else if (isPresent) worked++; 
+          else if (status === 'off day' || status === 'offday' || status === 'off' || status === 'holiday' || status === 'sunholiday' || r?.sundayHoliday) {
+            // Off Day / Non-working day: paid day, no LOP
+          }
           else if (!isS && !isH) { lop++; lopDatesList.push(i); }
 
           if (r?.otHours) { 
@@ -2214,7 +2217,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     const hasTime = !!(r.inTime && r.inTime !== 'Absent' && r.inTime !== '-') || !!(r.checkIn && r.checkIn !== 'Absent');
     if (r.isAbsent && !hasTime) return false;
     const status = String(r.status || '').toLowerCase().trim();
-    if ((status === 'absent' || status === 'leave' || status === 'sunholiday') && !hasTime) return false;
+    if ((status === 'absent' || status === 'leave' || status === 'sunholiday' || status === 'off day' || status === 'offday' || status === 'off') && !hasTime) return false;
     const workedStatuses = ['worked', 'present', 'sunworked', 'p', 'w', 'sw', 'sun-worked', 'holidayworked', 'hw'];
     return workedStatuses.includes(status) || hasTime || !!r.sundayWorked || !!r.holidayWorked;
   }
@@ -2413,6 +2416,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         else if (isS) { if (isPresent) { sunW++; sunDates.push(i); } }
         else if (isH) { if (isPresent) { holW++; holDates.push(i); } }
         else if (isPresent) worked++; 
+        else if (status === 'off day' || status === 'offday' || status === 'off' || status === 'holiday' || status === 'sunholiday' || r?.sundayHoliday) {
+          // Off Day / Non-working day: paid day, no LOP
+        }
         else if (!isS && !isH) {
           lop++;
           leaveDates.push(i);
