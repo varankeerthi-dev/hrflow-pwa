@@ -119,6 +119,9 @@ const EmployeeSlipPDF = ({ slipData, orgName }) => (
             <View style={pdfStyles.moneyRow}><Text style={pdfStyles.moneyLabel}>PF</Text><Text style={pdfStyles.moneyValue}>{dashIfZero(slipData.pf)}</Text></View>
             <View style={pdfStyles.moneyRow}><Text style={pdfStyles.moneyLabel}>ESI</Text><Text style={pdfStyles.moneyValue}>{dashIfZero(slipData.esi || 0)}</Text></View>
             <View style={pdfStyles.moneyRow}><Text style={pdfStyles.moneyLabel}>Advance Recovery</Text><Text style={pdfStyles.moneyValue}>{dashIfZero(slipData.advanceDeduction)}</Text></View>
+            {slipData.medicalDeduction > 0 && (
+              <View style={pdfStyles.moneyRow}><Text style={pdfStyles.moneyLabel}>Medical Deductions</Text><Text style={pdfStyles.moneyValue}>{dashIfZero(slipData.medicalDeduction)}</Text></View>
+            )}
             <View style={pdfStyles.moneyRow}><Text style={pdfStyles.moneyLabel}>Loan Recovery</Text><Text style={pdfStyles.moneyValue}>{dashIfZero(slipData.loanEMI)}</Text></View>
             <View style={{ ...pdfStyles.moneyRow, borderBottomWidth: 0 }}><Text style={pdfStyles.moneyLabel}>Fine / Penalties</Text><Text style={pdfStyles.moneyValue}>{dashIfZero(slipData.fineAmount)}</Text></View>
           </View>
@@ -385,6 +388,12 @@ export default function EmployeeSalarySlipTab() {
                     <span>Advance Recovery</span>
                     <span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
                   </div>
+                  {slipData.medicalDeduction > 0 && (
+                    <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                      <span>Medical Deductions</span>
+                      <span className="font-bold text-slate-900">{dashIfZero(slipData.medicalDeduction)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                     <span>Loan Recovery</span>
                     <span className="font-bold text-slate-900">{dashIfZero(slipData.loanEMI)}</span>

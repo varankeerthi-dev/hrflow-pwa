@@ -1,11 +1,13 @@
 export function normalizeExpenseCategory(cat) {
-  if (!cat) return { name: '', payableToOthers: false }
+  if (!cat) return { name: '', payableToOthers: false, isMedical: false }
   if (typeof cat === 'string') {
     const lower = cat.toLowerCase()
     const isOthers = lower.includes('given to others') || lower.includes('salary to others') || lower.includes('subcontractor') || lower.includes('commission')
-    return { name: cat, payableToOthers: isOthers }
+    const isMed = isMedicalCategory(cat)
+    return { name: cat, payableToOthers: isOthers, isMedical: isMed }
   }
-  return { name: String(cat.name || '').trim(), payableToOthers: !!cat.payableToOthers }
+  const isMed = cat.isMedical !== undefined ? !!cat.isMedical : isMedicalCategory(cat.name)
+  return { name: String(cat.name || '').trim(), payableToOthers: !!cat.payableToOthers, isMedical: isMed }
 }
 
 export const DEFAULT_ADVANCE_CATEGORIES = [
@@ -19,16 +21,17 @@ export const DEFAULT_ADVANCE_CATEGORIES = [
 ]
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
-  { name: 'Petrol', payableToOthers: false },
-  { name: 'Sitepetrol', payableToOthers: false },
-  { name: 'Food & Refreshment', payableToOthers: false },
-  { name: 'Office Supplies', payableToOthers: false },
-  { name: 'Hotel & Lodging', payableToOthers: false },
-  { name: 'Travel & Taxi', payableToOthers: false },
-  { name: 'Stationery', payableToOthers: false },
-  { name: 'Given to Others', payableToOthers: true },
-  { name: 'Subcontractor Payment', payableToOthers: true },
-  { name: 'Commission', payableToOthers: true }
+  { name: 'Petrol', payableToOthers: false, isMedical: false },
+  { name: 'Sitepetrol', payableToOthers: false, isMedical: false },
+  { name: 'Medical Expense', payableToOthers: false, isMedical: true },
+  { name: 'Food & Refreshment', payableToOthers: false, isMedical: false },
+  { name: 'Office Supplies', payableToOthers: false, isMedical: false },
+  { name: 'Hotel & Lodging', payableToOthers: false, isMedical: false },
+  { name: 'Travel & Taxi', payableToOthers: false, isMedical: false },
+  { name: 'Stationery', payableToOthers: false, isMedical: false },
+  { name: 'Given to Others', payableToOthers: true, isMedical: false },
+  { name: 'Subcontractor Payment', payableToOthers: true, isMedical: false },
+  { name: 'Commission', payableToOthers: true, isMedical: false }
 ]
 
 export const DEFAULT_COMPANY_ACCOUNTS = [
@@ -37,6 +40,19 @@ export const DEFAULT_COMPANY_ACCOUNTS = [
   'Cash in Hand',
   'Director Account'
 ]
+
+export function isMedicalCategory(category, customMedicalCategories = []) {
+  if (!category) return false
+  if (typeof category === 'object' && category.isMedical === true) return true
+  const raw = typeof category === 'string' ? category : category?.name || ''
+  const clean = String(raw).replace(/\s*\[[^\]]*\]\s*$/, '').trim().toLowerCase()
+  if (!clean) return false
+  if (Array.isArray(customMedicalCategories) && customMedicalCategories.some(c => String(c).trim().toLowerCase() === clean)) {
+    return true
+  }
+  const keywords = ['medical', 'hospital', 'medicine', 'doctor', 'health']
+  return keywords.some(kw => clean.includes(kw))
+}
 
 export function isPetrolCategory(category) {
   if (!category) return false
@@ -424,6 +440,48 @@ export function resolveReportEntryDetails(entry, employees = [], allEntries = []
         displayGivenBy: null,
         displayCategory: cleanCat || 'Given to Others',
         recipientName: actualRecipientName
+      })
+    }
+  }
+
+  // 0c. If this entry is an EXPENSE that is a Medical Claim for a colleague:
+  const isMedClaim = Boolean(entry.isMedical || isMedicalCategory(cleanCat))
+  if (!isAdvance && isMedClaim) {
+    const benId = entry.beneficiaryEmployeeId || (entry.paidTo && entry.paidToType === 'employee' ? entry.paidTo : null)
+    const benEmp = benId && Array.isArray(employees) ? employees.find(e => e.id === benId) : null
+    const benName = entry.beneficiaryEmployeeName || entry.paidToName || benEmp?.name || null
+
+    // Case 1: Saved with employeeId = beneficiary and paidByEmployeeId = claimant/payer:
+    // The incurring employee who incurred the out-of-pocket expense is paidByEmployeeId!
+    if (entry.paidByEmployeeId && entry.paidByEmployeeId !== entry.employeeId) {
+      const payerEmp = Array.isArray(employees) ? employees.find(e => e.id === entry.paidByEmployeeId) : null
+      const payerName = payerEmp?.name || entry.paidByName || entry.createdBy || 'Employee'
+      const actualBeneficiaryName = entry.employeeName || benName || 'Colleague'
+
+      return buildResult({
+        isTransferAdvance: false,
+        effectiveEmployeeId: entry.paidByEmployeeId,
+        displayEmployeeName: payerName,
+        displayGivenBy: null,
+        displayCategory: cleanCat || 'Medical Expense',
+        recipientName: actualBeneficiaryName,
+        beneficiaryName: actualBeneficiaryName
+      })
+    }
+
+    // Case 2: Saved with employeeId = claimant/payer and beneficiaryEmployeeId = colleague:
+    if (benId && benId !== entry.employeeId) {
+      const payerEmp = Array.isArray(employees) ? employees.find(e => e.id === entry.employeeId) : null
+      const payerName = entry.employeeName || payerEmp?.name || entry.paidByName || '—'
+      const actualBeneficiaryName = benName || (benEmp ? benEmp.name : 'Colleague')
+      return buildResult({
+        isTransferAdvance: false,
+        effectiveEmployeeId: entry.employeeId,
+        displayEmployeeName: payerName,
+        displayGivenBy: null,
+        displayCategory: cleanCat || 'Medical Expense',
+        recipientName: actualBeneficiaryName,
+        beneficiaryName: actualBeneficiaryName
       })
     }
   }

@@ -34,6 +34,7 @@ import {
   getPreviousMonth,
   formatMonthLabel
 } from '../../lib/advanceSalaryUtils'
+import { isMedicalCategory, isMedicalClaim, isMedicalDeductible } from '../../lib/medicalClaimsUtils'
 import currencyFontUrl from '../../lib/pdf-assets/hrflow-currency.ttf?url'
 
 try {
@@ -146,6 +147,7 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'esi', label: 'ESI', width: 45 },
   { id: 'loan', label: 'Loan', width: 50 },
   { id: 'ded', label: 'Fine', width: 50 },
+  { id: 'medicalDed', label: 'Medical\nDed', width: 60 },
   { id: 'advance', label: 'Advance', width: 55 },
   { id: 'reimb', label: 'Expense', width: 55 },
   { id: 'netAdj', label: 'Net\n(Adv-Exp)', width: 60 },
@@ -216,6 +218,7 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
       case 'esi': return Math.round(row.esi).toLocaleString('en-IN');
       case 'loan': return Math.round(row.loanE).toLocaleString('en-IN');
       case 'ded': return Math.round(row.fine).toLocaleString('en-IN');
+      case 'medicalDed': return Math.round(row.medicalDeduction || 0).toLocaleString('en-IN');
       case 'advance': return Math.round(row.advanceAmount).toLocaleString('en-IN');
       case 'reimb': return Math.round(row.expenseAmount).toLocaleString('en-IN');
       case 'netAdj': return Math.round((row.advanceAmount || 0) - (row.expenseAmount || 0)).toLocaleString('en-IN');
@@ -315,7 +318,7 @@ const formatPdfINR = (amount) => {
 const dashIfZeroPdf = (val) => (!val || val === 0 || val === '0') ? '-' : formatPdfINR(val);
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => {
-  const totalStatutoryDeductions = (data.pf || 0) + (data.esi || 0) + (data.loanEMI || 0) + (data.fineAmount || 0);
+  const totalStatutoryDeductions = (data.pf || 0) + (data.esi || 0) + (data.loanEMI || 0) + (data.fineAmount || 0) + (data.medicalDeduction || 0);
   const totalEarningsGross = (data.basic || 0) + (data.hra || 0) + (data.sundayPay || 0) + (data.holidayPay || 0) + (data.otPay || 0) + (data.food || 0) + (data.convenience || 0) + (data.bonus || 0);
   const netAdjustment = (data.expenseReimbursement || 0) - (data.advanceDeduction || 0);
 
@@ -424,7 +427,8 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => {
                   { label: 'PF Contribution', val: dashIfZeroPdf(data.pf) },
                   { label: 'ESI Contribution', val: dashIfZeroPdf(data.esi) },
                   { label: 'Loan Recovery', val: dashIfZeroPdf(data.loanEMI) },
-                  { label: 'Fine / Penalties', val: dashIfZeroPdf(data.fineAmount) }
+                  { label: 'Fine / Penalties', val: dashIfZeroPdf(data.fineAmount) },
+                  ...(data.medicalDeduction > 0 ? [{ label: 'Medical Deductions', val: formatPdfINR(data.medicalDeduction) }] : [])
                 ].map((r, i) => (
                   <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3.5, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: '#f1f5f9' }}>
                     <Text style={{ fontSize: 7.5, color: '#334155' }}>{r.label}</Text>
@@ -1721,13 +1725,28 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const empAdvances = allAdvancesInMonth.filter(a => a.employeeId === emp.id);
         const empCandidateAdvances = allCandidateAdvancesInMonth.filter(a => a.employeeId === emp.id);
         const hasPreSalary = empCandidateAdvances.some(a => isNextMonthPreDisbursementAdvance(a.date, summaryMonth, orgSalaryDate) && a.deductionMonth !== summaryMonth);
-        const hasPostponed = empCandidateAdvances.some(a => a.deductionMonth && a.deductionMonth > summaryMonth);
-        const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = empAdvances.reduce((s, a) => s + Number(a.amount || 0), 0), reimb = allExpensesInMonth.filter(a => a.employeeId === emp.id && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount || 0), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount || 0), 0)
+        const empMedicalExpenses = allExpensesInMonth.filter(a => {
+          if (!isMedicalClaim(a) || a.isDeductible !== true || a.status === 'Rejected') return false;
+          const benId = a.beneficiaryEmployeeId || (a.paidTo && a.paidToType === 'employee' ? a.paidTo : null) || (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId ? a.employeeId : null) || a.employeeId;
+          return benId === emp.id;
+        });
+        const medDed = empMedicalExpenses.reduce((s, a) => s + Number(a.amount || 0), 0);
+        const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0),
+              adv = empAdvances.reduce((s, a) => s + Number(a.amount || 0), 0),
+              reimb = allExpensesInMonth.filter(a => {
+                if (a.hrApproval !== 'Approved') return false;
+                const payerId = (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId) ? a.paidByEmployeeId : a.employeeId;
+                if (payerId !== emp.id) return false;
+                const benId = a.beneficiaryEmployeeId || (a.paidTo && a.paidToType === 'employee' ? a.paidTo : null) || (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId ? a.employeeId : null) || a.employeeId;
+                const isSelfDeductibleMed = isMedicalClaim(a) && a.isDeductible === true && benId === emp.id;
+                return !isSelfDeductibleMed;
+              }).reduce((s, a) => s + Number(a.amount || 0), 0),
+              fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount || 0), 0);
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
-        const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
-        const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
+        const netAdvanceExpense = adv + medDed - reimb // Net: Advance + Medical Ded - Expense (positive = deduction, negative = addition)
+        const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv + medDed
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, paidLeave, unpaidLeave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt, advancesList: empAdvances, candidateAdvancesList: empCandidateAdvances, hasPreSalary, hasPostponed }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, paidLeave, unpaidLeave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, medicalDeduction: medDed, medicalExpensesList: empMedicalExpenses, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt, advancesList: empAdvances, candidateAdvancesList: empCandidateAdvances, hasPreSalary, hasPostponed }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -2346,8 +2365,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(a => {
           const aEmpId = String(a.employeeId || '').trim();
-          const matchesEmp = (targetEmpId && aEmpId === targetEmpId) || (empIdStr && aEmpId === empIdStr) || (empCodeStr && aEmpId === empCodeStr);
-          if (!matchesEmp) return false;
+          const payerId = String(a.paidByEmployeeId || a.employeeId || '').trim();
+          const benId = String(
+            a.beneficiaryEmployeeId ||
+            (a.paidTo && a.paidToType === 'employee' ? a.paidTo : null) ||
+            (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId ? a.employeeId : null) ||
+            a.employeeId ||
+            ''
+          ).trim();
+          const matchesDirect = (targetEmpId && aEmpId === targetEmpId) || (empIdStr && aEmpId === empIdStr) || (empCodeStr && aEmpId === empCodeStr);
+          const matchesPayer = (targetEmpId && payerId === targetEmpId) || (empIdStr && payerId === empIdStr) || (empCodeStr && payerId === empCodeStr);
+          const matchesBen = (targetEmpId && benId === targetEmpId) || (empIdStr && benId === empIdStr) || (empCodeStr && benId === empCodeStr);
+          if (!matchesDirect && !matchesPayer && !matchesBen) return false;
           if (a.type === 'Advance') {
             return isAdvanceDeductibleInPayrollMonth(a, selectedMonth, salaryDate);
           }
@@ -2356,8 +2385,33 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })));
       
+      const medDed = allAE.filter(a => {
+        if (a.type !== 'Expense' || !isMedicalClaim(a) || a.isDeductible !== true || a.status === 'Rejected') return false;
+        const benId = String(
+          a.beneficiaryEmployeeId ||
+          (a.paidTo && a.paidToType === 'employee' ? a.paidTo : null) ||
+          (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId ? a.employeeId : null) ||
+          a.employeeId ||
+          ''
+        ).trim();
+        return (targetEmpId && benId === targetEmpId) || (empIdStr && benId === empIdStr) || (empCodeStr && benId === empCodeStr);
+      }).reduce((s, a) => s + Number(a.amount), 0);
       const adv = allAE.filter(a => a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0);
-      const reimb = allAE.filter(a => a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0);
+      const reimb = allAE.filter(a => {
+        if (a.type !== 'Expense' || a.hrApproval !== 'Approved') return false;
+        const payerId = String(a.paidByEmployeeId || a.employeeId || '').trim();
+        const matchesPayer = (targetEmpId && payerId === targetEmpId) || (empIdStr && payerId === empIdStr) || (empCodeStr && payerId === empCodeStr);
+        if (!matchesPayer) return false;
+        const benId = String(
+          a.beneficiaryEmployeeId ||
+          (a.paidTo && a.paidToType === 'employee' ? a.paidTo : null) ||
+          (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId ? a.employeeId : null) ||
+          a.employeeId ||
+          ''
+        ).trim();
+        const isSelfDeductibleMed = isMedicalClaim(a) && a.isDeductible === true && benId === payerId;
+        return !isSelfDeductibleMed;
+      }).reduce((s, a) => s + Number(a.amount), 0);
       
       let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, aOT = 0, sunCount = 0, holCount = 0;
       const sunDates = [], holDates = [], leaveDates = [];
@@ -2451,7 +2505,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       const esiV = ts * (Number(slab.esiPercent || 0) / 100);
       const holP = holW * dailyRate;
       const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + foodP + convP + bonusP;
-      const ded = (hP || 0) + (esiV || 0) + (emi || 0) + (fineA || 0) + (adv || 0);
+      const ded = (hP || 0) + (esiV || 0) + (emi || 0) + (fineA || 0) + (adv || 0) + (medDed || 0);
       const finalNet = Math.max(0, (gross || 0) - (ded || 0) + (reimb || 0));
 
       console.log('Calculation complete. Setting slip data.');
@@ -2465,6 +2519,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         holidayPay: holP || 0, holidayWorkedCount: holW || 0, 
         food: foodP, convenience: convP, bonus: bonusP,
         grossEarnings: gross || 0, pf: hP || 0, esi: esiV || 0, advanceDeduction: adv || 0, 
+        medicalDeduction: medDed || 0,
         loanEMI: emi || 0, fineAmount: fineA || 0, totalDeductions: ded || 0, 
         netPay: finalNet, 
         sundayCount: sunCount || 0, holidayCount: holCount || 0,
@@ -2532,6 +2587,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           holidayPay: empSummary.holPay, holidayWorkedCount: empSummary.holW,
           food: empSummary.food, convenience: empSummary.convenience, bonus: empSummary.bonus,
           grossEarnings: empSummary.totalEarnings, pf: empSummary.pf, esi: empSummary.esi, advanceDeduction: empSummary.advanceAmount,
+          medicalDeduction: empSummary.medicalDeduction || 0,
           loanEMI: empSummary.loanE, fineAmount: empSummary.fine, totalDeductions: empSummary.totalDeductions,
           netPay: empSummary.salary.net,
           sundayCount: empSummary.sunday, holidayCount: empSummary.holidays,

@@ -79,7 +79,7 @@ export function usePayrollRuns(orgId) {
       const summary = {
         totalHeadcount: employeeSlips.length,
         totalGross: employeeSlips.reduce((sum, s) => sum + (Number(s.totalEarnings) || 0), 0),
-        totalDeductions: employeeSlips.reduce((sum, s) => sum + (Number(s.pf || 0) + Number(s.esi || 0) + Number(s.loanE || 0) + Number(s.fine || 0)), 0),
+        totalDeductions: employeeSlips.reduce((sum, s) => sum + Number(s.totalDeductions != null ? s.totalDeductions : ((Number(s.pf || 0) + Number(s.esi || 0) + Number(s.loanE || 0) + Number(s.fine || 0) + Number(s.advanceAmount || 0) + Number(s.medicalDeduction || 0)))), 0),
         totalNet: employeeSlips.reduce((sum, s) => sum + (Number(s.salary?.net) || 0), 0)
       }
 
@@ -163,7 +163,7 @@ export function usePayrollRuns(orgId) {
       const summary = {
         totalHeadcount: employeeSlips.length,
         totalGross: employeeSlips.reduce((sum, s) => sum + (Number(s.totalEarnings) || 0), 0),
-        totalDeductions: employeeSlips.reduce((sum, s) => sum + (Number(s.pf || 0) + Number(s.esi || 0) + Number(s.loanE || 0) + Number(s.fine || 0)), 0),
+        totalDeductions: employeeSlips.reduce((sum, s) => sum + Number(s.totalDeductions != null ? s.totalDeductions : ((Number(s.pf || 0) + Number(s.esi || 0) + Number(s.loanE || 0) + Number(s.fine || 0) + Number(s.advanceAmount || 0) + Number(s.medicalDeduction || 0)))), 0),
         totalNet: employeeSlips.reduce((sum, s) => sum + (Number(s.salary?.net) || 0), 0)
       }
 

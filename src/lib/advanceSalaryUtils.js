@@ -14,6 +14,8 @@
  *    - If the user does NOT add them into August Salary, they will automatically deduct in September Salary!
  */
 
+import { isMedicalCategory } from './advanceExpenseCategories.js'
+
 /**
  * Returns the next month in 'YYYY-MM' format.
  *
@@ -168,6 +170,11 @@ export function isAdvanceCandidateForPayroll(adv, summaryMonth, salaryDate = 10)
     return false
   }
 
+  // PRD Contract: Exclude any medical advance where isDeductible === false (compassionate company assistance)
+  if ((adv.isMedical === true || isMedicalCategory(adv.category)) && adv.isDeductible === false) {
+    return false
+  }
+
   const advDate = normalizeToDateStr(adv.date)
   if (!advDate || advDate.length < 10) return false
 
@@ -216,6 +223,10 @@ export function isAdvanceCandidateForPayroll(adv, summaryMonth, salaryDate = 10)
  *    - If taken in next month before salary date (e.g. Sept 1-10 when viewing August):
  *      -> Does NOT deduct in August by default (user must explicitly click to add it).
  *
+ * 3. PRD Contract:
+ *    - Non-deductible medical advances (isMedical === true && isDeductible === false)
+ *      are EXCLUDED from payroll recovery.
+ *
  * @param {Object} adv
  * @param {string} summaryMonth - 'YYYY-MM'
  * @param {number} salaryDate - 1 to 31 (default 10)
@@ -233,6 +244,11 @@ export function isAdvanceDeductibleInPayrollMonth(adv, summaryMonth, salaryDate 
 
   // Exclude if converted to loan installments or explicitly not deducted from payroll
   if (adv.recoveryType === 'loan' || adv.deductFromPayroll === false) {
+    return false
+  }
+
+  // PRD Contract: Exclude any medical advance where isDeductible === false
+  if ((adv.isMedical === true || isMedicalCategory(adv.category)) && adv.isDeductible === false) {
     return false
   }
 
@@ -257,6 +273,26 @@ export function isAdvanceDeductibleInPayrollMonth(adv, summaryMonth, salaryDate 
   // 3. Next month pre-disbursement advances (e.g. Sept 1-10 when viewing August)
   // do NOT deduct in August by default unless explicitly added by the user.
   return false
+}
+
+/**
+ * Checks if a medical expense is deductible in payroll for the summaryMonth.
+ * PRD Contract: Medical Deductions sum all expenses where isMedical === true && isDeductible === true.
+ *
+ * @param {Object} expense
+ * @param {string} summaryMonth - 'YYYY-MM' (optional)
+ * @returns {boolean}
+ */
+export function isMedicalExpenseDeductibleInPayrollMonth(expense, summaryMonth) {
+  if (!expense || expense.type !== 'Expense') return false
+  if (expense.status === 'Rejected') return false
+  const isMed = expense.isMedical === true || isMedicalCategory(expense.category)
+  if (!isMed || expense.isDeductible !== true) return false
+  if (summaryMonth) {
+    const expenseDate = normalizeToDateStr(expense.date)
+    return expenseDate && expenseDate.startsWith(summaryMonth)
+  }
+  return true
 }
 
 /**

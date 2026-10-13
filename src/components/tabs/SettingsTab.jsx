@@ -7,7 +7,7 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { z } from 'zod'
-import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users, ArrowRight, ArrowLeft, HeartPulse, Sparkles } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -52,7 +52,8 @@ import { PORTAL_APPROVAL_MODULES, PORTAL_APPROVAL_ROLES, createPortalApprovalDra
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
 import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy } from '../../lib/attendancePolicy'
-import { normalizeExpenseCategory, isPetrolCategory, DEFAULT_ADVANCE_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_COMPANY_ACCOUNTS } from '../../lib/advanceExpenseCategories'
+import { normalizeExpenseCategory, isPetrolCategory, isMedicalCategory, DEFAULT_ADVANCE_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_COMPANY_ACCOUNTS } from '../../lib/advanceExpenseCategories'
+import { DEFAULT_MEDICAL_ELIGIBILITY } from '../../lib/medicalClaimsUtils'
 import ShareAction from '../ui/ShareAction'
 import { buildOrganizationInvitePayload, canShareOrganizationInvite } from '../../lib/share'
 
@@ -616,8 +617,12 @@ export default function SettingsTab({ initialSubTab }) {
     maxAdvanceAmount: '',
     expenseCategoryLimits: {},
     attendancePolicy: normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY),
-    leavePolicies: normalizeLeavePolicies()
+    leavePolicies: normalizeLeavePolicies(),
+    medicalEligibility: DEFAULT_MEDICAL_ELIGIBILITY
   })
+  const [overrideEmpId, setOverrideEmpId] = useState('')
+  const [overrideMonthly, setOverrideMonthly] = useState('')
+  const [overrideYearly, setOverrideYearly] = useState('')
   const [newRegularSiteInput, setNewRegularSiteInput] = useState('')
   const [newRareSiteInput, setNewRareSiteInput] = useState('')
   const [editingSiteItem, setEditingSiteItem] = useState(null)
@@ -646,6 +651,7 @@ export default function SettingsTab({ initialSubTab }) {
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
   const [newExpenseCategory, setNewExpenseCategory] = useState('')
   const [newExpensePayableToOthers, setNewExpensePayableToOthers] = useState(false)
+  const [newExpenseIsMedical, setNewExpenseIsMedical] = useState(false)
   const [newCompanyAccount, setNewCompanyAccount] = useState('')
   const [editingAdvanceIndex, setEditingAdvanceIndex] = useState(null)
   const [editingAdvanceValue, setEditingAdvanceValue] = useState('')
@@ -1265,7 +1271,8 @@ export default function SettingsTab({ initialSubTab }) {
             holidays: data.holidays || prev.holidays,
             salaryDate: data.salaryDate !== undefined ? Number(data.salaryDate) : (prev.salaryDate || 10),
             bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : [],
-            attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
+            attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy),
+            medicalEligibility: data.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY
           }))
         } else {
           // If no org doc exists, use user.orgName as fallback
@@ -3962,10 +3969,12 @@ export default function SettingsTab({ initialSubTab }) {
       alert('This expense category already exists.')
       return
     }
-    const newCatItem = { name: trimmed, payableToOthers: !!newExpensePayableToOthers }
+    const isMed = !!newExpenseIsMedical || isMedicalCategory(trimmed)
+    const newCatItem = { name: trimmed, payableToOthers: !!newExpensePayableToOthers, isMedical: isMed }
     setOrgSettings(s => ({ ...s, expenseCategories: [...current, newCatItem] }))
     setNewExpenseCategory('')
     setNewExpensePayableToOthers(false)
+    setNewExpenseIsMedical(false)
   }
 
   const handleDeleteExpenseCategory = (index) => {
@@ -3984,6 +3993,44 @@ export default function SettingsTab({ initialSubTab }) {
         return { ...normalized, payableToOthers: !normalized.payableToOthers }
       })
     }))
+  }
+
+  const handleToggleExpenseMedical = (index) => {
+    setOrgSettings(s => ({
+      ...s,
+      expenseCategories: (s.expenseCategories || []).map((cat, idx) => {
+        if (idx !== index) return cat
+        const normalized = normalizeExpenseCategory(cat)
+        return { ...normalized, isMedical: !normalized.isMedical }
+      })
+    }))
+  }
+
+  const handleProvisionDefaultMedicalCategories = () => {
+    const currentAdv = Array.isArray(orgSettings.advanceCategories) ? orgSettings.advanceCategories : []
+    const currentExp = (orgSettings.expenseCategories || []).map(normalizeExpenseCategory)
+
+    let updatedAdv = [...currentAdv]
+    if (!updatedAdv.some(c => isMedicalCategory(c))) {
+      updatedAdv.push('Medical Advance')
+    }
+
+    let updatedExp = [...currentExp]
+    if (!updatedExp.some(c => isMedicalCategory(c.name) || c.isMedical)) {
+      updatedExp.push({ name: 'Medical Expense', payableToOthers: false, isMedical: true })
+    }
+
+    setOrgSettings(s => ({
+      ...s,
+      advanceCategories: updatedAdv,
+      expenseCategories: updatedExp,
+      medicalEligibility: {
+        ...(s.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+        advanceCategory: s.medicalEligibility?.advanceCategory || 'Medical Advance',
+        expenseCategory: s.medicalEligibility?.expenseCategory || 'Medical Expense'
+      }
+    }))
+    alert('Medical Advance and Medical Expense categories provisioned successfully! Click "Save All Changes" to save.')
   }
 
   const handleAddCompanyAccount = () => {
@@ -4074,6 +4121,55 @@ export default function SettingsTab({ initialSubTab }) {
   const handleCancelEditAccount = () => {
     setEditingAccountIndex(null)
     setEditingAccountValue('')
+  }
+
+  const handleSaveEmployeeMedicalLimit = () => {
+    if (!overrideEmpId) {
+      alert('Please select an employee.')
+      return
+    }
+    const currentEligibility = orgSettings.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY
+    const defaultM = currentEligibility.defaultMonthly != null ? Number(currentEligibility.defaultMonthly) : 5000
+    const defaultY = currentEligibility.defaultYearly != null ? Number(currentEligibility.defaultYearly) : 50000
+    const monthlyVal = overrideMonthly !== '' ? Number(overrideMonthly) : defaultM
+    const yearlyVal = overrideYearly !== '' ? Number(overrideYearly) : defaultY
+
+    setOrgSettings(prev => ({
+      ...prev,
+      medicalEligibility: {
+        ...(prev.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+        employeeLimits: {
+          ...((prev.medicalEligibility && prev.medicalEligibility.employeeLimits) || {}),
+          [overrideEmpId]: {
+            monthly: monthlyVal,
+            yearly: yearlyVal
+          }
+        }
+      }
+    }))
+    setOverrideEmpId('')
+    setOverrideMonthly('')
+    setOverrideYearly('')
+  }
+
+  const handleDeleteEmployeeMedicalLimit = (empId) => {
+    setOrgSettings(prev => {
+      const currentLimits = { ...((prev.medicalEligibility && prev.medicalEligibility.employeeLimits) || {}) }
+      delete currentLimits[empId]
+      return {
+        ...prev,
+        medicalEligibility: {
+          ...(prev.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+          employeeLimits: currentLimits
+        }
+      }
+    })
+  }
+
+  const handleEditEmployeeMedicalLimit = (empId, limits) => {
+    setOverrideEmpId(empId)
+    setOverrideMonthly(limits?.monthly != null ? String(limits.monthly) : '')
+    setOverrideYearly(limits?.yearly != null ? String(limits.yearly) : '')
   }
 
   const handleAddHoliday = () => {
@@ -5049,7 +5145,14 @@ export default function SettingsTab({ initialSubTab }) {
                           </div>
                         ) : (
                           <>
-                            <span className="text-xs font-semibold text-slate-800 truncate font-body">{cat}</span>
+                            <div className="min-w-0 pr-2">
+                              <span className="text-xs font-semibold text-slate-800 truncate font-body block">{cat}</span>
+                              {isMedicalCategory(cat) && (
+                                <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-heading">
+                                  <HeartPulse size={9} /> Medical Claim
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
                               <button
                                 type="button"
@@ -5128,6 +5231,24 @@ export default function SettingsTab({ initialSubTab }) {
                       </div>
                     </label>
                   </div>
+
+                  {/* Medical / Healthcare Claim Checkbox */}
+                  <div className="rounded-lg bg-rose-50/60 p-2.5 border border-rose-100/80">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newExpenseIsMedical}
+                        onChange={e => setNewExpenseIsMedical(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <div className="text-[11px] leading-tight font-body">
+                        <span className="font-bold text-slate-800 block">Is this a Medical / Healthcare Claim?</span>
+                        <span className="text-slate-500 mt-0.5 block leading-normal">
+                          Enables beneficiary staff member selection, salary deductibility toggle, and healthcare quota tracking.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Expense Categories List */}
@@ -5137,6 +5258,7 @@ export default function SettingsTab({ initialSubTab }) {
                   ) : (
                     (orgSettings.expenseCategories || []).map((rawCat, i) => {
                       const cat = normalizeExpenseCategory(rawCat)
+                      const isMed = cat.isMedical || isMedicalCategory(cat.name)
                       return (
                         <div key={cat.name + i} className="flex items-center justify-between p-2.5 hover:bg-slate-50/80 rounded-lg group transition-colors">
                           {editingExpenseIndex === i ? (
@@ -5173,13 +5295,32 @@ export default function SettingsTab({ initialSubTab }) {
                             <>
                               <div className="min-w-0 pr-2">
                                 <span className="text-xs font-semibold text-slate-800 block truncate font-body">{cat.name}</span>
-                                {cat.payableToOthers && (
-                                  <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70 font-mono">
-                                    <Users size={10} /> Requires Payee
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                  {cat.payableToOthers && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70 font-mono">
+                                      <Users size={9} /> Requires Payee
+                                    </span>
+                                  )}
+                                  {isMed && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-heading">
+                                      <HeartPulse size={9} /> Medical Claim
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExpenseMedical(i)}
+                                  className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${
+                                    cat.isMedical
+                                      ? 'text-rose-600 bg-rose-50 hover:bg-rose-100'
+                                      : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                  title={cat.isMedical ? 'Medical claim category' : 'Mark as medical claim category'}
+                                >
+                                  {cat.isMedical ? 'Medical ✓' : '+ Medical'}
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleExpensePayableToOthers(i)}
@@ -5362,6 +5503,312 @@ export default function SettingsTab({ initialSubTab }) {
                     </span>
                   </label>
                 </div>
+              </div>
+            </div>
+
+            {/* Medical Claim Eligibility Policy */}
+            <div className={`${settingsPanelClassName} p-5 md:p-6 space-y-6`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 mt-0.5">
+                    <HeartPulse size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900 font-heading">Medical Claim Eligibility Policy</h4>
+                    <p className="text-xs text-slate-500 font-body mt-0.5">
+                      Configure standard organizational monthly and annual healthcare eligibility ceilings for all staff, and define custom per-employee quota overrides.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Global Medical Category Configuration Banner & Provisioning */}
+              <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-rose-600 animate-pulse" />
+                    <span className="text-xs font-bold text-rose-950 font-heading">Global Healthcare Category Configuration</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 font-mono">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-xs text-rose-800/80 font-body">
+                    Designated medical categories automatically enable employee beneficiary selection, payroll deductibility recovery, and quota ceilings.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleProvisionDefaultMedicalCategories}
+                  className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-white border border-rose-200 text-xs font-bold text-rose-700 hover:bg-rose-100/70 shadow-xs transition-all active:scale-[0.98] font-heading cursor-pointer"
+                  title="Ensure Medical Advance and Medical Expense exist in your organization category lists"
+                >
+                  <Sparkles size={13} className="text-rose-600" />
+                  Provision Medical Categories
+                </button>
+              </div>
+
+              {/* Designated Global Medical Categories */}
+              <div>
+                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-heading mb-3 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600" /> Designated Medical Categories
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={`${settingsInsetPanelClassName} p-4 space-y-1.5`}>
+                    <label className="block text-xs font-medium text-slate-800 font-body">Designated Medical Advance Category</label>
+                    <select
+                      value={orgSettings.medicalEligibility?.advanceCategory || 'Medical Advance'}
+                      onChange={e => {
+                        const val = e.target.value
+                        setOrgSettings(prev => ({
+                          ...prev,
+                          medicalEligibility: {
+                            ...(prev.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+                            advanceCategory: val
+                          }
+                        }))
+                      }}
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 outline-none focus-visible:ring-1 focus-visible:ring-blue-600 font-body"
+                    >
+                      {(orgSettings.advanceCategories || []).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      {!(orgSettings.advanceCategories || []).includes('Medical Advance') && (
+                        <option value="Medical Advance">Medical Advance (Default)</option>
+                      )}
+                    </select>
+                    <p className="text-[11px] text-slate-400 font-body">Primary advance request type recognized for healthcare disbursements.</p>
+                  </div>
+
+                  <div className={`${settingsInsetPanelClassName} p-4 space-y-1.5`}>
+                    <label className="block text-xs font-medium text-slate-800 font-body">Designated Medical Expense Category</label>
+                    <select
+                      value={orgSettings.medicalEligibility?.expenseCategory || 'Medical Expense'}
+                      onChange={e => {
+                        const val = e.target.value
+                        setOrgSettings(prev => ({
+                          ...prev,
+                          medicalEligibility: {
+                            ...(prev.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+                            expenseCategory: val
+                          }
+                        }))
+                      }}
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 outline-none focus-visible:ring-1 focus-visible:ring-blue-600 font-body"
+                    >
+                      {(orgSettings.expenseCategories || []).map(raw => {
+                        const cat = normalizeExpenseCategory(raw)
+                        return (
+                          <option key={cat.name} value={cat.name}>{cat.name}</option>
+                        )
+                      })}
+                      {!(orgSettings.expenseCategories || []).some(raw => normalizeExpenseCategory(raw).name === 'Medical Expense') && (
+                        <option value="Medical Expense">Medical Expense (Default)</option>
+                      )}
+                    </select>
+                    <p className="text-[11px] text-slate-400 font-body">Primary expense category recognized for healthcare reimbursements & grants.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Standard Organization Ceilings */}
+              <div>
+                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-heading mb-3 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-600" /> Standard Organization Limits (Ceilings)
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={`${settingsInsetPanelClassName} p-4 space-y-1.5`}>
+                    <label className="block text-xs font-medium text-slate-800 font-body">Default Monthly Ceiling (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={orgSettings.medicalEligibility?.defaultMonthly != null ? orgSettings.medicalEligibility.defaultMonthly : 5000}
+                      onChange={e => {
+                        const val = e.target.value === '' ? '' : Number(e.target.value)
+                        setOrgSettings(prev => ({
+                          ...prev,
+                          medicalEligibility: {
+                            ...(prev.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+                            defaultMonthly: val
+                          }
+                        }))
+                      }}
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-mono font-bold focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800"
+                      placeholder="e.g. 5000"
+                    />
+                    <p className="text-[11px] text-slate-400 font-body">Maximum standard healthcare reimbursement limit per calendar month.</p>
+                  </div>
+
+                  <div className={`${settingsInsetPanelClassName} p-4 space-y-1.5`}>
+                    <label className="block text-xs font-medium text-slate-800 font-body">Default Annual Ceiling (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={orgSettings.medicalEligibility?.defaultYearly != null ? orgSettings.medicalEligibility.defaultYearly : 50000}
+                      onChange={e => {
+                        const val = e.target.value === '' ? '' : Number(e.target.value)
+                        setOrgSettings(prev => ({
+                          ...prev,
+                          medicalEligibility: {
+                            ...(prev.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY),
+                            defaultYearly: val
+                          }
+                        }))
+                      }}
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-mono font-bold focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800"
+                      placeholder="e.g. 50000"
+                    />
+                    <p className="text-[11px] text-slate-400 font-body">Cumulative annual healthcare quota limit across the entire year.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Per-Employee Quota Overrides */}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-heading flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" /> Custom Employee Quota Overrides
+                  </h5>
+                  <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-mono">
+                    {Object.keys(orgSettings.medicalEligibility?.employeeLimits || {}).length} custom
+                  </span>
+                </div>
+
+                {/* Add/Edit Override Form */}
+                <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div className="sm:col-span-2 space-y-1">
+                      <label className="block text-xs font-medium text-slate-800 font-body">Employee Beneficiary</label>
+                      <select
+                        value={overrideEmpId}
+                        onChange={e => {
+                          const id = e.target.value
+                          setOverrideEmpId(id)
+                          const existing = orgSettings.medicalEligibility?.employeeLimits?.[id]
+                          if (existing) {
+                            setOverrideMonthly(existing.monthly != null ? String(existing.monthly) : '')
+                            setOverrideYearly(existing.yearly != null ? String(existing.yearly) : '')
+                          }
+                        }}
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-800 outline-none focus-visible:ring-1 focus-visible:ring-blue-600 font-body"
+                      >
+                        <option value="">Select Employee to Override...</option>
+                        {employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.name} ({emp.empCode || emp.id.slice(0, 5)}) - {emp.designation || 'Staff'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-800 font-body">Monthly Limit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={overrideMonthly}
+                        onChange={e => setOverrideMonthly(e.target.value)}
+                        placeholder={`e.g. ${orgSettings.medicalEligibility?.defaultMonthly || 5000}`}
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-mono font-bold text-slate-800 outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-800 font-body">Annual Limit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={overrideYearly}
+                        onChange={e => setOverrideYearly(e.target.value)}
+                        placeholder={`e.g. ${orgSettings.medicalEligibility?.defaultYearly || 50000}`}
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-mono font-bold text-slate-800 outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end gap-2">
+                    {overrideEmpId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOverrideEmpId('')
+                          setOverrideMonthly('')
+                          setOverrideYearly('')
+                        }}
+                        className="h-8 px-3 rounded-md text-xs font-medium text-slate-500 hover:bg-slate-200 font-body transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveEmployeeMedicalLimit}
+                      disabled={!overrideEmpId}
+                      className="h-8 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-md text-xs font-bold font-heading inline-flex items-center gap-1.5 transition-all active:scale-[0.98]"
+                    >
+                      <Plus size={13} /> {overrideEmpId && orgSettings.medicalEligibility?.employeeLimits?.[overrideEmpId] ? 'Update Quota' : 'Add Quota Override'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Overrides Table */}
+                {Object.keys(orgSettings.medicalEligibility?.employeeLimits || {}).length === 0 ? (
+                  <div className="p-6 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50/50">
+                    <p className="text-xs text-slate-500 font-body">No custom employee overrides configured.</p>
+                    <p className="text-[11px] text-slate-400 font-body mt-0.5">All staff inherit default organizational ceilings (₹{(orgSettings.medicalEligibility?.defaultMonthly || 5000).toLocaleString('en-IN')}/mo, ₹{(orgSettings.medicalEligibility?.defaultYearly || 50000).toLocaleString('en-IN')}/yr).</p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading">
+                        <tr>
+                          <th className="py-2.5 px-3 font-semibold">Staff Member</th>
+                          <th className="py-2.5 px-3 font-semibold text-right">Monthly Limit</th>
+                          <th className="py-2.5 px-3 font-semibold text-right">Annual Limit</th>
+                          <th className="py-2.5 px-3 font-semibold text-center w-24">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-body">
+                        {Object.entries(orgSettings.medicalEligibility?.employeeLimits || {}).map(([empId, limits]) => {
+                          const emp = employees.find(e => e.id === empId)
+                          return (
+                            <tr key={empId} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-2.5 px-3">
+                                <span className="font-semibold text-slate-900 block">{emp?.name || 'Unknown Employee'}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">{emp?.empCode || empId.slice(0, 5)} • {emp?.designation || 'Staff'}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                ₹{Number(limits?.monthly || 0).toLocaleString('en-IN')}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                ₹{Number(limits?.yearly || 0).toLocaleString('en-IN')}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditEmployeeMedicalLimit(empId, limits)}
+                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="Edit employee limit"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteEmployeeMedicalLimit(empId)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                                    title="Remove override"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </div>

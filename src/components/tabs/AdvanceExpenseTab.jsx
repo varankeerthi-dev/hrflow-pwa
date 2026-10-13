@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal, Wallet } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal, Wallet, HeartPulse } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { Loader } from '@/components/loader'
 import Dropdown from '../ui/Dropdown'
@@ -48,6 +48,15 @@ import {
   getPreviousMonth,
   formatMonthLabel
 } from '../../lib/advanceSalaryUtils'
+import {
+  isMedicalCategory,
+  isMedicalClaim,
+  isMedicalDeductible,
+  getEmployeeMedicalLimits,
+  calculateEmployeeMedicalUtilization,
+  calculateMedicalQuotaSummary,
+  DEFAULT_MEDICAL_ELIGIBILITY
+} from '../../lib/medicalClaimsUtils'
 
 function approvalStatusTextClass(status, lane) {
   const s = (status || 'Pending').toLowerCase()
@@ -135,10 +144,12 @@ function formatOnlyMonthName(monthStr) {
 }
 
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions, vehicleOptions = [], handleSelectVehicle }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions, vehicleOptions = [], handleSelectVehicle, selfEmployeeId = '' }) {
   const categoryRequiresPaidTo = isCategoryPayableToOthers
     ? isCategoryPayableToOthers(row.category)
     : ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
+
+  const isMedical = Boolean(row.isMedical || isMedicalCategory(row.category) || isMedicalCategory(row.customCategory))
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -151,14 +162,16 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
       </div>
 
       <div className="space-y-2.5">
-        {!portalMode && !hideEmployee && (
+        {!portalMode && !hideEmployee ? (
           <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee <span className="text-rose-500">*</span></label>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              {isMedical ? 'Beneficiary Staff Member' : 'Employee'} <span className="text-rose-500">*</span>
+            </label>
             <Dropdown
               value={row.employeeId}
               onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
               options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
-              placeholder="Select employee..."
+              placeholder={isMedical ? "Select beneficiary employee..." : "Select employee..."}
               searchable
               size="sm"
               panelWidth="w-[min(20rem,calc(100vw-2rem))]"
@@ -167,7 +180,24 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
               disabled={!canChooseEntryEmployee}
             />
           </div>
-        )}
+        ) : (portalMode || hideEmployee) && isMedical ? (
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Beneficiary Staff Member <span className="text-rose-500">*</span>
+            </label>
+            <Dropdown
+              value={row.employeeId}
+              onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
+              options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
+              placeholder="Select beneficiary employee..."
+              searchable
+              size="sm"
+              panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+              mobileMenu
+              autoFocusSearch={false}
+            />
+          </div>
+        ) : null}
 
         {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
           <div>
@@ -343,6 +373,55 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
           </div>
         </div>
 
+        {isMedical && (
+          <div className="rounded-lg bg-rose-50/70 border border-rose-200/80 p-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 font-heading">
+                <HeartPulse size={14} className="text-rose-600" />
+                <span>Medical Healthcare Claim</span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-100/70 px-2 py-0.5 rounded-full font-mono">
+                Healthcare
+              </span>
+            </div>
+            {(row.beneficiaryEmployeeId || (row.employeeId && selfEmployeeId && row.employeeId !== selfEmployeeId)) && (
+              <div className="flex items-center justify-between text-[11px] bg-white/90 p-1.5 rounded-md border border-rose-200">
+                <span className="text-slate-600">Beneficiary: <strong className="text-slate-900">{sortedEmployees.find(e => e.id === (row.beneficiaryEmployeeId || row.employeeId))?.name || row.beneficiaryEmployeeName}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRowChange(row.id, 'beneficiaryEmployeeId', '');
+                    handleRowChange(row.id, 'beneficiaryEmployeeName', '');
+                    handleRowChange(row.id, 'paidTo', '');
+                    handleRowChange(row.id, 'paidToName', '');
+                    handleRowChange(row.id, 'paidToType', null);
+                    if (selfEmployeeId) handleRowChange(row.id, 'employeeId', selfEmployeeId);
+                  }}
+                  className="text-blue-600 font-bold hover:underline text-[10px]"
+                >
+                  Reset to Myself
+                </button>
+              </div>
+            )}
+            <label className="flex items-start gap-2 cursor-pointer pt-0.5">
+              <input
+                type="checkbox"
+                checked={row.isDeductible !== false}
+                onChange={(e) => handleRowChange(row.id, 'isDeductible', e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-slate-800 block">Deductible from Payroll</span>
+                <span className="text-[10px] text-slate-500 block leading-tight">
+                  {row.isDeductible !== false
+                    ? 'Amount will be recovered through monthly salary deductions.'
+                    : 'Company-funded healthcare grant. Excluded from payroll salary recovery.'}
+                </span>
+              </div>
+            </label>
+          </div>
+        )}
+
         {((!portalMode && showSessionPayout) || showProjectColumn) && (
           <div className={`grid ${(!portalMode && showSessionPayout) && showProjectColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
             {!portalMode && showSessionPayout && (
@@ -395,6 +474,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     })
   }, [employees, portalEmployeeId, portalMode])
   const queryClient = useQueryClient()
+  // Fetch org settings
+  const { data: orgSettings = {} } = useQuery({
+    queryKey: ['orgSettings', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return {}
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      return orgSnap.exists() ? orgSnap.data() : {}
+    },
+    enabled: !!user?.orgId
+  })
   const draftDirtyRef = useRef(false)
   const [internalActiveModule, setInternalActiveModule] = useState(defaultModule || 'Add Advance')
   const activeModule = activeModuleProp !== undefined ? activeModuleProp : internalActiveModule
@@ -445,8 +534,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (!names.some(c => c.toLowerCase().trim() === 'given to others')) {
       names.push('Given to Others')
     }
+    const globalMedAdv = orgSettings?.medicalEligibility?.advanceCategory || 'Medical Advance'
+    if (!names.some(c => isMedicalCategory(c))) {
+      names.push(globalMedAdv)
+    }
     return names
-  }, [advanceCategoriesList])
+  }, [advanceCategoriesList, orgSettings?.medicalEligibility?.advanceCategory])
 
   const expenseCategoriesOnly = useMemo(() => {
     const list = expenseCategoriesList && expenseCategoriesList.length > 0
@@ -455,8 +548,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const names = list.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
     if (!names.some(c => c.toLowerCase() === 'petrol')) names.unshift('Petrol')
     if (!names.some(c => c.toLowerCase().replace(/[\s_-]+/g, '') === 'sitepetrol')) names.splice(1, 0, 'Sitepetrol')
+    const globalMedExp = orgSettings?.medicalEligibility?.expenseCategory || 'Medical Expense'
+    if (!names.some(c => isMedicalCategory(c))) {
+      names.push(globalMedExp)
+    }
     return names
-  }, [expenseCategoriesList])
+  }, [expenseCategoriesList, orgSettings?.medicalEligibility?.expenseCategory])
 
   // Active categories for the current module ('Add Advance' vs 'Add Expense')
   const activeCategories = useMemo(() => {
@@ -544,7 +641,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [addRows, setAddRows] = useState(() => {
     if (draft?.addRows?.length) return draft.addRows
     const todayDate = new Date().toISOString().split('T')[0]
-    return [{ id: Date.now(), date: todayDate, deductionMonth: getDefaultAdvanceDeductionMonth(todayDate), manualDeductionMonth: false, employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }]
+    return [{ id: Date.now(), date: todayDate, deductionMonth: getDefaultAdvanceDeductionMonth(todayDate), manualDeductionMonth: false, employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '', isMedical: false, isDeductible: false }]
   })
 
   // Sanitize rows ONLY when actually switching between Add Advance and Add Expense so categories don't leak,
@@ -630,6 +727,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState('')
   const [isCustomVehicleActive, setIsCustomVehicleActive] = useState(false)
   const vehiclePopoverRef = useRef(null)
+  const [activeMedicalRowId, setActiveMedicalRowId] = useState(null)
+  const [medicalPopoverPos, setMedicalPopoverPos] = useState({ top: 200, left: 200 })
+  const [medicalSearchTerm, setMedicalSearchTerm] = useState('')
+  const medicalPopoverRef = useRef(null)
 
   const updateAdvanceFieldsDropdownPos = useCallback(() => {
     if (advanceFieldsButtonRef.current) {
@@ -712,6 +813,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
   const [reportFilterProject, setReportFilterProject] = useState('')
+  const [reportFilterMedical, setReportFilterMedical] = useState('All') // All | Medical | Deductible | Non-Deductible
+  const [reportActiveTab, setReportActiveTab] = useState('register') // 'register' | 'medical'
+  const [medicalQuotaSearch, setMedicalQuotaSearch] = useState('')
 
   const toggleReportFilterCategory = (cat) => {
     setReportFilterCategories((prev) =>
@@ -971,16 +1075,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     )
   }, [portalMode, portalEmployeeId, queryClient, user?.orgId])
 
-  // Fetch org settings for advance cap
-  const { data: orgSettings = {} } = useQuery({
-    queryKey: ['orgSettings', user?.orgId],
-    queryFn: async () => {
-      if (!user?.orgId) return {}
-      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
-      return orgSnap.exists() ? orgSnap.data() : {}
-    },
-    enabled: !!user?.orgId
-  })
 
   // Fetch approval settings
   const { data: approvalSettings = [] } = useQuery({
@@ -1187,12 +1281,19 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           ? buildPortalApprovalFields(type, portalApprovalSettings.find((setting) => setting.moduleName === type))
           : {}
 
+        const isMed = Boolean(row.isMedical || isMedicalCategory(finalCategory) || isMedicalCategory(resolvedCategory))
+        const isDed = row.isDeductible !== undefined
+          ? Boolean(row.isDeductible)
+          : (type === 'Advance' ? true : false)
+
         const expenseDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
           employeeId: finalEmployeeId,
           employeeName: finalEmployeeName,
           type: type,
           category: finalCategory,
+          isMedical: isMed,
+          isDeductible: isMed ? isDed : (type === 'Advance' ? (row.deductFromPayroll !== false) : false),
           siteName: row.siteName || null,
           vehicleId: row.vehicleId || null,
           vehicleNo: row.vehicleNo || null,
@@ -1205,7 +1306,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           date: row.date,
           deductionMonth: row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date),
           recoveryType: row.recoveryType || 'payroll',
-          deductFromPayroll: row.deductFromPayroll !== false,
+          deductFromPayroll: isMed ? isDed : (row.deductFromPayroll !== false),
           reason: row.reason || (isCompanyAccount ? `Advance from Company Account (${selectedCompanyAccount})` : ''),
           project: row.project || '',
           status: initialStatus,
@@ -1230,11 +1331,30 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           givenByEmployeeId: finalGivenByEmployeeId,
           givenByEmployeeName: finalGivenByEmployeeName,
           paidByName: finalPaidByName,
+          paidByEmployeeId: row.paidByEmployeeId || null,
+          beneficiaryEmployeeId: row.beneficiaryEmployeeId || (isMed && row.paidToType === 'employee' ? row.paidTo : null) || null,
+          beneficiaryEmployeeName: row.beneficiaryEmployeeName || (isMed && row.paidToName ? row.paidToName : null) || null,
+          submittedByEmployeeId: row.submittedByEmployeeId || null,
           transferredToName: row.transferredToName || (recipientEmpForAdv ? recipientEmpForAdv.name : null),
           linkedAdvanceId: linkedAdvanceId,
           isCashAdvance: !!linkedAdvanceId,
           ...portalApprovalFields
         })
+
+        if (isMed) {
+          try {
+            await addDoc(collection(db, 'organisations', user.orgId, 'audit_logs'), {
+              module: 'Advance-Expense',
+              action: 'Create Medical Claim',
+              details: `Medical ${type} recorded: ${finalCategory} (₹${Number(row.amount)}) for ${finalEmployeeName}${row.beneficiaryEmployeeName ? ` (Beneficiary: ${row.beneficiaryEmployeeName})` : ''}. Deductible from Payroll: ${isDed ? 'Yes' : 'No'}.`,
+              userName: user?.name || user?.email || 'User',
+              userId: user?.uid || '',
+              timestamp: serverTimestamp()
+            })
+          } catch (auditErr) {
+            console.error('Failed to log medical audit:', auditErr)
+          }
+        }
         
         // Update the linked advance with expense ID
         if (linkedAdvanceId) {
@@ -1250,7 +1370,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       queryClient.invalidateQueries(['vehicle_expenses', user?.orgId])
       queryClient.invalidateQueries(['vehicle_history'])
       const todayDate = new Date().toISOString().split('T')[0]
-      setAddRows([{ id: Date.now(), date: todayDate, deductionMonth: getDefaultAdvanceDeductionMonth(todayDate), manualDeductionMonth: false, employeeId: ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }])
+      setAddRows([{ id: Date.now(), date: todayDate, deductionMonth: getDefaultAdvanceDeductionMonth(todayDate), manualDeductionMonth: false, employeeId: ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '', isMedical: false, isDeductible: activeModule === 'Add Advance' }])
       try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
       // Note: Drawer will open automatically showing submitted items
     }
@@ -1769,6 +1889,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       setActivePaidToRowId(null)
       return
     }
+    setActiveMedicalRowId(null)
+    setActiveSiteRowId(null)
+    setActiveVehicleRowId(null)
     setTimeout(() => {
       const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
       if (cellElem) {
@@ -1802,6 +1925,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       setActiveSiteRowId(null)
       return
     }
+    setActivePaidToRowId(null)
+    setActiveMedicalRowId(null)
+    setActiveVehicleRowId(null)
     setTimeout(() => {
       const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
       if (cellElem) {
@@ -1828,6 +1954,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       setActiveVehicleRowId(null)
       return
     }
+    setActivePaidToRowId(null)
+    setActiveMedicalRowId(null)
+    setActiveSiteRowId(null)
     setTimeout(() => {
       const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
       if (cellElem) {
@@ -1846,6 +1975,40 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       setActiveVehicleRowId(rowId)
       setIsCustomVehicleActive(false)
       setVehicleSearchTerm('')
+    }, 10)
+  }
+
+  const openMedicalBeneficiaryPopover = (rowId, targetElem) => {
+    if (!rowId) {
+      setActiveMedicalRowId(null)
+      return
+    }
+    setActivePaidToRowId(null)
+    setActiveSiteRowId(null)
+    setActiveVehicleRowId(null)
+    setTimeout(() => {
+      const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
+      if (cellElem) {
+        const rect = cellElem.getBoundingClientRect()
+        const popupHeight = 330
+        const spaceBelow = window.innerHeight - rect.bottom
+        let topPos = rect.bottom + 4
+
+        if (spaceBelow < 140 && rect.top - popupHeight >= 110) {
+          topPos = rect.top - popupHeight - 4
+        } else if (spaceBelow < 280) {
+          cellElem.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+          const updatedRect = cellElem.getBoundingClientRect()
+          topPos = updatedRect.bottom + 4
+        }
+
+        setMedicalPopoverPos({
+          top: Math.max(110, topPos),
+          left: Math.min(window.innerWidth - 360, Math.max(10, rect.left))
+        })
+      }
+      setActiveMedicalRowId(rowId)
+      setMedicalSearchTerm('')
     }, 10)
   }
 
@@ -1894,6 +2057,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
       if (vehiclePopoverRef.current && !vehiclePopoverRef.current.contains(event.target)) {
         setActiveVehicleRowId(null)
+      }
+      if (medicalPopoverRef.current && !medicalPopoverRef.current.contains(event.target)) {
+        setActiveMedicalRowId(null)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -2015,6 +2181,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const trimmed = (categoryName || '').trim()
     if (!trimmed) return
     const isPetrol = isPetrolCategory(trimmed)
+    const isMed = isMedicalCategory(trimmed)
 
     // 1. Immediately and atomically update row to use this new category and clear custom input
     setAddRows(prev => prev.map(row => {
@@ -2023,6 +2190,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           ...row,
           category: trimmed,
           customCategory: '',
+          isMedical: isMed,
+          isDeductible: isMed
+            ? (row.isDeductible !== undefined ? row.isDeductible : (activeModule === 'Add Advance' ? true : false))
+            : row.isDeductible,
           ...(enableSiteRemarks && isPetrol && !row.siteName && availableSiteNames.length > 0
             ? { siteName: availableSiteNames[0] }
             : {})
@@ -2030,6 +2201,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
       return row
     }))
+
+    if (isMed) {
+      openMedicalBeneficiaryPopover(rowId)
+    }
 
     // 2. Add to appropriate local categories state and persist to Firestore
     if (!user?.orgId) return
@@ -2044,7 +2219,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           advanceCategories: arrayUnion(trimmed)
         }, { merge: true })
       } else {
-        const newCatItem = { name: trimmed, payableToOthers: false }
+        const newCatItem = { name: trimmed, isMedical: isMed, payableToOthers: false }
         setExpenseCategoriesList(prev => {
           if (prev.some(c => (typeof c === 'string' ? c : c?.name || '').toLowerCase() === trimmed.toLowerCase())) return prev
           return [...prev, newCatItem]
@@ -2121,7 +2296,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const matchesProject = !reportFilterProject ||
           (e.project && e.project.toLowerCase().includes(reportFilterProject.toLowerCase()))
 
-        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout && matchesProject
+        // Medical filter
+        let matchesMedical = true
+        if (reportFilterMedical === 'Medical') {
+          matchesMedical = isMedicalClaim(e)
+        } else if (reportFilterMedical === 'Deductible') {
+          matchesMedical = isMedicalClaim(e) && isMedicalDeductible(e)
+        } else if (reportFilterMedical === 'Non-Deductible') {
+          matchesMedical = isMedicalClaim(e) && !isMedicalDeductible(e)
+        }
+
+        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout && matchesProject && matchesMedical
       })
 
       setFilteredEntries(filtered)
@@ -2131,7 +2316,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (entries.length > 0) {
       autoApplyFilters()
     }
-  }, [entries, employees, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategories, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth, reportFilterProject])
+  }, [entries, employees, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategories, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth, reportFilterProject, reportFilterMedical])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -2178,7 +2363,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const isEmployeeEntry = !portalMode && ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'employee'
     const activeEmp = isSelfEntry ? getMyEmpId() : (sessionDefaultEmp || getMyEmpId() || '')
     const newId = Date.now() + Math.random()
-    setAddRows(prev => [...prev, { id: newId, date: sessionDate || new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '' }])
+    setAddRows(prev => [...prev, { id: newId, date: sessionDate || new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '', isMedical: false, isDeductible: activeModule === 'Add Advance' }])
     // Employee-entry grids intentionally begin the next row in Employee;
     // self-entry grids keep the faster Category-first data-entry flow.
     setTimeout(() => {
@@ -2367,8 +2552,39 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const handleRowChange = (id, field, value) => {
     setAddRows(prev => prev.map(row => {
       if (row.id === id) {
-        if (field === 'category' && value === 'Others') {
-          setTransferModalRowId(id)
+        if (field === 'category') {
+          if (value === 'Others') {
+            setTransferModalRowId(id)
+          }
+          const isMed = isMedicalCategory(value)
+          return {
+            ...row,
+            category: value,
+            isMedical: isMed,
+            isDeductible: isMed
+              ? (row.isDeductible !== undefined ? row.isDeductible : (activeModule === 'Add Advance' ? true : false))
+              : row.isDeductible
+          }
+        }
+        if (field === 'customCategory') {
+          const isMed = isMedicalCategory(value) || isMedicalCategory(row.category)
+          return {
+            ...row,
+            customCategory: value,
+            isMedical: isMed,
+            isDeductible: isMed
+              ? (row.isDeductible !== undefined ? row.isDeductible : (activeModule === 'Add Advance' ? true : false))
+              : row.isDeductible
+          }
+        }
+        if (field === 'employeeId') {
+          const isMed = Boolean(row.isMedical || isMedicalCategory(row.category) || isMedicalCategory(row.customCategory))
+          const selfId = getMyEmpId()
+          return {
+            ...row,
+            employeeId: value,
+            paidByEmployeeId: isMed && value && value !== selfId ? (row.paidByEmployeeId || selfId) : (value === selfId ? '' : row.paidByEmployeeId)
+          }
         }
         // Handle paidToType changes - reset values when switching types
         if (field === 'paidToType') {
@@ -2456,8 +2672,15 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     // For out-of-pocket expenses, the primary employee is the giver
     const effectivePrimaryEmpId = (!isCompany && resolvedGivenBy) ? resolvedGivenBy : (resolvedPaidTo || entry.employeeId)
 
+    const isMed = isMedicalClaim(entry) || isMedicalCategory(entry.category)
+    const isDed = entry.isDeductible !== undefined
+      ? Boolean(entry.isDeductible)
+      : (entry.type === 'Advance' ? (entry.deductFromPayroll !== false) : false)
+
     setEditForm({
       ...entry,
+      isMedical: isMed,
+      isDeductible: isDed,
       deductionMonth: entry.deductionMonth || getDefaultAdvanceDeductionMonth(entry.date),
       recoveryType: entry.recoveryType || 'payroll',
       paymentSource: resolvedPaymentSource,
@@ -2506,16 +2729,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const finalGivenByEmployeeName = isCompanyAccount ? selectedCompanyAccount : (payerEmp?.name || editForm.givenByEmployeeName || null)
       const finalPaidByName = isCompanyAccount ? selectedCompanyAccount : (payerEmp?.name || editForm.paidByName || user.name || user.email)
 
+      const isMed = Boolean(editForm.isMedical || isMedicalCategory(category))
+      const isDed = editForm.isDeductible !== undefined
+        ? Boolean(editForm.isDeductible)
+        : (type === 'Advance' ? true : false)
+
       const updatedData = {
         ...editForm,
         type: type,
         category: category,
+        isMedical: isMed,
+        isDeductible: isMed ? isDed : (type === 'Advance' ? (editForm.deductFromPayroll !== false) : false),
         employeeId: finalEmployeeId,
         employeeName: finalEmployeeName,
         amount: Number(editForm.amount),
         deductionMonth: editForm.deductionMonth || getDefaultAdvanceDeductionMonth(editForm.date),
         recoveryType: editForm.recoveryType || 'payroll',
-        deductFromPayroll: editForm.recoveryType !== 'loan' && editForm.deductFromPayroll !== false,
+        deductFromPayroll: isMed ? isDed : (editForm.recoveryType !== 'loan' && editForm.deductFromPayroll !== false),
         paymentSource: isEditTransfer ? (isCompanyAccount ? 'company_account' : 'employee') : (editForm.paymentSource || 'employee'),
         companyAccount: isCompanyAccount ? selectedCompanyAccount : null,
         paidFromAccount: isCompanyAccount ? selectedCompanyAccount : null,
@@ -2531,6 +2761,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
 
       await updateMutation.mutateAsync({ id: editingId, data: updatedData, revokeAdvFlag: revokeAdvance })
+
+      if (isMed) {
+        try {
+          await addDoc(collection(db, 'organisations', user.orgId, 'audit_logs'), {
+            module: 'Advance-Expense',
+            action: 'Update Medical Claim',
+            details: `Medical claim updated: ${category} (₹${Number(editForm.amount)}) for ${finalEmployeeName}. Deductible from Payroll: ${isDed ? 'Yes' : 'No'}.`,
+            userName: user?.name || user?.email || 'User',
+            userId: user?.uid || '',
+            timestamp: serverTimestamp()
+          })
+        } catch (auditErr) {
+          console.error('Failed to log medical edit audit:', auditErr)
+        }
+      }
       setEditingId(null)
       setEditForm({})
       setIsEditCustomSite(false)
@@ -2553,7 +2798,26 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       return alert(`Your employee record is not linked to this account yet. Ask HR to link your employee profile before submitting a ${entryLabel}.`)
     }
     const rowsForSubmission = isSelfEntrySubmission
-      ? addRows.map((row) => ({ ...row, employeeId: selfEmployeeId }))
+      ? addRows.map((row) => {
+          const isMed = isMedicalClaim(row) || isMedicalCategory(row.category) || isMedicalCategory(row.customCategory) || Boolean(row.isMedical)
+          if (isMed) {
+            const rawBenId = row.beneficiaryEmployeeId || (row.employeeId && row.employeeId !== selfEmployeeId ? row.employeeId : null)
+            const benEmp = rawBenId ? employees.find(e => e.id === rawBenId) : null
+            const benName = row.beneficiaryEmployeeName || benEmp?.name || null
+            return {
+              ...row,
+              employeeId: selfEmployeeId,
+              paidByEmployeeId: selfEmployeeId,
+              submittedByEmployeeId: selfEmployeeId,
+              beneficiaryEmployeeId: rawBenId,
+              beneficiaryEmployeeName: benName,
+              paidTo: rawBenId || row.paidTo || null,
+              paidToName: benName || row.paidToName || null,
+              paidToType: rawBenId ? 'employee' : row.paidToType || null
+            }
+          }
+          return { ...row, employeeId: selfEmployeeId }
+        })
       : addRows
     if (isExpenseModule) {
       if (sessionDate > todayStr || rowsForSubmission.some(r => r.date && r.date > todayStr)) {
@@ -3974,6 +4238,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     setReportFilterType('All')
     setReportFilterPayout('All')
     setReportFilterProject('')
+    setReportFilterMedical('All')
     setReportMonth(new Date().toISOString().slice(0, 7))
   }
 
@@ -4019,6 +4284,50 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const visibleReportEntries = reportUnifiedRows
   const selectableReportEntries = visibleReportEntries.filter((entry) => !entry.isTransferredAdvance)
   const selectedVisibleReportCount = selectableReportEntries.filter((entry) => reportSelectedEntryIds.includes(entry.id)).length
+
+  const medicalAuditRows = useMemo(() => {
+    return reportUnifiedRows.filter(isMedicalClaim)
+  }, [reportUnifiedRows])
+
+  const medicalKpiMetrics = useMemo(() => {
+    const activeClaims = medicalAuditRows.filter((r) => r.status !== 'Rejected')
+    const totalAmount = activeClaims.reduce((sum, r) => sum + effectiveAmount(r), 0)
+    const deductibleAmount = activeClaims
+      .filter(isMedicalDeductible)
+      .reduce((sum, r) => sum + effectiveAmount(r), 0)
+    const nonDeductibleAmount = activeClaims
+      .filter((r) => !isMedicalDeductible(r))
+      .reduce((sum, r) => sum + effectiveAmount(r), 0)
+    const claimantIds = new Set(
+      activeClaims
+        .map((r) => r.employeeId || employees?.find((emp) => emp.name === (r.employeeName || r.employee))?.id)
+        .filter(Boolean)
+    )
+    return {
+      totalAmount,
+      deductibleAmount,
+      nonDeductibleAmount,
+      claimantsCount: claimantIds.size,
+      totalCount: activeClaims.length
+    }
+  }, [medicalAuditRows, employees])
+
+  const medicalQuotaList = useMemo(() => {
+    const currentMonth = reportMonth || new Date().toISOString().slice(0, 7)
+    const policy = orgSettings?.medicalEligibility || DEFAULT_MEDICAL_ELIGIBILITY
+    const summary = calculateMedicalQuotaSummary(entries, employees || [], currentMonth, policy)
+
+    if (!medicalQuotaSearch?.trim()) {
+      return summary
+    }
+    const q = medicalQuotaSearch.trim().toLowerCase()
+    return summary.filter((item) => {
+      const name = String(item.employee?.name || '').toLowerCase()
+      const code = String(item.employee?.employeeId || item.employee?.id || '').toLowerCase()
+      const dept = String(item.employee?.department || '').toLowerCase()
+      return name.includes(q) || code.includes(q) || dept.includes(q)
+    })
+  }, [entries, employees, reportMonth, orgSettings, medicalQuotaSearch])
 
   const handleScreenshot = async () => {
     const button = document.querySelector('button[title="Take Screenshot"]')
@@ -4296,6 +4605,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           if (details.displayGivenBy) {
             categoryDisplay += `\n(Given by ${details.displayGivenBy})`
           }
+          if (isMedicalClaim(a)) {
+            categoryDisplay += `\n[Medical: ${isMedicalDeductible(a) ? 'Deductible' : 'Grant'}]`
+          }
           return [
             formatDateSafe(a.date),
             details.displayEmployeeName || a.employeeName || '—',
@@ -4364,6 +4676,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           const isGivenToOthers = (e.category && e.category.toLowerCase().includes('given to others')) || (recipientName && recipientName !== (details.displayEmployeeName || e.employeeName))
           if (isGivenToOthers && recipientName) {
             categoryDisplay += `\n(${details.displayEmployeeName || e.employeeName} -> ${recipientName})`
+          }
+          if (isMedicalClaim(e)) {
+            const benName = details.beneficiaryName || e.beneficiaryEmployeeName
+            const forStr = benName && benName.toLowerCase().trim() !== String(details.displayEmployeeName || e.employeeName || '').toLowerCase().trim() ? ` For: ${benName}` : ''
+            categoryDisplay += `\n[Medical: ${isMedicalDeductible(e) ? 'Deductible' : 'Grant'}${forStr}]`
           }
 
           return [
@@ -4479,11 +4796,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const dataToUseExp = expForReport || []
 
       const rows = []
-      rows.push(['Type', 'Date', 'Name', 'Category', 'Request Type', 'Payout Method', 'Remarks', 'Amount', 'Paid To', 'Project', 'Status', 'HR Approval', 'MD Approval', 'Payment Status', 'Transaction No'])
+      rows.push(['Type', 'Date', 'Name', 'Category', 'Request Type', 'Payout Method', 'Remarks', 'Amount', 'Paid To', 'Project', 'Status', 'HR Approval', 'MD Approval', 'Payment Status', 'Transaction No', 'Medical Claim', 'Payroll Deductible'])
 
       dataToUseAdv.forEach(a => {
         const details = resolveReportEntryDetails(a, employees, entries)
         const catDisplay = details.displayGivenBy ? `${details.displayCategory} (Given by ${details.displayGivenBy})` : (details.displayCategory || a.category || '')
+        const isMed = isMedicalClaim(a)
         rows.push([
           'Advance',
           formatDate(a.date),
@@ -4499,13 +4817,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           a.hrApproval || '',
           a.mdApproval || '',
           a.paymentStatus || '',
-          a.transactionNo || ''
+          a.transactionNo || '',
+          isMed ? 'Yes' : 'No',
+          isMed ? (isMedicalDeductible(a) ? 'Deductible' : 'Non-Deductible') : 'N/A'
         ])
       })
 
       dataToUseExp.forEach(e => {
         const details = resolveReportEntryDetails(e, employees, entries)
         const catDisplay = details.displayCategory || e.category || ''
+        const isMed = isMedicalClaim(e)
         rows.push([
           'Expense',
           formatDate(e.date),
@@ -4521,7 +4842,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           e.hrApproval || '',
           e.mdApproval || '',
           e.paymentStatus || '',
-          e.transactionNo || ''
+          e.transactionNo || '',
+          isMed ? 'Yes' : 'No',
+          isMed ? (isMedicalDeductible(e) ? 'Deductible' : 'Non-Deductible') : 'N/A'
         ])
       })
 
@@ -4716,6 +5039,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         ? 'Expense'
                         : resolveAccountingEntryType(next, advanceCategoriesList, expenseCategoriesList)
                       next.type = newType
+                      const isMed = isMedicalCategory(newCat)
+                      if (isMed) {
+                        next.isMedical = true
+                        if (next.isDeductible === undefined) {
+                          next.isDeductible = newType === 'Advance' ? true : false
+                        }
+                      }
                       const isTransfer = newCat.toLowerCase().includes('given to others') || newCat.toLowerCase().includes('cash advance')
                       if (isTransfer) {
                         if (!next.paymentSource) next.paymentSource = 'company_account'
@@ -4760,7 +5090,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
               {!isEditTransfer && (
                 <div>
-                  <label className="mb-1 block text-[11px] font-bold text-gray-700">Employee</label>
+                  <label className="mb-1 block text-[11px] font-bold text-gray-700">
+                    {(editForm.isMedical || isMedicalCategory(editForm.category)) ? 'Beneficiary Staff Member' : 'Employee'}
+                  </label>
                   <select
                     value={editForm.employeeId}
                     onChange={e => {
@@ -4776,6 +5108,68 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {/* Medical Healthcare Claim & Deductibility Card */}
+              {(editForm.isMedical || isMedicalCategory(editForm.category)) && (
+                <div className="sm:col-span-2 rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 space-y-3 shadow-xs font-body">
+                  <div className="flex items-center justify-between border-b border-rose-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white shadow-xs">
+                        <HeartPulse size={13} />
+                      </span>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 font-heading">Medical Healthcare Claim</h4>
+                        <p className="text-[11px] text-slate-500 font-body">Manage healthcare beneficiary assignment and payroll recovery eligibility.</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border bg-rose-100/70 text-rose-700 border-rose-200 font-mono">
+                      Healthcare
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-gray-700">Beneficiary Staff Member</label>
+                      <select
+                        value={editForm.employeeId}
+                        onChange={e => {
+                          const empId = e.target.value
+                          const emp = sortedEmployees.find(em => em.id === empId)
+                          setEditForm(f => ({ ...f, employeeId: empId, employeeName: emp?.name || f.employeeName }))
+                        }}
+                        className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900 font-medium"
+                      >
+                        <option value="">Select Beneficiary...</option>
+                        {sortedEmployees.map(e => (
+                          <option key={e.id} value={e.id}>
+                            {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col justify-center">
+                      <label className="text-[11px] font-bold text-gray-700 mb-1">Payroll Deduction Status</label>
+                      <label className="flex items-start gap-2 cursor-pointer bg-white p-2.5 rounded-lg border border-rose-200 shadow-2xs">
+                        <input
+                          type="checkbox"
+                          checked={editForm.isDeductible !== false}
+                          onChange={e => setEditForm(f => ({ ...f, isDeductible: e.target.checked }))}
+                          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="text-xs">
+                          <span className="font-semibold text-slate-800 block">Deductible from Payroll</span>
+                          <span className="text-[10px] text-slate-500 block leading-tight">
+                            {editForm.isDeductible !== false
+                              ? 'Amount will be recovered through monthly salary deductions.'
+                              : 'Non-deductible healthcare assistance (funded by company, zero payroll deduction).'}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -5741,59 +6135,63 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                        <th className="py-2.5 px-1 w-7 text-center">#</th>
-                        {!portalMode && !isSelfEntry && <th className="py-2.5 px-1.5 w-40">Employee <span className="text-rose-500">*</span></th>}
-                        <th className="py-2.5 px-1 w-[100px] text-center">Date <span className="text-rose-500">*</span></th>
-                        {activeModule === 'Add Advance' && (
-                          <th className="py-2.5 px-1 w-[95px] text-center" title="Target payroll month for salary advance deduction">Payroll Month</th>
-                        )}
-                        <th className="py-2.5 px-1.5 w-[195px]">Category <span className="text-rose-500">*</span></th>
-                        {showAdvanceFields && (
-                          <th className="py-2.5 px-1.5 w-36">Paid To <span className="text-rose-500">*</span></th>
-                        )}
-                        <th className="py-2.5 px-1.5 w-24 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
-                        {!portalMode && showSessionPayout && <th className="py-2.5 px-1.5 w-24">Payout <span className="text-rose-500">*</span></th>}
-                        <th className="py-2.5 px-1.5 w-[220px]">Brief Description</th>
-                        {showProjectColumn && (
-                          <th className="py-2.5 px-1.5 w-28">Project</th>
-                        )}
-                        <th className="py-2.5 px-1 w-16 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200/60">
-                      {addRows.map((row, idx) => {
-                        const empInfo = getEmpAvatarInitials(row.employeeId);
-                        const catDetails = getCategoryIconDetails(row.category);
-                        const CategoryIcon = catDetails.icon;
-
-                        return (
-                          <tr key={row.id} className="h-[54px] border-b border-slate-200/80 hover:bg-indigo-50/20 transition-colors group">
-                            {/* Row Index */}
-                            <td className="bg-slate-50/70 py-1 px-1 text-center text-slate-500 font-bold text-xs w-7">
-                              {idx + 1}
-                            </td>
-
-                            {!portalMode && !isSelfEntry && (
-                              <td id={`employee-cell-${row.id}`} className="py-1 px-1.5 w-40">
-                                <select
-                                  value={row.employeeId}
-                                  onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
-                                  disabled={!canChooseEntryEmployee}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                >
-                                  <option value="">Select Employee...</option>
-                                  {sortedEmployees.map(e => (
-                                    <option key={e.id} value={e.id}>
-                                      {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
+                {(() => {
+                  return (
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                            <th className="py-2.5 px-1 w-7 text-center">#</th>
+                            {(!portalMode && !isSelfEntry) && (
+                              <th className="py-2.5 px-1.5 w-40">Employee <span className="text-rose-500">*</span></th>
                             )}
+                            <th className="py-2.5 px-1 w-[100px] text-center">Date <span className="text-rose-500">*</span></th>
+                            {activeModule === 'Add Advance' && (
+                              <th className="py-2.5 px-1 w-[95px] text-center" title="Target payroll month for salary advance deduction">Payroll Month</th>
+                            )}
+                            <th className="py-2.5 px-1.5 w-[195px]">Category <span className="text-rose-500">*</span></th>
+                            {showAdvanceFields && (
+                              <th className="py-2.5 px-1.5 w-36">Paid To <span className="text-rose-500">*</span></th>
+                            )}
+                            <th className="py-2.5 px-1.5 w-24 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
+                            {!portalMode && showSessionPayout && <th className="py-2.5 px-1.5 w-24">Payout <span className="text-rose-500">*</span></th>}
+                            <th className="py-2.5 px-1.5 w-[220px]">Brief Description</th>
+                            {showProjectColumn && (
+                              <th className="py-2.5 px-1.5 w-28">Project</th>
+                            )}
+                            <th className="py-2.5 px-1 w-16 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200/60">
+                          {addRows.map((row, idx) => {
+                            const empInfo = getEmpAvatarInitials(row.employeeId);
+                            const catDetails = getCategoryIconDetails(row.category);
+                            const CategoryIcon = catDetails.icon;
+
+                            return (
+                              <tr key={row.id} className="h-[54px] border-b border-slate-200/80 hover:bg-indigo-50/20 transition-colors group">
+                                {/* Row Index */}
+                                <td className="bg-slate-50/70 py-1 px-1 text-center text-slate-500 font-bold text-xs w-7">
+                                  {idx + 1}
+                                </td>
+
+                                {(!portalMode && !isSelfEntry) && (
+                                  <td id={`employee-cell-${row.id}`} className="py-1 px-1.5 w-40">
+                                    <select
+                                      value={row.employeeId || ''}
+                                      onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
+                                      disabled={!canChooseEntryEmployee}
+                                      className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                    >
+                                      <option value="">Select Employee...</option>
+                                      {sortedEmployees.map(e => (
+                                        <option key={e.id} value={e.id}>
+                                          {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                )}
 
                             {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
                               <td className="py-1 px-1 w-[100px] text-center">
@@ -5830,6 +6228,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     handleRowChange(row.id, 'category', val);
                                     if (isCategoryPayableToOthers(val)) {
                                       openPaidToPopover(row.id, e?.target);
+                                    }
+                                    if (isMedicalCategory(val)) {
+                                      openMedicalBeneficiaryPopover(row.id, e?.target);
                                     }
                                     if (enableSiteRemarks && isPetrolCategory(val)) {
                                       if (!row.siteName && availableSiteNames.length > 0) {
@@ -5980,6 +6381,241 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       </button>
                                     )}
                                   </div>
+                                )}
+
+                                {/* Sub-badge: Medical Claim Beneficiary & Deductibility toggle */}
+                                {(isMedicalCategory(row.category) || isMedicalCategory(row.customCategory) || row.isMedical) && (
+                                  <div className="mt-1 space-y-0.5">
+                                    {/* Beneficiary Pill */}
+                                    <div
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openMedicalBeneficiaryPopover(activeMedicalRowId === row.id ? null : row.id, e.currentTarget);
+                                      }}
+                                      className="h-[20px] flex items-center justify-between gap-1 text-[9.5px] leading-none font-bold bg-rose-50/95 hover:bg-rose-100 text-rose-900 px-1.5 py-0 rounded border border-rose-200/90 shadow-2xs cursor-pointer transition-all group/medbadge"
+                                      title="Click to assign or change beneficiary employee"
+                                    >
+                                      <div className="flex items-center gap-1 overflow-hidden min-w-0">
+                                        <HeartPulse size={10} className="text-rose-600 shrink-0" />
+                                        <span className="text-rose-700 font-semibold shrink-0 text-[9px]">For:</span>
+                                        <span className="text-rose-950 font-bold truncate text-[9.5px]">
+                                          {(() => {
+                                            const rawBenId = row.beneficiaryEmployeeId || (isSelfEntry ? (row.employeeId !== getMyEmpId() ? row.employeeId : null) : row.employeeId);
+                                            const benEmp = employees.find(e => e.id === (rawBenId || row.employeeId));
+                                            if (!rawBenId) {
+                                              return (isSelfEntry ? `${user?.name || 'Myself'} (Myself)` : 'Select Beneficiary...');
+                                            }
+                                            if (rawBenId === getMyEmpId()) {
+                                              return `${benEmp?.name || user?.name || 'Myself'} (Myself)`;
+                                            }
+                                            return benEmp ? benEmp.name : (row.beneficiaryEmployeeName || 'Colleague');
+                                          })()}
+                                        </span>
+                                      </div>
+                                      <span className="text-[8.5px] text-blue-700 underline font-bold shrink-0 opacity-80 group-hover/medbadge:opacity-100">
+                                        {(row.beneficiaryEmployeeId || row.employeeId) ? 'Change' : 'Choose'}
+                                      </span>
+                                    </div>
+
+                                    {/* Deductibility Toggle */}
+                                    <div className="h-[18px] flex items-center justify-between gap-1 text-[9px] leading-none bg-slate-50 px-1.5 py-0 rounded border border-slate-200">
+                                      <span className="text-slate-500 font-medium text-[8.5px]">Recovery:</span>
+                                      <label className="flex items-center gap-1 cursor-pointer leading-none" title="Whether this medical amount is recovered through monthly payroll deductions">
+                                        <input
+                                          type="checkbox"
+                                          checked={row.isDeductible !== false}
+                                          onChange={(e) => handleRowChange(row.id, 'isDeductible', e.target.checked)}
+                                          className="h-3 w-3 rounded border-rose-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <span className={`text-[8.5px] font-bold leading-none ${row.isDeductible !== false ? 'text-blue-700' : 'text-emerald-700'}`}>
+                                          {row.isDeductible !== false ? 'Deductible' : 'Company-Paid'}
+                                        </span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Medical Claim Beneficiary Popover */}
+                                {activeMedicalRowId === row.id && createPortal(
+                                  <div
+                                    ref={medicalPopoverRef}
+                                    style={{
+                                      position: 'fixed',
+                                      top: `${medicalPopoverPos.top}px`,
+                                      left: `${medicalPopoverPos.left}px`,
+                                      zIndex: 9999,
+                                      maxHeight: `min(460px, calc(100vh - ${medicalPopoverPos.top}px - 16px))`,
+                                      overflowY: 'auto'
+                                    }}
+                                    className="w-88 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-150 font-body"
+                                  >
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <HeartPulse size={14} className="text-rose-600 shrink-0" />
+                                        <span className="text-[11px] font-bold text-slate-800 font-heading">
+                                          Medical Claim Beneficiary
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => { setActiveMedicalRowId(null); setMedicalSearchTerm(''); }}
+                                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100 cursor-pointer"
+                                      >
+                                        <X size={13} />
+                                      </button>
+                                    </div>
+
+                                    {/* Current Selection & Quick Set to Myself */}
+                                    <div className="flex items-center justify-between bg-rose-50/70 border border-rose-200/80 rounded-lg p-2">
+                                      <div className="min-w-0 pr-2">
+                                        <span className="text-[10px] uppercase font-bold text-rose-700 block tracking-wider">Beneficiary Staff Member</span>
+                                        <span className="text-xs font-bold text-slate-900 truncate block">
+                                          {(() => {
+                                            const rawBenId = row.beneficiaryEmployeeId || (isSelfEntry ? (row.employeeId !== getMyEmpId() ? row.employeeId : null) : row.employeeId);
+                                            const benEmp = employees.find(e => e.id === (rawBenId || row.employeeId));
+                                            if (!rawBenId) return (isSelfEntry ? `${user?.name || 'Myself'} (Myself)` : 'None selected');
+                                            return `${benEmp ? benEmp.name : (row.beneficiaryEmployeeName || 'Colleague')}${rawBenId === getMyEmpId() ? ' (Myself)' : ''}`;
+                                          })()}
+                                        </span>
+                                      </div>
+                                      {getMyEmpId() && ((row.beneficiaryEmployeeId && row.beneficiaryEmployeeId !== getMyEmpId()) || (row.employeeId && row.employeeId !== getMyEmpId())) && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleRowChange(row.id, 'beneficiaryEmployeeId', '');
+                                            handleRowChange(row.id, 'beneficiaryEmployeeName', '');
+                                            handleRowChange(row.id, 'paidTo', '');
+                                            handleRowChange(row.id, 'paidToName', '');
+                                            handleRowChange(row.id, 'paidToType', null);
+                                            if (isSelfEntry) {
+                                              handleRowChange(row.id, 'employeeId', getMyEmpId());
+                                              handleRowChange(row.id, 'paidByEmployeeId', getMyEmpId());
+                                            }
+                                            setActiveMedicalRowId(null);
+                                            setMedicalSearchTerm('');
+                                          }}
+                                          className="text-[10px] font-bold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-2 py-1 rounded-md transition-colors shrink-0 cursor-pointer"
+                                        >
+                                          Set to Myself
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Deductibility Toggle in Popover */}
+                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 space-y-1">
+                                      <span className="text-[10px] uppercase font-bold text-slate-600 block tracking-wider">Payroll Recovery</span>
+                                      <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRowChange(row.id, 'isDeductible', true)}
+                                          className={`py-1.5 px-2 rounded-md text-center transition-all text-[11px] font-semibold cursor-pointer ${
+                                            row.isDeductible !== false
+                                              ? 'bg-blue-600 text-white font-bold shadow-xs'
+                                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                          }`}
+                                        >
+                                          ✓ Deductible
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRowChange(row.id, 'isDeductible', false)}
+                                          className={`py-1.5 px-2 rounded-md text-center transition-all text-[11px] font-semibold cursor-pointer ${
+                                            row.isDeductible === false
+                                              ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                          }`}
+                                        >
+                                          🏥 Company-Paid
+                                        </button>
+                                      </div>
+                                      <p className="text-[9.5px] text-slate-500 pt-0.5 leading-snug">
+                                        {row.isDeductible !== false
+                                          ? 'Deducted from the beneficiary employee\'s monthly salary slip.'
+                                          : 'Company healthcare grant. Bypasses salary deduction recovery.'}
+                                      </p>
+                                    </div>
+
+                                    {/* Search Input */}
+                                    <div className="space-y-1 pt-1">
+                                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                                        Choose Beneficiary Colleague
+                                      </label>
+                                      <div className="relative">
+                                        <Search size={12} className="absolute left-2.5 top-2.5 text-slate-400" />
+                                        <input
+                                          type="text"
+                                          value={medicalSearchTerm}
+                                          onChange={(e) => setMedicalSearchTerm(e.target.value)}
+                                          placeholder="Search by name or designation..."
+                                          className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                                          autoFocus
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* 2-Column Grid Layout of Active Employees */}
+                                    <div className="max-h-36 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-1 slim-scrollbar">
+                                      {sortedEmployees
+                                        .filter(e => {
+                                          const isActive = (e.status || 'Active').toLowerCase() === 'active';
+                                          const term = (medicalSearchTerm || '').toLowerCase();
+                                          const matchesSearch = !term ||
+                                            e.name.toLowerCase().includes(term) ||
+                                            (e.designation || '').toLowerCase().includes(term);
+                                          return isActive && matchesSearch;
+                                        })
+                                        .map(e => {
+                                          const currentBenId = row.beneficiaryEmployeeId || (isSelfEntry ? (row.employeeId !== getMyEmpId() ? row.employeeId : getMyEmpId()) : row.employeeId);
+                                          const isSelected = currentBenId === e.id;
+                                          const isMe = e.id === getMyEmpId();
+                                          return (
+                                            <button
+                                              key={e.id}
+                                              type="button"
+                                              onClick={() => {
+                                                if (isMe) {
+                                                  handleRowChange(row.id, 'beneficiaryEmployeeId', '');
+                                                  handleRowChange(row.id, 'beneficiaryEmployeeName', '');
+                                                  handleRowChange(row.id, 'paidTo', '');
+                                                  handleRowChange(row.id, 'paidToName', '');
+                                                  handleRowChange(row.id, 'paidToType', null);
+                                                  if (isSelfEntry) {
+                                                    handleRowChange(row.id, 'employeeId', getMyEmpId());
+                                                    handleRowChange(row.id, 'paidByEmployeeId', getMyEmpId());
+                                                  }
+                                                } else {
+                                                  handleRowChange(row.id, 'beneficiaryEmployeeId', e.id);
+                                                  handleRowChange(row.id, 'beneficiaryEmployeeName', e.name);
+                                                  handleRowChange(row.id, 'paidTo', e.id);
+                                                  handleRowChange(row.id, 'paidToName', e.name);
+                                                  handleRowChange(row.id, 'paidToType', 'employee');
+                                                  if (isSelfEntry) {
+                                                    handleRowChange(row.id, 'employeeId', getMyEmpId());
+                                                    handleRowChange(row.id, 'paidByEmployeeId', getMyEmpId());
+                                                  } else {
+                                                    if (!row.employeeId) handleRowChange(row.id, 'employeeId', e.id);
+                                                  }
+                                                }
+                                                setActiveMedicalRowId(null);
+                                                setMedicalSearchTerm('');
+                                              }}
+                                              className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold cursor-pointer ${
+                                                isSelected
+                                                  ? 'bg-rose-50 text-rose-700 font-bold border border-rose-200'
+                                                  : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                              }`}
+                                            >
+                                              <div className="truncate min-w-0">
+                                                <span className="truncate block">{e.name}</span>
+                                                {isMe && <span className="text-[9px] text-blue-600 block leading-tight font-medium">(Myself)</span>}
+                                              </div>
+                                              {isSelected && <Check size={12} className="text-rose-600 shrink-0" />}
+                                            </button>
+                                          );
+                                        })}
+                                    </div>
+                                  </div>,
+                                  document.body
                                 )}
 
                                 {/* 2-Column Searchable Site Popup */}
@@ -6623,6 +7259,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     </tbody>
                   </table>
                 </div>
+              );
+            })()}
 
                 <div className="md:hidden space-y-3 bg-slate-50/40 p-3">
                   {addRows.map((row, idx) => (
@@ -6651,6 +7289,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       getRowCategoryOptions={getRowCategoryOptions}
                       vehicleOptions={vehicleOptions}
                       handleSelectVehicle={handleSelectVehicle}
+                      selfEmployeeId={getMyEmpId()}
                     />
                   ))}
                 </div>
@@ -7451,6 +8090,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <option value="With Salary">With Salary</option>
                       </select>
                     </div>
+
+                    {/* Medical Claim Filter */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Medical Claims</label>
+                      <select 
+                        value={reportFilterMedical}
+                        onChange={(e) => setReportFilterMedical(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer font-medium"
+                      >
+                        <option value="All">All Claims (All Records)</option>
+                        <option value="Medical">Medical Claims Only</option>
+                        <option value="Deductible">Medical: Deductible from Payroll</option>
+                        <option value="Non-Deductible">Medical: Company-Funded (Non-Deductible)</option>
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>
@@ -7467,7 +8121,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   !!reportFilterTxn ||
                   reportFilterType !== 'All' ||
                   reportFilterPayout !== 'All' ||
-                  !!reportFilterProject
+                  !!reportFilterProject ||
+                  reportFilterMedical !== 'All'
                 if (!hasActiveFilters) return null
                 return (
                   <button 
@@ -7523,8 +8178,47 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
           )}
           
+          {/* SubTabs for Reports view: Register vs Medical Claims & Quotas */}
+          <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+            <button
+              type="button"
+              onClick={() => setReportActiveTab('register')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all font-heading ${
+                reportActiveTab === 'register'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <FileDown size={14} className={reportActiveTab === 'register' ? 'text-white' : 'text-slate-400'} />
+              Advance & Expense Register
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                reportActiveTab === 'register' ? 'bg-blue-700/60 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {reportUnifiedRows.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportActiveTab('medical')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all font-heading ${
+                reportActiveTab === 'medical'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <HeartPulse size={14} className={reportActiveTab === 'medical' ? 'text-white' : 'text-rose-500'} />
+              Medical Claims & Quotas
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                reportActiveTab === 'medical' ? 'bg-blue-700/60 text-white' : 'bg-rose-50 text-rose-700'
+              }`}>
+                {medicalAuditRows.length}
+              </span>
+            </button>
+          </div>
+
           {/* Reports Container for Screenshot */}
-          <div ref={reportsContainerRef} className="space-y-4 font-['Inter',sans-serif] w-fit max-w-full">
+          <div ref={reportsContainerRef} className="space-y-4 font-['Inter',sans-serif] w-full max-w-full">
+            {reportActiveTab === 'register' && (
             <div className="w-full max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
               <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2 gap-4 w-full">
                 <div className="flex items-center gap-2">
@@ -7669,6 +8363,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                         [Veh: {entry.vehicleName ? `${entry.vehicleName} - ${entry.vehicleNo}` : (entry.vehicleNo || entry.vehicleNumber)}]
                                       </span>
                                     )}
+                                    {(isMedicalClaim(entry) || isMedicalCategory(entry.category)) && (
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold border ${
+                                          isMedicalDeductible(entry)
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        }`}>
+                                          <HeartPulse size={9} />
+                                          Medical ({isMedicalDeductible(entry) ? 'Deductible' : 'Company-Paid'})
+                                        </span>
+                                        {(reportDetails.beneficiaryName || entry.beneficiaryEmployeeName) &&
+                                         (reportDetails.beneficiaryName || entry.beneficiaryEmployeeName).toLowerCase().trim() !== String(displayEmployeeName || '').toLowerCase().trim() && (
+                                          <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                            For: {reportDetails.beneficiaryName || entry.beneficiaryEmployeeName}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -7803,6 +8515,381 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </table>
               </div>
             </div>
+            )}
+
+            {/* Medical Claims & Quotas Dashboard */}
+            {reportActiveTab === 'medical' && (
+              <div className="space-y-6 w-full">
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* 1. Total Medical Spending */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500 font-body">Total Medical Spending</span>
+                      <div className="h-8 w-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+                        <HeartPulse size={16} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-slate-900 font-mono">
+                        ₹{formatINR(medicalKpiMetrics.totalAmount)}
+                      </span>
+                      <span className="text-xs text-slate-500 font-body">
+                        ({medicalKpiMetrics.totalCount} {medicalKpiMetrics.totalCount === 1 ? 'claim' : 'claims'})
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 font-body">
+                      Across advances & expenses
+                    </p>
+                  </div>
+
+                  {/* 2. Payroll Deductible Claims */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500 font-body">Payroll Recovered</span>
+                      <div className="h-8 w-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+                        <Banknote size={16} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-amber-700 font-mono">
+                        ₹{formatINR(medicalKpiMetrics.deductibleAmount)}
+                      </span>
+                      <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-body">
+                        Deductible
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 font-body">
+                      Recovered in employee salary slip
+                    </p>
+                  </div>
+
+                  {/* 3. Company-Funded Grants */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500 font-body">Company Grants</span>
+                      <div className="h-8 w-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                        <Sparkles size={16} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-emerald-700 font-mono">
+                        ₹{formatINR(medicalKpiMetrics.nonDeductibleAmount)}
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-body">
+                        Grant
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 font-body">
+                      Paid by company, 0 salary deduction
+                    </p>
+                  </div>
+
+                  {/* 4. Active Claimants */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500 font-body">Active Claimants</span>
+                      <div className="h-8 w-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                        <Users size={16} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-slate-900 font-mono">
+                        {medicalKpiMetrics.claimantsCount}
+                      </span>
+                      <span className="text-xs text-slate-500 font-body">
+                        staff member{medicalKpiMetrics.claimantsCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 font-body">
+                      Beneficiaries receiving care
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section 1: Medical Claims Transaction Audit Table */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between border-b border-slate-200 px-4 py-3 bg-white gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                        <HeartPulse size={15} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 font-heading">
+                          Medical Claims Audit Log
+                        </h3>
+                        <p className="text-[11px] text-slate-500 font-body">
+                          Historical claims with beneficiary allocation and payroll recovery classification
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+                      {medicalAuditRows.length} Claim{medicalAuditRows.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  {medicalAuditRows.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 mb-3">
+                        <HeartPulse size={24} />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-800 font-heading">No Medical Claims Found</h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm font-body">
+                        No medical expense or advance transactions recorded for the selected filter criteria.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left text-xs font-body">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                            <th className="px-3.5 py-2.5 whitespace-nowrap">Date</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap">Beneficiary Staff</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap">Type</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap">Category</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Amount</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap text-center">Payroll Deductibility</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap text-center">Status</th>
+                            <th className="px-3.5 py-2.5 whitespace-nowrap text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {medicalAuditRows.map((entry) => {
+                            const isDed = isMedicalDeductible(entry)
+                            const entryType = getAccountingEntryType(entry)
+                            const beneficiaryName = entry.employeeName || entry.employee || '—'
+                            const empObj = employees.find((e) => e.id === entry.employeeId || e.name === beneficiaryName)
+                            const dept = empObj?.department || ''
+
+                            return (
+                              <tr key={entry.id} className="hover:bg-slate-50/60 transition-colors">
+                                <td className="px-3.5 py-2.5 whitespace-nowrap font-mono text-slate-600 text-[11px]">
+                                  {entry.date ? new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-slate-900 font-heading">{beneficiaryName}</span>
+                                    {dept && <span className="text-[10px] text-slate-500 font-body">{dept}</span>}
+                                  </div>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    entryType === 'Advance'
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  }`}>
+                                    {entryType}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-700">
+                                  <div className="flex items-center gap-1.5">
+                                    <HeartPulse size={13} className="text-rose-500 shrink-0" />
+                                    <span className="font-medium">{entry.category || 'Medical'}</span>
+                                  </div>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap text-right font-mono font-bold text-slate-900">
+                                  ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(effectiveAmount(entry))}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap text-center">
+                                  {isDed ? (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200 font-body">
+                                      <Banknote size={12} className="text-amber-600" />
+                                      Deductible (Salary Recovery)
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-200 font-body">
+                                      <Sparkles size={12} className="text-emerald-600" />
+                                      Non-Deductible (Company Grant)
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap text-center">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                    entry.status === 'Approved'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : entry.status === 'Rejected'
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                  }`}>
+                                    {entry.status || 'Approved'}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap text-center">
+                                  {(isAdmin || entry.createdBy === user?.name || entry.createdById === user?.uid) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEdit(entry)}
+                                      className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                      title="Edit Claim"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Employee Healthcare Quota Utilization Table */}
+                <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between border-b border-slate-200 px-4 py-3 bg-white gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                        <Users size={15} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 font-heading">
+                          Employee Healthcare Quota Utilization
+                        </h3>
+                        <p className="text-[11px] text-slate-500 font-body">
+                          Target Month: <span className="font-mono font-semibold text-slate-700">{reportMonth || new Date().toISOString().slice(0, 7)}</span> | Comparison against monthly & annual ceilings
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Search input for Quota Table */}
+                    <div className="relative w-64">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={medicalQuotaSearch}
+                        onChange={(e) => setMedicalQuotaSearch(e.target.value)}
+                        placeholder="Search employee or dept..."
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs font-body">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Employee</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Monthly Quota</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Monthly Used</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Monthly Remaining</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Annual Quota</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Annual Used</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap">Annual Remaining</th>
+                          <th className="px-3.5 py-2.5 whitespace-nowrap text-center">Policy Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {medicalQuotaList.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="text-center py-8 text-slate-500 text-xs">
+                              No employee records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          medicalQuotaList.map((item) => {
+                            const empName = item.employee?.name || 'Staff'
+                            const empCode = item.employee?.employeeId || item.employee?.id || ''
+                            const dept = item.employee?.department || ''
+                            const isExceeded = item.monthlyExceeded > 0 || item.yearlyExceeded > 0
+                            const monthlyPct = item.monthlyLimit > 0 ? Math.min(100, Math.round((item.monthlyUsed / item.monthlyLimit) * 100)) : 0
+                            const yearlyPct = item.yearlyLimit > 0 ? Math.min(100, Math.round((item.yearlyUsed / item.yearlyLimit) * 100)) : 0
+
+                            return (
+                              <tr key={item.employeeId || item.employee?.id} className="hover:bg-slate-50/60 transition-colors">
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-slate-900 font-heading">{empName}</span>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                                      {empCode && <span className="font-mono">{empCode}</span>}
+                                      {dept && <span>• {dept}</span>}
+                                      {item.isOverridden && (
+                                        <span className="rounded bg-indigo-50 px-1 py-0.2 text-[9px] font-bold text-indigo-700 border border-indigo-200">
+                                          Custom Limit
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap font-mono text-slate-700">
+                                  ₹{formatINR(item.monthlyLimit)}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  <div className="flex flex-col">
+                                    <span className={`font-mono font-semibold ${item.monthlyExceeded > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                      ₹{formatINR(item.monthlyUsed)}
+                                    </span>
+                                    <div className="w-20 bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${item.monthlyExceeded > 0 ? 'bg-rose-500' : monthlyPct > 80 ? 'bg-amber-500' : 'bg-blue-600'}`}
+                                        style={{ width: `${monthlyPct}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  {item.monthlyExceeded > 0 ? (
+                                    <span className="font-mono text-rose-600 font-semibold text-[11px]">
+                                      -₹{formatINR(item.monthlyExceeded)} (Over)
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-emerald-700 font-semibold">
+                                      ₹{formatINR(item.monthlyRemaining)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap font-mono text-slate-700">
+                                  ₹{formatINR(item.yearlyLimit)}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  <div className="flex flex-col">
+                                    <span className={`font-mono font-semibold ${item.yearlyExceeded > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                      ₹{formatINR(item.yearlyUsed)}
+                                    </span>
+                                    <div className="w-20 bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${item.yearlyExceeded > 0 ? 'bg-rose-500' : yearlyPct > 80 ? 'bg-amber-500' : 'bg-emerald-600'}`}
+                                        style={{ width: `${yearlyPct}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                                  {item.yearlyExceeded > 0 ? (
+                                    <span className="font-mono text-rose-600 font-semibold text-[11px]">
+                                      -₹{formatINR(item.yearlyExceeded)} (Over)
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-emerald-700 font-semibold">
+                                      ₹{formatINR(item.yearlyRemaining)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3.5 py-2.5 whitespace-nowrap text-center">
+                                  {isExceeded ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
+                                      Exceeded Limit
+                                    </span>
+                                  ) : item.monthlyUsed > 0 ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
+                                      Active Claimant
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                                      Within Limit
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
