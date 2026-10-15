@@ -9055,27 +9055,27 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
 
                   <div className="max-h-[560px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
-                    <table className="w-full border-collapse text-left text-xs font-body">
-                      <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
-                        <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
-                          <th className="px-4 py-2.5">
+                    <table className="w-full border-separate border-spacing-0 text-left text-xs font-body">
+                      <thead className="sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                        <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-700 font-heading bg-slate-100/95">
+                          <th className="px-3 py-2 border-r border-b border-slate-200">
                             Employee
                           </th>
-                          <th className="px-3 py-2.5 text-right">
+                          <th className="px-3 py-2 text-right border-r border-b border-slate-200">
                             Advance
                           </th>
-                          <th className="px-3 py-2.5 text-right">
+                          <th className="px-3 py-2 text-right border-r border-b border-slate-200">
                             Expense
                           </th>
-                          <th className="px-4 py-2.5 text-right">
+                          <th className="px-3 py-2 text-right border-b border-slate-200">
                             Net Balance
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs">
+                      <tbody className="text-xs">
                         {filteredEmployeeRows.length === 0 ? (
                           <tr>
-                            <td colSpan={4} className="px-4 py-12 text-center text-xs font-normal text-slate-400">
+                            <td colSpan={4} className="px-4 py-12 text-center text-xs font-normal text-slate-400 border-b border-slate-200/60">
                               {summaryEmployeeSearch ? 'No matching employee found.' : `No employee advance or expense records for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
                             </td>
                           </tr>
@@ -9094,30 +9094,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 onClick={() => handleSelectSummaryEmployee(emp)}
                                 className={`group cursor-pointer transition-colors select-none ${
                                   isSelected
-                                    ? 'bg-blue-50/90'
-                                    : 'hover:bg-slate-50/80'
+                                    ? 'bg-blue-50/95'
+                                    : 'hover:bg-blue-50/30 even:bg-slate-50/35'
                                 }`}
                                 title={`Click to view advance breakdown for ${emp.name}`}
                               >
-                                <td className="px-4 py-2.5">
-                                  <div className="flex items-center justify-between gap-1.5">
-                                    <span
-                                      className={`font-semibold font-body transition-colors inline-flex items-center gap-1.5 ${
-                                        isSelected
-                                          ? 'text-blue-700'
-                                          : 'text-slate-800 group-hover:text-blue-600 hover:text-blue-700 hover:underline'
-                                      }`}
-                                    >
-                                      {emp.name}
-                                    </span>
-                                    {isSelected && (
-                                      <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/90 px-1.5 py-0.5 rounded font-heading shrink-0">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </div>
+                                <td className={`px-3 py-1.5 border-r border-b border-slate-200/60 border-l-2 transition-colors ${
+                                  isSelected ? 'border-l-blue-600' : 'border-l-transparent'
+                                }`}>
+                                  <span
+                                    className={`font-semibold font-body text-xs transition-colors inline-flex items-center ${
+                                      isSelected
+                                        ? 'text-blue-700'
+                                        : 'text-slate-800 group-hover:text-blue-600 hover:underline'
+                                    }`}
+                                  >
+                                    {emp.name}
+                                  </span>
                                 </td>
-                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
+                                <td className="px-3 py-1.5 text-right font-medium tabular-nums text-slate-700 border-r border-b border-slate-200/60">
                                   {emp.advance > 0 ? (
                                     <div>
                                       <div className="font-medium tabular-nums">{formatINR(emp.advance)}</div>
@@ -9132,27 +9127,27 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     </div>
                                   ) : <span className="text-slate-300 font-normal">—</span>}
                                 </td>
-                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
+                                <td className="px-3 py-1.5 text-right font-medium tabular-nums text-slate-700 border-r border-b border-slate-200/60">
                                   {emp.expense > 0 ? formatINR(emp.expense) : <span className="text-slate-300 font-normal">—</span>}
                                 </td>
-                                <td className="px-4 py-2.5 text-right tabular-nums">
+                                <td className="px-3 py-1.5 text-right tabular-nums border-b border-slate-200/60">
                                   {isAdvanceSurplus ? (
                                     <span
-                                      className="inline-flex items-center gap-1 rounded border border-emerald-200/70 bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800"
+                                      className="inline-flex items-center gap-0.5 rounded border border-emerald-200/70 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-emerald-800"
                                       title={emp.deductedInPrevMonth > 0 ? `Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in ${targetMonthName}) - Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Advance surplus (cash in hand)"}
                                     >
                                       +{formatINR(diff)}
                                     </span>
                                   ) : isExpenseSurplus ? (
                                     <span
-                                      className="inline-flex items-center gap-1 rounded border border-rose-200/70 bg-rose-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-rose-800"
+                                      className="inline-flex items-center gap-0.5 rounded border border-rose-200/70 bg-rose-50 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-rose-800"
                                       title={emp.deductedInPrevMonth > 0 ? `Expense ₹${emp.expense.toLocaleString('en-IN')} - Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (minus ₹${emp.deductedInPrevMonth.toLocaleString('en-IN')} in ${targetMonthName})` : "Expense surplus (due to employee)"}
                                     >
                                       -{formatINR(diff)}
                                     </span>
                                   ) : (
                                     <span
-                                      className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-500"
+                                      className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-slate-500"
                                       title={emp.deductedInPrevMonth > 0 ? `Settled: Advance ₹${effectiveAdvance.toLocaleString('en-IN')} (after ${targetMonthName} deduction) = Expense ₹${emp.expense.toLocaleString('en-IN')}` : "Settled (Advance = Expense)"}
                                     >
                                       ₹0.00
@@ -9165,29 +9160,29 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         )}
                       </tbody>
                       {monthlyStatement.employeeRows?.length > 0 && (
-                        <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                        <tfoot className="bg-slate-100/95 border-t-2 border-slate-300 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs shadow-2xs">
                           <tr>
-                            <td className="px-4 py-2.5 text-slate-800">Total ({monthlyStatement.employeeRows.length})</td>
-                            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-emerald-700">
-                              <div>{formatINR(employeeSummaryTotals.totalAdvance)}</div>
+                            <td className="px-3 py-2 border-r border-slate-200 text-slate-800 font-heading text-[11px]">Total ({monthlyStatement.employeeRows.length})</td>
+                            <td className="px-3 py-2 text-right font-medium tabular-nums text-emerald-700 border-r border-slate-200 text-xs">
+                              <div className="font-semibold">{formatINR(employeeSummaryTotals.totalAdvance)}</div>
                               {employeeSummaryTotals.totalDeductedInPrevMonth > 0 && (
-                                <div className="text-[10px] font-normal text-amber-700 font-body whitespace-nowrap">
+                                <div className="text-[9.5px] font-normal text-amber-700 font-body whitespace-nowrap">
                                   ({formatINR(employeeSummaryTotals.totalDeductedInPrevMonth)} in {employeeSummaryTotals.prevMonthName})
                                 </div>
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(employeeSummaryTotals.totalExpense)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">
+                            <td className="px-3 py-2 text-right font-semibold tabular-nums text-rose-700 border-r border-slate-200 text-xs">{formatINR(employeeSummaryTotals.totalExpense)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums text-xs">
                               {employeeSummaryTotals.totalNet > 0 ? (
                                 <span
-                                  className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800"
+                                  className="inline-flex items-center gap-0.5 rounded border border-emerald-200 bg-emerald-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800"
                                   title={employeeSummaryTotals.totalDeductedInPrevMonth > 0 ? `Advance ₹${employeeSummaryTotals.effectiveTotalAdvance.toLocaleString('en-IN')} (minus ₹${employeeSummaryTotals.totalDeductedInPrevMonth.toLocaleString('en-IN')} in ${employeeSummaryTotals.prevMonthName}) - Expense ₹${employeeSummaryTotals.totalExpense.toLocaleString('en-IN')}` : undefined}
                                 >
                                   +{formatINR(employeeSummaryTotals.totalNet)}
                                 </span>
                               ) : employeeSummaryTotals.totalNet < 0 ? (
                                 <span
-                                  className="inline-flex items-center gap-1 rounded border border-rose-200 bg-rose-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-rose-800"
+                                  className="inline-flex items-center gap-0.5 rounded border border-rose-200 bg-rose-100/70 px-1.5 py-0.5 text-xs font-bold tabular-nums text-rose-800"
                                   title={employeeSummaryTotals.totalDeductedInPrevMonth > 0 ? `Expense ₹${employeeSummaryTotals.totalExpense.toLocaleString('en-IN')} - Advance ₹${employeeSummaryTotals.effectiveTotalAdvance.toLocaleString('en-IN')} (minus ₹${employeeSummaryTotals.totalDeductedInPrevMonth.toLocaleString('en-IN')} in ${employeeSummaryTotals.prevMonthName})` : undefined}
                                 >
                                   -{formatINR(Math.abs(employeeSummaryTotals.totalNet))}
@@ -9316,50 +9311,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         </div>
                       ) : (
                         <div className="flex flex-col">
-                          {/* Selected Employee Detail Banner */}
-                          <div className="border-b border-slate-100 bg-slate-50/50 p-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-sm font-heading shadow-2xs shrink-0">
-                                  {activeSummaryEmployee.name ? activeSummaryEmployee.name.charAt(0).toUpperCase() : 'E'}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="text-sm font-bold text-slate-900 font-heading">{activeSummaryEmployee.name}</h4>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-heading">
-                                      Selected
-                                    </span>
-                                  </div>
-                                  {/* Types breakdown moved directly here with clean grey pills */}
-                                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-heading mr-0.5">Types:</span>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
-                                      Cash: {formatINR(selectedEmpAdvanceData?.cashAdvance || 0)}
-                                    </span>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
-                                      Salary: {formatINR(selectedEmpAdvanceData?.salaryAdvance || 0)}
-                                    </span>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
-                                      Transfer: {formatINR(selectedEmpAdvanceData?.gtoAdvance || 0)}
-                                    </span>
-                                    {selectedEmpAdvanceData && selectedEmpAdvanceData.otherAdvance > 0 && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium tabular-nums font-body">
-                                        Other: {formatINR(selectedEmpAdvanceData.otherAdvance)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                          {/* Selected Employee Header */}
+                          <div className="border-b border-slate-200 bg-slate-50/70 px-3.5 py-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs font-heading shadow-2xs shrink-0">
+                                {activeSummaryEmployee.name ? activeSummaryEmployee.name.charAt(0).toUpperCase() : 'E'}
                               </div>
-                              <div className="text-left sm:text-right shrink-0">
-                                <div className="text-[10px] uppercase font-bold text-slate-400 font-heading tracking-wider">Total Advance</div>
-                                <div className="text-base font-bold text-slate-900 tabular-nums font-heading">
-                                  {formatINR(selectedEmpAdvanceData?.totalAdvance || 0)}
-                                </div>
-                              </div>
+                              <h4 className="text-xs font-bold text-slate-900 font-heading">{activeSummaryEmployee.name}</h4>
                             </div>
                           </div>
 
-                          {/* Detailed Voucher Table for Selected Employee */}
+                          {/* Detailed Voucher Table for Selected Employee - Subtle Excel-like Grid */}
                           {!selectedEmpAdvanceData || selectedEmpAdvanceData.vouchers.length === 0 ? (
                             <div className="px-4 py-16 text-center text-xs font-normal text-slate-400">
                               <Banknote size={36} className="mx-auto text-slate-300 mb-2 stroke-[1.5]" />
@@ -9369,20 +9331,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               </p>
                             </div>
                           ) : (
-                            <table className="w-full border-collapse text-left text-xs font-body">
-                              <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
-                                <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
-                                  <th className="px-4 py-2.5">Date</th>
-                                  <th className="px-3 py-2.5">Type</th>
-                                  <th className="px-3 py-2.5">Given By</th>
-                                  <th className="px-3 py-2.5">Ref / Remarks</th>
-                                  <th className="px-4 py-2.5 text-right">Amount</th>
+                            <table className="w-full border-separate border-spacing-0 text-left text-xs font-body">
+                              <thead className="sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                                <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-700 font-heading bg-slate-100/95">
+                                  <th className="px-3 py-2 border-r border-b border-slate-200 whitespace-nowrap">Date</th>
+                                  <th className="px-3 py-2 border-r border-b border-slate-200">Type</th>
+                                  <th className="px-3 py-2 border-r border-b border-slate-200">Given By</th>
+                                  <th className="px-3 py-2 border-r border-b border-slate-200">Ref / Remarks</th>
+                                  <th className="px-3 py-2 text-right border-b border-slate-200">Amount</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100 text-xs">
+                              <tbody className="text-xs">
                                 {filteredSelectedEmpVouchers.length === 0 ? (
                                   <tr>
-                                    <td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">
+                                    <td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400 border-b border-slate-200/60">
                                       {cashSummaryRightSearch ? 'No vouchers matching search query.' : 'No vouchers found.'}
                                     </td>
                                   </tr>
@@ -9392,11 +9354,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     const isSalary = String(v.category || '').toLowerCase().includes('salary')
 
                                     return (
-                                      <tr key={v.id || vIdx} className="hover:bg-slate-50/80 transition-colors">
-                                        <td className="px-4 py-2.5 font-medium tabular-nums text-slate-800 whitespace-nowrap">
+                                      <tr key={v.id || vIdx} className="hover:bg-blue-50/30 even:bg-slate-50/35 transition-colors group">
+                                        <td className="px-3 py-1.5 border-r border-b border-slate-200/60 font-medium tabular-nums text-slate-800 whitespace-nowrap">
                                           {formatShortReportDate(v.date)}
                                         </td>
-                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                        <td className="px-2.5 py-1.5 border-r border-b border-slate-200/60 whitespace-nowrap">
                                           {isSalary ? (
                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 font-body">
                                               Salary Advance
@@ -9411,23 +9373,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                             </span>
                                           )}
                                         </td>
-                                        <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
+                                        <td className="px-2.5 py-1.5 border-r border-b border-slate-200/60 text-slate-600 whitespace-nowrap text-xs font-body">
                                           {v.givenBy ? (
                                             <span className="font-medium text-slate-700">{v.givenBy}</span>
                                           ) : (
                                             <span className="text-slate-300 font-normal">—</span>
                                           )}
                                         </td>
-                                        <td className="px-3 py-2.5 text-slate-500 max-w-[170px] truncate" title={v.reason || (v.transactionNo ? `#${v.transactionNo}` : '')}>
+                                        <td className="px-2.5 py-1.5 border-r border-b border-slate-200/60 text-slate-500 max-w-[170px] truncate text-xs font-body" title={v.reason || (v.transactionNo ? `#${v.transactionNo}` : '')}>
                                           {v.reason ? (
                                             <span>{v.reason}</span>
                                           ) : v.transactionNo ? (
-                                            <span className="font-mono text-[11px] text-slate-400">#{v.transactionNo}</span>
+                                            <span className="text-[11px] text-slate-400 font-body">#{v.transactionNo}</span>
                                           ) : (
                                             <span className="text-slate-300 font-normal">—</span>
                                           )}
                                         </td>
-                                        <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap">
+                                        <td className="px-3 py-1.5 text-right font-bold tabular-nums text-slate-900 whitespace-nowrap border-b border-slate-200/60">
                                           {formatINR(v.amount)}
                                         </td>
                                       </tr>
@@ -9435,12 +9397,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   })
                                 )}
                               </tbody>
-                              <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                              <tfoot className="bg-slate-100/95 border-t-2 border-slate-300 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs shadow-2xs">
                                 <tr>
-                                  <td colSpan={4} className="px-4 py-2.5 text-slate-800 font-body">
+                                  <td colSpan={4} className="px-3 py-2 border-r border-slate-200 text-slate-800 font-heading text-[11px]">
                                     Total ({filteredSelectedEmpVouchers.length} voucher{filteredSelectedEmpVouchers.length === 1 ? '' : 's'})
                                   </td>
-                                  <td className="px-4 py-2.5 text-right tabular-nums text-emerald-700 font-heading text-sm">
+                                  <td className="px-3 py-2 text-right font-bold tabular-nums text-emerald-700 font-heading text-xs">
                                     {formatINR(filteredSelectedEmpVouchers.reduce((sum, v) => sum + (Number(v.amount) || 0), 0))}
                                   </td>
                                 </tr>
@@ -9450,44 +9412,44 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         </div>
                       )
                     ) : (
-                      /* Category Breakdown Table */
-                      <table className="w-full border-collapse text-left text-xs font-body">
-                        <thead className="bg-slate-100/90 sticky top-0 z-10 shadow-2xs backdrop-blur-xs border-b border-slate-200">
-                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-heading">
-                            <th className="px-4 py-2.5">Category</th>
-                            <th className="px-3 py-2.5 text-right"># Vouchers</th>
-                            <th className="px-4 py-2.5 text-right">Expense</th>
-                            <th className="px-3 py-2.5 text-right">Paid</th>
-                            <th className="px-3 py-2.5 text-right">Pending</th>
+                      /* Category Breakdown Table - Subtle Excel-like Grid */
+                      <table className="w-full border-separate border-spacing-0 text-left text-xs font-body">
+                        <thead className="sticky top-0 z-10 shadow-2xs backdrop-blur-xs">
+                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-700 font-heading bg-slate-100/95">
+                            <th className="px-3 py-2 border-r border-b border-slate-200">Category</th>
+                            <th className="px-3 py-2 text-right border-r border-b border-slate-200"># Vouchers</th>
+                            <th className="px-3 py-2 text-right border-r border-b border-slate-200">Expense</th>
+                            <th className="px-3 py-2 text-right border-r border-b border-slate-200">Paid</th>
+                            <th className="px-3 py-2 text-right border-b border-slate-200">Pending</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
+                        <tbody className="text-xs">
                           {filteredCategoriesBreakdownRows.length === 0 ? (
                             <tr>
-                              <td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">
+                              <td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400 border-b border-slate-200/60">
                                 {cashSummaryRightSearch ? 'No matching category found.' : `No expense vouchers for this ${summaryPeriodMode === 'range' ? 'period' : 'month'}.`}
                               </td>
                             </tr>
                           ) : (
                             filteredCategoriesBreakdownRows.slice(0, categoriesTableLimit).map((category) => (
-                              <tr key={category.category} className="hover:bg-slate-50/80 transition-colors">
-                                <td className="px-4 py-2.5 font-medium text-slate-800">{category.category}</td>
-                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-600">{category.count}</td>
-                                <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</td>
-                                <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td>
-                                <td className="px-3 py-2.5 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td>
+                              <tr key={category.category} className="hover:bg-blue-50/30 even:bg-slate-50/35 transition-colors">
+                                <td className="px-3 py-1.5 border-r border-b border-slate-200/60 font-medium text-slate-800 text-xs">{category.category}</td>
+                                <td className="px-3 py-1.5 text-right font-medium tabular-nums text-slate-600 border-r border-b border-slate-200/60">{category.count}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-rose-700 border-r border-b border-slate-200/60">{formatINR(category.amount)}</td>
+                                <td className="px-3 py-1.5 text-right font-normal tabular-nums text-slate-700 border-r border-b border-slate-200/60">{formatINR(category.paid)}</td>
+                                <td className="px-3 py-1.5 text-right font-normal tabular-nums text-amber-700 border-b border-slate-200/60">{formatINR(category.outstanding)}</td>
                               </tr>
                             ))
                           )}
                         </tbody>
                         {monthlyStatement.categoryRows.length > 0 && (
-                          <tfoot className="bg-slate-50/95 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs">
+                          <tfoot className="bg-slate-100/95 border-t-2 border-slate-300 font-bold text-xs sticky bottom-0 z-10 backdrop-blur-xs shadow-2xs">
                             <tr>
-                              <td className="px-4 py-2.5 text-slate-800 font-body">Total ({monthlyStatement.categoryRows.length})</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{monthlyStatement.categoryRows.reduce((s, c) => s + c.count, 0)}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums text-rose-700">{formatINR(monthlyStatement.expenseTotal)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{formatINR(monthlyStatement.paidTotal)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{formatINR(monthlyStatement.outstandingTotal)}</td>
+                              <td className="px-3 py-2 border-r border-slate-200 text-slate-800 font-heading text-[11px]">Total ({monthlyStatement.categoryRows.length})</td>
+                              <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-700 border-r border-slate-200 text-xs">{monthlyStatement.categoryRows.reduce((s, c) => s + c.count, 0)}</td>
+                              <td className="px-3 py-2 text-right font-bold tabular-nums text-rose-700 border-r border-slate-200 text-xs">{formatINR(monthlyStatement.expenseTotal)}</td>
+                              <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-700 border-r border-slate-200 text-xs">{formatINR(monthlyStatement.paidTotal)}</td>
+                              <td className="px-3 py-2 text-right font-bold tabular-nums text-amber-700 text-xs">{formatINR(monthlyStatement.outstandingTotal)}</td>
                             </tr>
                           </tfoot>
                         )}
@@ -9517,20 +9479,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     </div>
                   )}
 
-                  <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-body">
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                      Cash Advance
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
-                      Salary Advance
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block w-2 h-2 rounded-full bg-purple-500" />
-                      Given to Others (Transfer)
-                    </span>
-                  </div>
                 </div>
               </div>
 
