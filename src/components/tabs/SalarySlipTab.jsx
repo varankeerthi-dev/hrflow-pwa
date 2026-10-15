@@ -902,8 +902,31 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   }, [allRuns, selectedPastRunId]);
 
   const handleInitiateRun = async () => {
-    if (!attendanceSummaryData.length) {
-      alert('Cannot initiate payroll: No calculated employee data for this month.');
+    let summaryToUse = attendanceSummaryData;
+    if (!summaryToUse || !summaryToUse.length) {
+      setLoading(true);
+      try {
+        const { data: freshSummary } = await refetchSummary();
+        if (freshSummary && freshSummary.length) {
+          summaryToUse = freshSummary;
+        }
+      } catch (err) {
+        console.error('Failed to fetch summary before initiating:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (!summaryToUse || !summaryToUse.length) {
+      if (attendanceError) {
+        alert('Cannot initiate payroll: Calculation error - ' + attendanceError.message);
+      } else if (!allEmployees || !allEmployees.length) {
+        alert('Cannot initiate payroll: No employees found in the organization. Please add employees first.');
+      } else if (!sortedEmployees.length) {
+        alert('Cannot initiate payroll: All employees are currently marked as inactive or excluded from salary.');
+      } else {
+        alert('Cannot initiate payroll: No calculated employee data for this month. Calculations may still be loading; please try again in a moment.');
+      }
       return;
     }
     const [y, m] = summaryMonth.split('-').map(Number);
@@ -920,7 +943,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           endDate,
           createdBy: user.uid,
           userName: user.name,
-          employeeSlips: attendanceSummaryData
+          employeeSlips: summaryToUse
         });
         alert('Payroll run initiated successfully!');
         refetchActiveRun();
@@ -1488,8 +1511,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     });
   }, [employees, employeeRowOrder])
 
-  const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
-    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, increments, holidayCalendarRevision],
+  const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, error: attendanceError, refetch: refetchSummary } = useQuery({
+    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, increments, holidayCalendarRevision, sortedEmployees.map(e => e.id).join(',')],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
       const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap, varSnap, coverageSnap] = await Promise.all([
@@ -1725,6 +1748,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const empAdvances = allAdvancesInMonth.filter(a => a.employeeId === emp.id);
         const empCandidateAdvances = allCandidateAdvancesInMonth.filter(a => a.employeeId === emp.id);
         const hasPreSalary = empCandidateAdvances.some(a => isNextMonthPreDisbursementAdvance(a.date, summaryMonth, orgSalaryDate) && a.deductionMonth !== summaryMonth);
+        const hasPostponed = empCandidateAdvances.some(a => a.deductionMonth && a.deductionMonth > summaryMonth);
         const empMedicalExpenses = allExpensesInMonth.filter(a => {
           if (!isMedicalClaim(a) || a.isDeductible !== true || a.status === 'Rejected') return false;
           const benId = a.beneficiaryEmployeeId || (a.paidTo && a.paidToType === 'employee' ? a.paidTo : null) || (a.paidByEmployeeId && a.paidByEmployeeId !== a.employeeId ? a.employeeId : null) || a.employeeId;
@@ -1748,7 +1772,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
         return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, paidLeave, unpaidLeave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, medicalDeduction: medDed, medicalExpensesList: empMedicalExpenses, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt, advancesList: empAdvances, candidateAdvancesList: empCandidateAdvances, hasPreSalary, hasPostponed }
       })
-    }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
+    }, enabled: !!user?.orgId && !!summaryMonth && sortedEmployees.length > 0 && (activeTab === 'salary-summary' || attendanceMonthlySummaryOnly)
   })
 
   // --- PAYROLL DATA ARCHIVE AND STATUS SNAPSHOT MAPS ---
@@ -3294,6 +3318,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             <div className="flex-1 overflow-auto bg-slate-50/30">
               {payrollSubTab === 'history' && !selectedPastRunId ? (
                 renderHistoryTab()
+              ) : (isActiveRunLoading || (selectedPastRunId && isPastSlipsLoading)) ? (
+                <div className="py-20 text-center"><Spinner /></div>
               ) : payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
                 // Banner for initiating run
                 <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl m-4 animate-in fade-in duration-200">
@@ -3305,10 +3331,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   {isAdmin && (
                     <button 
                       onClick={handleInitiateRun} 
-                      className="mt-6 h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2"
+                      disabled={loading || isAttendanceLoading}
+                      className="mt-6 h-10 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2"
                     >
-                      <Plus size={14} />
-                      Initiate Draft Run
+                      {(loading || isAttendanceLoading) ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                      {isAttendanceLoading ? 'Calculating Payroll...' : loading ? 'Initiating Run...' : 'Initiate Draft Run'}
                     </button>
                   )}
                 </div>
