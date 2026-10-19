@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal, Wallet, HeartPulse } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal, Wallet, HeartPulse, ArrowRight } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { Loader } from '@/components/loader'
 import Dropdown from '../ui/Dropdown'
@@ -144,92 +144,181 @@ function formatOnlyMonthName(monthStr) {
 }
 
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions, vehicleOptions = [], handleSelectVehicle, selfEmployeeId = '' }) {
+function AdvanceExpenseMobileRow({
+  row,
+  idx,
+  activeModule,
+  sortedEmployees,
+  categories,
+  canSelectAll,
+  canChooseEntryEmployee,
+  showAdvanceFields,
+  showProjectColumn,
+  portalMode,
+  hideEmployee,
+  handleRowChange,
+  handleDuplicateRow,
+  handleDeleteRow,
+  PaidToDropdown,
+  enableSiteRemarks = true,
+  availableSiteNames = [],
+  saveNewCategory,
+  showSessionPayout = true,
+  isCategoryPayableToOthers,
+  getRowCategoryOptions,
+  vehicleOptions = [],
+  handleSelectVehicle,
+  selfEmployeeId = ''
+}) {
   const categoryRequiresPaidTo = isCategoryPayableToOthers
     ? isCategoryPayableToOthers(row.category)
     : ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   const isMedical = Boolean(row.isMedical || isMedicalCategory(row.category) || isMedicalCategory(row.customCategory))
+  const showEmployeeField = (!portalMode && !hideEmployee) || ((portalMode || hideEmployee) && isMedical)
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex items-center justify-between gap-2 pb-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Row {idx + 1}</span>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => handleDuplicateRow(row.id)} className="rounded-md p-1.5 text-slate-400 active:bg-blue-50 active:text-blue-600" aria-label={`Duplicate row ${idx + 1}`}><Copy size={14} /></button>
-          <button type="button" onClick={() => handleDeleteRow(row.id)} className="rounded-md p-1.5 text-slate-400 active:bg-rose-50 active:text-rose-600" aria-label={`Delete row ${idx + 1}`}><Trash2 size={14} /></button>
-        </div>
-      </div>
+    <article className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden font-body transition-all">
+      {/* Card Form Content */}
+      <div className="p-4 space-y-3.5">
+        {/* Row 1: Employee & Date (Two Column Grid) */}
+        {showEmployeeField ? (
+          <div className="grid grid-cols-2 gap-3 items-start">
+            {/* Field: Employee */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading truncate" title={isMedical ? 'Beneficiary Staff Member' : 'Employee'}>
+                {isMedical ? 'Beneficiary' : 'Employee'} <span className="text-rose-500 font-bold">*</span>
+              </label>
+              <div className="relative">
+                <Dropdown
+                  value={row.employeeId}
+                  onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
+                  options={sortedEmployees.map((employee) => ({
+                    label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`,
+                    value: employee.id
+                  }))}
+                  placeholder={isMedical ? "Beneficiary..." : "Select..."}
+                  searchable
+                  size="sm"
+                  className="w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
+                  panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                  mobileMenu
+                  autoFocusSearch={false}
+                  disabled={!canChooseEntryEmployee}
+                />
+              </div>
+            </div>
 
-      <div className="space-y-2.5">
-        {!portalMode && !hideEmployee ? (
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {isMedical ? 'Beneficiary Staff Member' : 'Employee'} <span className="text-rose-500">*</span>
-            </label>
-            <Dropdown
-              value={row.employeeId}
-              onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
-              options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
-              placeholder={isMedical ? "Select beneficiary employee..." : "Select employee..."}
-              searchable
-              size="sm"
-              panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-              mobileMenu
-              autoFocusSearch={false}
-              disabled={!canChooseEntryEmployee}
-            />
+            {/* Field: Date */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                Date <span className="text-rose-500 font-bold">*</span>
+              </label>
+              <div className="relative">
+                <DatePicker
+                  selected={row.date ? parseISO(row.date) : null}
+                  maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
+                  onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
+                  dateFormat="dd MMM yyyy"
+                  popperClassName="z-[99999]"
+                  popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                  customInput={
+                    <div className="flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
+                      <span className="truncate">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select'}</span>
+                      <Calendar size={14} className="text-slate-400 shrink-0 ml-1" />
+                    </div>
+                  }
+                />
+              </div>
+            </div>
           </div>
-        ) : (portalMode || hideEmployee) && isMedical ? (
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Beneficiary Staff Member <span className="text-rose-500">*</span>
-            </label>
-            <Dropdown
-              value={row.employeeId}
-              onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
-              options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
-              placeholder="Select beneficiary employee..."
-              searchable
-              size="sm"
-              panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-              mobileMenu
-              autoFocusSearch={false}
-            />
-          </div>
-        ) : null}
-
-        {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Date <span className="text-rose-500">*</span></label>
-            <DatePicker
-              selected={row.date ? parseISO(row.date) : null}
-              maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
-              onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
-              dateFormat="dd MMM yyyy"
-              popperClassName="z-[99999]"
-              popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
-              customInput={<div className="flex h-10 w-full cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
-            />
-          </div>
+        ) : (
+          /* Employee hidden (Self mode) */
+          activeModule === 'Add Advance' ? (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
+                  Date <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <div className="flex-1 max-w-[200px]">
+                  <DatePicker
+                    selected={row.date ? parseISO(row.date) : null}
+                    maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
+                    onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
+                    dateFormat="dd MMM yyyy"
+                    popperClassName="z-[99999]"
+                    popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                    customInput={
+                      <div className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
+                        <span className="truncate">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</span>
+                        <Calendar size={14} className="text-slate-400 shrink-0 ml-1" />
+                      </div>
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
+                  Payroll Month <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <div className="flex-1 max-w-[200px]">
+                  <input
+                    type="month"
+                    value={row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date)}
+                    onChange={(e) => handleRowChange(row.id, 'deductionMonth', e.target.value)}
+                    className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs text-center"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
+                Date <span className="text-rose-500 font-bold">*</span>
+              </label>
+              <div className="flex-1 max-w-[200px]">
+                <DatePicker
+                  selected={row.date ? parseISO(row.date) : null}
+                  maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
+                  onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
+                  dateFormat="dd MMM yyyy"
+                  popperClassName="z-[99999]"
+                  popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                  customInput={
+                    <div className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
+                      <span className="truncate">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</span>
+                      <Calendar size={14} className="text-slate-400 shrink-0 ml-1" />
+                    </div>
+                  }
+                />
+              </div>
+            </div>
+          )
         )}
 
-        {activeModule === 'Add Advance' && (
+        {/* Row for Payroll Month if Employee is visible and activeModule is Add Advance */}
+        {showEmployeeField && activeModule === 'Add Advance' && (
           <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payroll Month <span className="text-rose-500">*</span></label>
+            <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+              Payroll Month <span className="text-rose-500 font-bold">*</span>
+            </label>
             <input
               type="month"
               value={row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date)}
               onChange={(e) => handleRowChange(row.id, 'deductionMonth', e.target.value)}
-              className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs text-center"
             />
-            <p className="mt-1 text-[9px] text-slate-400">Target payroll deduction month (customizable, or set rule in Payroll Detailed Summary).</p>
+            <p className="mt-1 text-[9px] text-slate-400">Target payroll deduction month for salary advance recovery.</p>
           </div>
         )}
 
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
+        {/* Row 2: Category & Amount (Two Column Grid) */}
+        <div className="grid grid-cols-2 gap-3 items-start">
+          {/* Field: Category */}
           <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
+            <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+              Category <span className="text-rose-500 font-bold">*</span>
+            </label>
             <Dropdown
               value={row.category === 'custom' ? '' : row.category}
               onChange={(value) => {
@@ -245,136 +334,192 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
               allowCustom
               customActive={row.category === 'custom'}
               onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+              className="w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
               panelWidth="w-[min(20rem,calc(100vw-2rem))]"
               mobileMenu
               autoFocusSearch={false}
             />
-            {row.category === 'custom' && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <input
-                  type="text"
-                  value={row.customCategory || ''}
-                  onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      saveNewCategory && saveNewCategory(row.id, row.customCategory)
-                    }
-                  }}
-                  className="h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500"
-                  placeholder="Type category & hit Enter..."
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => saveNewCategory && saveNewCategory(row.id, row.customCategory)}
-                  className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shrink-0 transition-colors"
-                  title="Save category to organisation"
-                >
-                  Save
-                </button>
-              </div>
-            )}
-            {enableSiteRemarks && isPetrolCategory(row.category) && (
-              <div className="mt-2 rounded-lg bg-emerald-50/70 p-2.5 border border-emerald-200/70">
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-emerald-800">Site Name <span className="text-rose-500">*</span></label>
-                <Dropdown
-                  value={row.siteName === 'custom' ? '' : (row.siteName || '')}
-                  onChange={(val) => {
-                    handleRowChange(row.id, 'siteName', val)
-                    handleRowChange(row.id, 'isCustomSite', false)
-                  }}
-                  options={availableSiteNames}
-                  placeholder="Select site..."
-                  size="sm"
-                  searchable
-                  allowCustom
-                  customActive={row.isCustomSite}
-                  onAddOther={() => {
-                    handleRowChange(row.id, 'isCustomSite', true)
-                    handleRowChange(row.id, 'siteName', '')
-                  }}
-                  panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-                  mobileMenu
-                  autoFocusSearch={false}
-                />
+          </div>
+
+          {/* Field: Amount */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+              Amount <span className="text-rose-500 font-bold">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm font-semibold pointer-events-none select-none">
+                ₹
+              </span>
+              <input
+                type="number"
+                value={row.amount}
+                onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-7 pr-3 text-right text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs font-mono"
+                placeholder="0.00"
+                inputMode="decimal"
+                step="0.01"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Custom Category Input (if chosen) */}
+        {row.category === 'custom' && (
+          <div className="flex items-center gap-1.5 pt-1">
+            <input
+              type="text"
+              value={row.customCategory || ''}
+              onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  saveNewCategory && saveNewCategory(row.id, row.customCategory)
+                }
+              }}
+              className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs outline-none focus:border-blue-500 bg-white shadow-2xs"
+              placeholder="Type category & hit Enter..."
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => saveNewCategory && saveNewCategory(row.id, row.customCategory)}
+              className="h-10 px-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shrink-0 transition-colors shadow-sm font-heading cursor-pointer"
+              title="Save category to organisation"
+            >
+              Save
+            </button>
+          </div>
+        )}
+
+        {/* Sub-badge: Petrol Details (Site Name & Vehicle - Compact Same Row) */}
+        {isPetrolCategory(row.category) && (
+          <div className="rounded-xl bg-emerald-50/50 p-2.5 border border-emerald-200/70 space-y-2">
+            {/* Field: Site Name */}
+            {enableSiteRemarks && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 font-heading shrink-0">
+                    Site Name <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="flex-1 min-w-0 max-w-[210px]">
+                    <Dropdown
+                      value={row.siteName === 'custom' ? '' : (row.siteName || '')}
+                      onChange={(val) => {
+                        handleRowChange(row.id, 'siteName', val)
+                        handleRowChange(row.id, 'isCustomSite', false)
+                      }}
+                      options={availableSiteNames}
+                      placeholder="Select site..."
+                      size="sm"
+                      searchable
+                      allowCustom
+                      customActive={row.isCustomSite}
+                      onAddOther={() => {
+                        handleRowChange(row.id, 'isCustomSite', true)
+                        handleRowChange(row.id, 'siteName', '')
+                      }}
+                      className="w-full [&>button]:h-9 [&>button]:rounded-lg [&>button]:border-emerald-300 [&>button]:text-xs [&>button]:font-semibold [&>button]:bg-white [&>button]:shadow-2xs"
+                      panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                      mobileMenu
+                      autoFocusSearch={false}
+                    />
+                  </div>
+                </div>
                 {row.isCustomSite && (
                   <input
                     type="text"
                     value={row.siteName || ''}
                     onChange={(e) => handleRowChange(row.id, 'siteName', e.target.value)}
-                    className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-emerald-500"
+                    className="h-9 w-full rounded-lg border border-emerald-300 px-3 text-xs outline-none focus:border-emerald-500 bg-white shadow-2xs font-body"
                     placeholder="Type custom site name..."
                     autoFocus
                   />
                 )}
               </div>
             )}
-            {isPetrolCategory(row.category) && (
-              <div className="mt-2 rounded-lg bg-blue-50/60 p-2.5 border border-blue-200/60">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-blue-900 font-body">Vehicle (Optional)</label>
+
+            {/* Field: Vehicle No */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 font-heading">
+                    Vehicle No
+                  </label>
                   {row.vehicleNo && (
                     <button
                       type="button"
                       onClick={() => handleSelectVehicle && handleSelectVehicle(row.id, null)}
-                      className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold cursor-pointer"
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold cursor-pointer underline"
                     >
                       Clear
                     </button>
                   )}
                 </div>
-                <Dropdown
-                  value={row.vehicleLabel || (row.vehicleNo ? `${row.vehicleName ? `${row.vehicleName} - ` : ''}${row.vehicleNo}` : '')}
-                  onChange={(val) => {
-                    const found = vehicleOptions?.find(v => v.label === val)
-                    if (found) {
-                      handleSelectVehicle && handleSelectVehicle(row.id, found)
-                    } else if (val) {
-                      const clean = String(val).toUpperCase().replace(/[^A-Z0-9]/g, '')
-                      handleSelectVehicle && handleSelectVehicle(row.id, { id: null, name: '', number: clean, label: clean })
-                    } else {
-                      handleSelectVehicle && handleSelectVehicle(row.id, null)
-                    }
-                  }}
-                  options={vehicleOptions?.map(v => v.label) || []}
-                  placeholder="Select vehicle..."
-                  size="sm"
-                  searchable
-                  allowCustom
-                  customActive={row.isCustomVehicle}
-                  onAddOther={() => {
-                    handleRowChange(row.id, 'isCustomVehicle', true)
-                  }}
-                  panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-                  mobileMenu
-                  autoFocusSearch={false}
-                />
-                {row.isCustomVehicle && (
-                  <input
-                    type="text"
-                    value={row.customVehicleNo || ''}
-                    onChange={(e) => {
-                      const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
-                      handleRowChange(row.id, 'customVehicleNo', clean)
-                      handleSelectVehicle && handleSelectVehicle(row.id, { id: null, name: '', number: clean, label: clean })
+                <div className="flex-1 min-w-0 max-w-[210px]">
+                  <Dropdown
+                    value={row.vehicleLabel || (row.vehicleNo ? `${row.vehicleName ? `${row.vehicleName} - ` : ''}${row.vehicleNo}` : '')}
+                    onChange={(val) => {
+                      const found = vehicleOptions?.find(v => v.label === val)
+                      if (found) {
+                        handleSelectVehicle && handleSelectVehicle(row.id, found)
+                      } else if (val) {
+                        const clean = String(val).toUpperCase().replace(/[^A-Z0-9]/g, '')
+                        handleSelectVehicle && handleSelectVehicle(row.id, { id: null, name: '', number: clean, label: clean })
+                      } else {
+                        handleSelectVehicle && handleSelectVehicle(row.id, null)
+                      }
                     }}
-                    className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500 font-mono"
-                    placeholder="Type vehicle number..."
-                    autoFocus
+                    options={vehicleOptions?.map(v => v.label) || []}
+                    placeholder="Select vehicle (optional)..."
+                    size="sm"
+                    searchable
+                    allowCustom
+                    customActive={row.isCustomVehicle}
+                    onAddOther={() => {
+                      handleRowChange(row.id, 'isCustomVehicle', true)
+                    }}
+                    className="w-full [&>button]:h-9 [&>button]:rounded-lg [&>button]:border-emerald-300 [&>button]:text-xs [&>button]:font-semibold [&>button]:bg-white [&>button]:shadow-2xs"
+                    panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                    mobileMenu
+                    autoFocusSearch={false}
                   />
-                )}
+                </div>
               </div>
-            )}
+              {row.isCustomVehicle && (
+                <input
+                  type="text"
+                  value={row.customVehicleNo || ''}
+                  onChange={(e) => {
+                    const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                    handleRowChange(row.id, 'customVehicleNo', clean)
+                    handleSelectVehicle && handleSelectVehicle(row.id, { id: null, name: '', number: clean, label: clean })
+                  }}
+                  className="h-9 w-full rounded-lg border border-emerald-300 px-3 text-xs outline-none focus:border-emerald-500 font-mono bg-white uppercase shadow-2xs"
+                  placeholder="Type vehicle number..."
+                  autoFocus
+                />
+              )}
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount <span className="text-rose-500">*</span></label>
-            <input type="number" value={row.amount} onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-2 text-right text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="0.00" inputMode="decimal" />
-          </div>
+        )}
+
+        {/* Row 3: Brief Description */}
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+            Brief Description
+          </label>
+          <input
+            type="text"
+            value={row.reason}
+            onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs placeholder:text-slate-400 font-body"
+            placeholder="e.g. Client lunch meeting in Chicago..."
+          />
         </div>
 
+        {/* Healthcare Medical Details */}
         {isMedical && (
-          <div className="rounded-lg bg-rose-50/70 border border-rose-200/80 p-2.5 space-y-2">
+          <div className="rounded-xl bg-rose-50/70 border border-rose-200/80 p-3 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 font-heading">
                 <HeartPulse size={14} className="text-rose-600" />
@@ -385,7 +530,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
               </span>
             </div>
             {(row.beneficiaryEmployeeId || (row.employeeId && selfEmployeeId && row.employeeId !== selfEmployeeId)) && (
-              <div className="flex items-center justify-between text-[11px] bg-white/90 p-1.5 rounded-md border border-rose-200">
+              <div className="flex items-center justify-between text-[11px] bg-white/90 p-2 rounded-lg border border-rose-200">
                 <span className="text-slate-600">Beneficiary: <strong className="text-slate-900">{sortedEmployees.find(e => e.id === (row.beneficiaryEmployeeId || row.employeeId))?.name || row.beneficiaryEmployeeName}</strong></span>
                 <button
                   type="button"
@@ -422,38 +567,94 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
           </div>
         )}
 
+        {/* Optional Payout & Project Rows */}
         {((!portalMode && showSessionPayout) || showProjectColumn) && (
-          <div className={`grid ${(!portalMode && showSessionPayout) && showProjectColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+          <div className={`grid ${(!portalMode && showSessionPayout) && showProjectColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-3 items-start`}>
             {!portalMode && showSessionPayout && (
               <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
-                <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-normal text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
+                <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                  Payout <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={row.payoutMethod}
+                  onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                >
+                  <option value="Immediate">Immediate</option>
+                  <option value="With Salary">Monthly</option>
+                </select>
               </div>
             )}
             {showProjectColumn && (
               <div>
-                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Project</label>
-                <select value={row.project} onChange={(e) => handleRowChange(row.id, 'project', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"><option value="">Select project...</option><option value="P-0001">P-0001</option><option value="P-0002">P-0002</option><option value="P-0008">P-0008</option><option value="P-0012">P-0012</option><option value="Site visit - Client Meeting">Site visit - Client Meeting</option></select>
+                <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                  Project
+                </label>
+                <select
+                  value={row.project}
+                  onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                >
+                  <option value="">Select project...</option>
+                  <option value="P-0001">P-0001</option>
+                  <option value="P-0002">P-0002</option>
+                  <option value="P-0008">P-0008</option>
+                  <option value="P-0012">P-0012</option>
+                  <option value="Site visit - Client Meeting">Site visit - Client Meeting</option>
+                </select>
               </div>
             )}
           </div>
         )}
 
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Brief Description</label>
-          <input
-            type="text"
-            value={row.reason}
-            onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
-            className="h-10 w-full rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
-            placeholder="Add a note..."
-          />
-        </div>
-
-        {showAdvanceFields && <div className="rounded-lg bg-slate-50 p-2.5"><label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Paid to / advance reference</label><PaidToDropdown rowId={row.id} row={row} isMobile /></div>}
-        {categoryRequiresPaidTo && !showAdvanceFields && <div className="rounded-lg bg-blue-50/70 p-2.5"><label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-blue-700">Paid to</label><PaidToDropdown rowId={row.id} row={row} isMobile /></div>}
+        {/* Advance Fields & Paid To Popover */}
+        {showAdvanceFields && (
+          <div className="rounded-xl bg-slate-50/80 p-3 border border-slate-200/80">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 font-heading">
+              Paid to / advance reference
+            </label>
+            <PaidToDropdown rowId={row.id} row={row} isMobile />
+          </div>
+        )}
+        {categoryRequiresPaidTo && !showAdvanceFields && (
+          <div className="rounded-xl bg-blue-50/70 p-3 border border-blue-200/70">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1 font-heading">
+              Paid to
+            </label>
+            <PaidToDropdown rowId={row.id} row={row} isMobile />
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Card Bottom Footer Action Bar ("Bottom Card Toolbar" from Stitch dae3df6671fd4c67bd09c109fda69136) */}
+      <div className="bg-slate-50/80 border-t border-slate-100 px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border border-slate-200/90 px-2 py-0.5 rounded-md font-mono shadow-2xs">
+            Row {idx + 1}
+          </span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <button
+            type="button"
+            onClick={() => handleDuplicateRow(row.id)}
+            className="inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg active:scale-95 transition cursor-pointer font-heading"
+            title="Duplicate row"
+          >
+            <Copy size={13} className="text-slate-500" />
+            <span>Duplicate</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteRow(row.id)}
+            className="inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg active:scale-95 transition cursor-pointer font-heading"
+            title="Delete row"
+          >
+            <Trash2 size={13} className="text-rose-500" />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </article>
   )
 }
 
@@ -711,6 +912,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [showSessionEmployee, setShowSessionEmployee] = useState(draft?.showSessionEmployee ?? true)
   const [showSessionAccount, setShowSessionAccount] = useState(draft?.showSessionAccount ?? true)
   const [showSessionPayout, setShowSessionPayout] = useState(draft?.showSessionPayout ?? true)
+  const [showDraftSaved, setShowDraftSaved] = useState(false)
   const [isMobileReportExpanded, setIsMobileReportExpanded] = useState(false)
   const [activePaidToRowId, setActivePaidToRowId] = useState(null)
   const [paidToPopoverPos, setPaidToPopoverPos] = useState({ top: 200, left: 200 })
@@ -5760,19 +5962,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           )}
         </div>
 
-        {/* Mobile Navigation - Toggle Buttons in Single Row */}
-        <div className="md:hidden">
-          <div className="flex items-center gap-1.5 px-2.5 py-2 overflow-x-auto scrollbar-hide">
+        {/* Mobile Navigation - Stitch Grid Pill Tabs */}
+        <div className="md:hidden px-3 pt-2 pb-1.5">
+          <nav aria-label="Modules" className="grid grid-cols-4 gap-1.5 w-full">
             {modules.map(mod => {
               const isActive = activeModule === mod
-              const getMobileColors = () => {
-                if (!isActive) return 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
-                if (mod === 'Add Advance') return 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20'
-                if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/20'
-                if (mod === 'Cash Summary' || mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
-                return 'bg-indigo-500 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
-              }
-
               const getFullLabel = () => {
                 if (mod === 'Add Advance') return 'Advances'
                 if (mod === 'Add Expense') return 'Expenses'
@@ -5783,14 +5977,19 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               return (
                 <button
                   key={mod}
+                  type="button"
                   onClick={() => setActiveModule(mod)}
-                  className={`flex-1 min-w-[70px] whitespace-nowrap px-2.5 py-2 rounded-xl text-xs font-bold font-heading border backdrop-blur-sm transition-all duration-200 text-center active:scale-95 ${getMobileColors()}`}
+                  className={`w-full py-2 px-1 text-center text-xs rounded-full truncate active:scale-95 transition-all font-heading cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20 font-bold'
+                      : 'border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold'
+                  }`}
                 >
                   {getFullLabel()}
                 </button>
               )
             })}
-          </div>
+          </nav>
         </div>
       </div>
 
@@ -5837,11 +6036,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
         return (
           <div className="space-y-2.5 pb-64 sm:pb-80">
-            {/* 1. Subtabs Navigation: Self vs Employee mode (matching Settings pill buttons) */}
+            {/* 1. Subtabs Navigation: Self vs Employee mode (Stitch design for mobile, classic for desktop) */}
             {!portalMode && (
-              <div className="rounded-xl border border-slate-200/90 bg-[#F4FAFD] shadow-xs px-3 py-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={`${entryLabel} entry mode`}>
+              <>
+                {/* Mobile Stitch Segmented Toggle (dae3df6671fd4c67bd09c109fda69136) */}
+                <div className="md:hidden">
+                  <section className="bg-slate-200/80 p-1 rounded-xl flex items-center shadow-inner font-body" data-purpose="expense-type-toggle">
                     {modeSubTabs.map((tab) => {
                       const isActive = expenseMode === tab.id
                       return (
@@ -5849,25 +6049,57 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           key={tab.id}
                           type="button"
                           role="tab"
-                          data-tab-id={tab.id}
                           aria-selected={isActive}
-                          className={`fleet-two-row-pill ${isActive ? 'fleet-two-row-pill-active' : ''}`}
                           onClick={() => handleModeTabChange(tab)}
+                          className={`flex-1 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all cursor-pointer font-heading ${
+                            isActive
+                              ? 'bg-white text-slate-900 shadow-sm font-bold'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
-                          {tab.icon && <span className="fleet-secondary-tab-icon" aria-hidden="true">{tab.icon}</span>}
-                          {tab.label}
+                          {tab.id === 'self' ? (
+                            <User size={15} className={isActive ? 'text-blue-600' : 'text-slate-500'} />
+                          ) : (
+                            <Users size={15} className={isActive ? 'text-blue-600' : 'text-slate-500'} />
+                          )}
+                          <span>{tab.label}</span>
                         </button>
                       )
                     })}
-                  </div>
-                  <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200/80 shadow-2xs">
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
-                      {expenseMode === 'self' ? `Personal ${entryLabel}` : `Staff & Team ${entryLabel}`}
-                    </span>
+                  </section>
+                </div>
+
+                {/* Desktop Subtabs Ribbon */}
+                <div className="hidden md:block rounded-xl border border-slate-200/90 bg-[#F4FAFD] shadow-xs px-3 py-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={`${entryLabel} entry mode`}>
+                      {modeSubTabs.map((tab) => {
+                        const isActive = expenseMode === tab.id
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            data-tab-id={tab.id}
+                            aria-selected={isActive}
+                            className={`fleet-two-row-pill ${isActive ? 'fleet-two-row-pill-active' : ''}`}
+                            onClick={() => handleModeTabChange(tab)}
+                          >
+                            {tab.icon && <span className="fleet-secondary-tab-icon" aria-hidden="true">{tab.icon}</span>}
+                            {tab.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200/80 shadow-2xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                        {expenseMode === 'self' ? `Personal ${entryLabel}` : `Staff & Team ${entryLabel}`}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Hidden CSV Import Input */}
@@ -5882,10 +6114,176 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             <div className="flex flex-col lg:flex-row items-start gap-4">
               {/* Left Column: Ribbon Controls + Spreadsheet Table Grid (~72%) */}
               <div className="flex-1 w-full lg:w-[72%] min-w-0 space-y-3">
-                {/* 2. Session Details Ribbon */}
-                <div className="grid grid-cols-2 gap-2.5 text-xs md:flex md:flex-wrap md:items-center">
+                {/* 2. Mobile Meta Selection Card (Stitch dae3df6671fd4c67bd09c109fda69136) */}
+                <section className="md:hidden bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3 font-body" data-purpose="meta-selection-card">
+                  {(!portalMode && !isSelfEntry && showSessionEmployee) ? (
+                    <div className="grid grid-cols-2 gap-3 items-end">
+                      {/* Claim Date */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                          Claim Date
+                        </label>
+                        <DatePicker
+                          selected={sessionDate ? parseISO(sessionDate) : new Date()}
+                          maxDate={activeModule === 'Add Expense' || activeModule === 'Expense' ? new Date() : undefined}
+                          onChange={(date) => {
+                            if (!date) return
+                            const val = format(date, 'yyyy-MM-dd')
+                            const todayStr = new Date().toISOString().split('T')[0]
+                            if ((activeModule === 'Add Expense' || activeModule === 'Expense') && val > todayStr) {
+                              alert('Expenses cannot be created for future dates.')
+                              return
+                            }
+                            setSessionDate(val)
+                            setAddRows(addRows.map(r => ({ ...r, date: val })))
+                          }}
+                          dateFormat="dd MMM yyyy"
+                          popperClassName="z-[99999]"
+                          popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                          customInput={
+                            <div className="relative flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2 h-10 shadow-2xs cursor-pointer hover:border-slate-300 transition">
+                              <span className="text-xs font-semibold text-slate-800 truncate flex-1">
+                                {sessionDate ? format(parseISO(sessionDate), 'dd MMM yyyy') : format(new Date(), 'dd MMM yyyy')}
+                              </span>
+                              <Calendar size={14} className="text-slate-400 shrink-0 ml-1.5" />
+                            </div>
+                          }
+                        />
+                      </div>
+
+                      {/* Default Employee + Reset Button */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                          Default Employee
+                        </label>
+                        <div className="flex items-center space-x-1.5">
+                          <div className="relative flex-1 min-w-0">
+                            <Dropdown
+                              value={sessionDefaultEmp}
+                              onChange={(val) => {
+                                setSessionDefaultEmp(val)
+                                if (val) setAddRows(addRows.map(r => ({ ...r, employeeId: val })))
+                              }}
+                              options={sortedEmployees.map(e => {
+                                const isMe = e.id === getMyEmpId() || e.email === user?.email
+                                const inactiveTag = !isEmployeeActiveStatus(e.status) ? ' (Inactive)' : ''
+                                return { label: `${e.name} ${isMe ? '(You)' : ''}${inactiveTag}`, value: e.id }
+                              })}
+                              placeholder="Select employee..."
+                              searchable
+                              size="sm"
+                              className="min-w-0 flex-1 [&>button]:h-10 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:shadow-2xs"
+                              panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                              mobileMenu
+                              autoFocusSearch={false}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleClearSession}
+                            aria-label="Reset default employee filter"
+                            title="Reset default employee filter"
+                            className="h-10 w-10 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 transition active:scale-95 shrink-0 border border-slate-200/80 cursor-pointer"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Self mode: Claim Date label & picker on same row, Reset button on same row - No empty space! */
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase shrink-0 font-heading">
+                          Claim Date:
+                        </label>
+                        <div className="flex-1 max-w-[190px]">
+                          <DatePicker
+                            selected={sessionDate ? parseISO(sessionDate) : new Date()}
+                            maxDate={activeModule === 'Add Expense' || activeModule === 'Expense' ? new Date() : undefined}
+                            onChange={(date) => {
+                              if (!date) return
+                              const val = format(date, 'yyyy-MM-dd')
+                              const todayStr = new Date().toISOString().split('T')[0]
+                              if ((activeModule === 'Add Expense' || activeModule === 'Expense') && val > todayStr) {
+                                alert('Expenses cannot be created for future dates.')
+                                return
+                              }
+                              setSessionDate(val)
+                              setAddRows(addRows.map(r => ({ ...r, date: val })))
+                            }}
+                            dateFormat="dd MMM yyyy"
+                            popperClassName="z-[99999]"
+                            popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                            customInput={
+                              <div className="relative flex items-center justify-between bg-white border border-slate-200 rounded-xl px-3 py-2 h-10 shadow-2xs cursor-pointer hover:border-slate-300 transition">
+                                <span className="text-xs font-semibold text-slate-800 truncate flex-1">
+                                  {sessionDate ? format(parseISO(sessionDate), 'dd MMM yyyy') : format(new Date(), 'dd MMM yyyy')}
+                                </span>
+                                <Calendar size={14} className="text-slate-400 shrink-0 ml-1.5" />
+                              </div>
+                            }
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearSession}
+                        className="h-10 px-3 flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 transition active:scale-95 border border-slate-200/80 cursor-pointer text-xs font-semibold font-heading shrink-0"
+                        title="Reset Session"
+                      >
+                        <RotateCcw size={14} />
+                        <span>Reset</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Optional Meta row if Account or Payout are enabled */}
+                  {(!portalMode && (showSessionAccount || showSessionPayout)) && (
+                    <div className={`grid ${showSessionAccount && showSessionPayout ? 'grid-cols-2' : 'grid-cols-1'} gap-3 pt-2 border-t border-slate-100 items-end`}>
+                      {showSessionAccount && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                            Account
+                          </label>
+                          <Dropdown
+                            value={sessionAccount}
+                            onChange={setSessionAccount}
+                            options={companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS}
+                            size="sm"
+                            className="w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:shadow-2xs"
+                            panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                            mobileMenu
+                          />
+                        </div>
+                      )}
+                      {showSessionPayout && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                            Payout
+                          </label>
+                          <select
+                            value={sessionPayout}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              setSessionPayout(val)
+                              setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })))
+                            }}
+                            className="h-11 w-full bg-white border border-slate-200 rounded-xl px-3 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition shadow-2xs"
+                          >
+                            <option value="Immediate">Immediate</option>
+                            <option value="With Salary">Monthly</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {/* 2. Desktop Session Details Ribbon */}
+                <div className="hidden md:flex md:flex-wrap md:items-center gap-2.5 text-xs">
                   {/* Date */}
-                  <div className="order-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:order-none md:w-auto md:px-3.5">
+                  <div className="flex w-auto items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Date:</span>
                     <DatePicker
                       selected={sessionDate ? parseISO(sessionDate) : new Date()}
@@ -5914,7 +6312,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                   {/* Paid From (Desktop) */}
                   {showSessionAccount && !portalMode && (
-                    <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
                       <select
                         value={sessionAccount}
@@ -5928,10 +6326,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     </div>
                   )}
 
-                  {/* Default Employee */}
+                  {/* Default Employee (Desktop) */}
                   {showSessionEmployee && !portalMode && !isSelfEntry && (
-                  <>
-                    <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
                       <select
                         value={sessionDefaultEmp}
@@ -5956,82 +6353,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         })}
                       </select>
                     </div>
-                    <div className="order-3 col-span-2 md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
-                      <Dropdown
-                        value={sessionDefaultEmp}
-                        onChange={(val) => {
-                          setSessionDefaultEmp(val)
-                          if (val) setAddRows(addRows.map(r => ({ ...r, employeeId: val })))
-                        }}
-                        options={sortedEmployees.map(e => {
-                          const isMe = e.id === getMyEmpId() || e.email === user?.email
-                          const inactiveTag = !isEmployeeActiveStatus(e.status) ? ' (Inactive)' : ''
-                          return { label: `${e.name} ${isMe ? '(You)' : ''}${inactiveTag}`, value: e.id }
-                        })}
-                        placeholder="Select employee..."
-                        searchable
-                        size="sm"
-                        className="min-w-0 flex-1"
-                        panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-                        mobileMenu
-                        autoFocusSearch={false}
-                      />
-                    </div>
-                  </>
                   )}
 
-                  {/* Default Payout */}
+                  {/* Default Payout (Desktop) */}
                   {showSessionPayout && !portalMode && (
-                  <div className="order-2 col-span-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:order-none md:col-span-auto md:w-auto md:px-3.5">
-                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
-                    <select
-                      value={sessionPayout}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSessionPayout(val);
-                        setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
-                      }}
-                      className="min-w-0 flex-1 bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
-                    >
-                      <option value="Immediate">Immediate</option>
-                      <option value="With Salary">Monthly</option>
-                    </select>
-                  </div>
+                    <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
+                      <select
+                        value={sessionPayout}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSessionPayout(val);
+                          setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
+                        }}
+                        className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
+                      >
+                        <option value="Immediate">Immediate</option>
+                        <option value="With Salary">Monthly</option>
+                      </select>
+                    </div>
                   )}
-
-                  {/* Account & Reset Row (Mobile: Account fills space, Reset is icon button at end) */}
-                  <div className="order-4 col-span-2 md:hidden flex items-center gap-2 w-full">
-                    {showSessionAccount && !portalMode && (
-                      <div className="flex-1 min-w-0 flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
-                        <Dropdown
-                          value={sessionAccount}
-                          onChange={setSessionAccount}
-                          options={companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS}
-                          size="sm"
-                          className="min-w-0 flex-1"
-                          panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-                          mobileMenu
-                        />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleClearSession}
-                      className="h-10 w-10 shrink-0 flex items-center justify-center text-slate-500 hover:text-slate-800 bg-white rounded-xl border border-slate-200 shadow-sm transition-all active:scale-90 cursor-pointer"
-                      title="Reset / Clear Session"
-                      aria-label="Reset Session"
-                    >
-                      <RotateCcw size={16} className="text-slate-600" />
-                    </button>
-                  </div>
 
                   {/* Reset / Restore Session Button (Desktop) */}
                   <button
                     type="button"
                     onClick={handleClearSession}
-                    className="hidden md:flex items-center justify-center gap-1.5 h-10 px-3 bg-white text-slate-500 hover:text-slate-800 rounded-xl border border-slate-200 shadow-sm transition-colors cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 h-10 px-3 bg-white text-slate-500 hover:text-slate-800 rounded-xl border border-slate-200 shadow-sm transition-colors cursor-pointer"
                     title="Reset / Clear Session"
                   >
                     <RotateCcw size={14} className="text-slate-500" />
@@ -6039,9 +6386,35 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </button>
                 </div>
 
-                {/* 4. Expenses Table Header & Controls Bar */}
+                {/* 3. Mobile Section Header Bar (Stitch dae3df6671fd4c67bd09c109fda69136) */}
+                <div className="md:hidden flex items-center justify-between px-1 pt-1 pb-0.5">
+                  <div className="flex items-baseline space-x-2">
+                    <h2 className="text-base font-bold text-slate-900 tracking-tight font-heading">
+                      {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
+                    </h2>
+                    <span className="text-xs font-medium text-slate-500 font-body">
+                      ({addRows.length} {addRows.length === 1 ? 'row' : 'rows'})
+                    </span>
+                    <span className="text-xs font-bold text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded-md ml-1">
+                      {formatINR(totalExpensesAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      ref={advanceFieldsButtonRef}
+                      type="button"
+                      onClick={toggleAdvanceFieldsDropdown}
+                      aria-label="More row options"
+                      className="p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100 active:scale-95 transition cursor-pointer"
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Desktop Expenses Table Header & Controls Bar */}
                 <div className="bg-white rounded-[12px] border border-slate-200/90 overflow-hidden shadow-sm">
-                <div className="px-3 py-2 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40 relative z-20">
+                <div className="hidden md:flex px-3 py-2 sm:p-5 border-b border-slate-200/80 items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40 relative z-20">
                   <div className="flex items-center gap-4">
                     <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                       {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} <span className="text-slate-500 font-medium text-xs sm:text-sm">({addRows.length} rows)</span>
@@ -7262,7 +7635,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               );
             })()}
 
-                <div className="md:hidden space-y-3 bg-slate-50/40 p-3">
+                {/* Mobile Cards List (Stitch dae3df6671fd4c67bd09c109fda69136) */}
+                <div className="md:hidden space-y-3.5 p-1">
                   {addRows.map((row, idx) => (
                     <AdvanceExpenseMobileRow
                       key={row.id}
@@ -7294,8 +7668,38 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   ))}
                 </div>
 
-                {/* Grid Footer Bar — Add Row | Total | Submit Expenses — all in one row */}
-                <div className="p-3 sm:p-4 bg-slate-50/60 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+                {/* Mobile Sticky Action Bar (Stitch dae3df6671fd4c67bd09c109fda69136) */}
+                <div className="md:hidden sticky bottom-16 sm:bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-3 shadow-lg flex items-center gap-3 font-body">
+                  {/* Add Row Button */}
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="w-1/3 py-3 px-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 active:scale-95 transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer font-heading"
+                  >
+                    <Plus size={14} className="text-slate-600" />
+                    <span>Add Row</span>
+                  </button>
+
+                  {/* Submit Primary Button */}
+                  <button
+                    type="button"
+                    onClick={handleSubmitAll}
+                    disabled={submitting}
+                    className="flex-1 py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-[0.98] text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-blue-500/20 transition flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-heading"
+                  >
+                    {submitting ? (
+                      <Spinner size="w-3.5 h-3.5" color="text-white" />
+                    ) : (
+                      <>
+                        <span>Submit {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}</span>
+                        <ArrowRight size={15} className="text-white" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Desktop Grid Footer Bar — Add Row | Total | Submit Expenses (Hidden on Mobile) */}
+                <div className="hidden md:flex p-3 sm:p-4 bg-slate-50/60 border-t border-slate-200/80 items-center justify-between gap-3">
                   {/* Left: + Add Row */}
                   <div className="flex items-center gap-3">
                     <button

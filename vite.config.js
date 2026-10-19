@@ -6,6 +6,7 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   base: '/',
   server: {
+    host: true,
     allowedHosts: true
   },
   resolve: {
