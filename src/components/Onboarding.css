@@ -1,0 +1,30 @@
+.onboarding-scene {
+  animation: onboarding-reveal 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.onboarding-demo-tab {
+  transition: background-color 180ms ease-out, color 180ms ease-out;
+}
+
+.onboarding-choice:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+
+.onboarding-resume {
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes onboarding-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-scene { animation: none; }
+  .onboarding-demo-tab { transition: none; }
+}
+
+@media (min-width: 1024px) {
+  .onboarding-resume { bottom: 1.5rem; }
+}

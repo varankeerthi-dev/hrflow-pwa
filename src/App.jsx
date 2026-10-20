@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import MobileDashboard from './components/MobileDashboard'
 import Spinner from './components/ui/Spinner'
 import React, { useEffect, useState } from 'react'
+import OnboardingCoordinator from './components/OnboardingCoordinator'
 
 // Hook to detect mobile devices
 function useIsMobile() {
@@ -54,9 +55,9 @@ function ProtectedRoute({ children }) {
   useEffect(() => {
     if (user && isMobile && location.pathname !== '/mobile') {
       console.log('Mobile detected, redirecting to /mobile')
-      navigate('/mobile', { replace: true })
+      navigate(`/mobile${location.search}`, { replace: true })
     }
-  }, [user, isMobile, location.pathname, navigate])
+  }, [user, isMobile, location.pathname, location.search, navigate])
 
   if (loading) {
     return (
@@ -80,6 +81,15 @@ function ProtectedRoute({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  )
+}
+
+function AppRoutes() {
+  const isMobile = useIsMobile()
+  return (
+    <>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -116,7 +126,8 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+      <OnboardingCoordinator isMobile={isMobile} />
+    </>
   )
 }
 

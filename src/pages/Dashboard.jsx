@@ -114,12 +114,17 @@ const hiddenTabs = ['chat']
 
 // ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
-  const [modalTab, setModalTab] = useState('join')
+  const [tabSearchParams] = useSearchParams()
+  const [modalTab, setModalTab] = useState(() => tabSearchParams.get('setup') === 'company' ? 'create' : 'join')
   const [orgCode, setOrgCode] = useState('')
   const [orgName, setOrgName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [createdCode, setCreatedCode] = useState(null)
+
+  useEffect(() => {
+    if (tabSearchParams.get('setup') === 'company') setModalTab('create')
+  }, [tabSearchParams])
 
   const handleJoin = async (e) => {
     e.preventDefault()
@@ -384,6 +389,7 @@ export default function Dashboard() {
   useEffect(() => {
     const tabParam = tabSearchParams.get('tab')
     const subParam = tabSearchParams.get('sub')
+    const setupParam = tabSearchParams.get('setup')
     if (tabParam === 'expense') {
       setActiveTab('advance')
       setAdvanceSubTab('Add Expense')
@@ -394,6 +400,9 @@ export default function Dashboard() {
       }
     } else if (tabParam && visibleTabs.find(t => t.id === tabParam)) {
       setActiveTab(tabParam)
+      if (tabParam === 'settings' && setupParam === 'company') {
+        setSettingsSubTab('organization')
+      }
     } else if (tabParam && !visibleTabs.find(t => t.id === tabParam)) {
       // User tried to access a tab they don't have permission for
       setActiveTab('home')

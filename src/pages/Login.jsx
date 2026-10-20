@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, formatAuthError } from '../hooks/useAuth'
 import LoginOrgSelector from '../components/ui/LoginOrgSelector'
 import { db } from '../lib/firebase'
@@ -18,12 +18,17 @@ const GoogleIcon = () => (
 
 // ─── Organisation Setup Modal (Create or Join) ────────────────────────────────
 function OrgSetupModal({ user, onJoin, onCreate, onNavigate, onLogout }) {
-  const [modalTab, setModalTab] = useState('join')
+  const [searchParams] = useSearchParams()
+  const [modalTab, setModalTab] = useState(() => searchParams.get('setup') === 'company' ? 'create' : 'join')
   const [orgCode, setOrgCode] = useState('')
   const [orgName, setOrgName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [createdCode, setCreatedCode] = useState(null)
+
+  useEffect(() => {
+    if (searchParams.get('setup') === 'company') setModalTab('create')
+  }, [searchParams])
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const hasOrg = !!user?.orgId
@@ -210,6 +215,8 @@ function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
 export default function Login() {
   const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword, logout, switchOrganisation } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const navigateToDashboard = () => navigate({ pathname: '/', search: location.search }, { replace: true })
 
   const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
   const [loading, setLoading] = useState(false)
@@ -242,7 +249,7 @@ export default function Login() {
         user={user}
         onJoin={joinOrganisation}
         onCreate={createOrganisation}
-        onNavigate={() => navigate('/')}
+        onNavigate={navigateToDashboard}
         onLogout={logout}
       />
     )
@@ -258,7 +265,7 @@ export default function Login() {
           try {
             await switchOrganisation(orgId)
             // Use replace: true to avoid history stack issues
-            navigate('/', { replace: true })
+            navigateToDashboard()
           } catch (err) {
             alert('Failed to switch: ' + err.message)
           }
@@ -271,9 +278,7 @@ export default function Login() {
   }
 
   if (user) {
-    // Use redirect instead of navigate to avoid setState during render
-    window.location.href = '/'
-    return null
+    return <Navigate to={{ pathname: '/', search: location.search }} replace />
   }
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -316,7 +321,7 @@ export default function Login() {
         await login(data.email, password)
       }
 
-      navigate('/')
+      navigateToDashboard()
     } catch (err) {
       setError(formatAuthError(err))
     } finally {
@@ -331,7 +336,7 @@ export default function Login() {
     setLoading(true)
     try {
       await register(name, regEmail, regPassword, orgCode)
-      navigate('/')
+      navigateToDashboard()
     } catch (err) {
       setError(formatAuthError(err))
     } finally {
@@ -373,7 +378,7 @@ export default function Login() {
   const handleLink = async (email, password, googleCredential) => {
     await linkGoogleToEmail(email, password, googleCredential)
     setLinkData(null)
-    navigate('/')
+    navigateToDashboard()
   }
 
   // ── Shared Google & divider block ─────────────────────────────────────────

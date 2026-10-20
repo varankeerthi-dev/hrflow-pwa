@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
@@ -74,12 +75,17 @@ import HelpTab from './tabs/HelpTab'
 
 // ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
-  const [modalTab, setModalTab] = useState('join')
+  const [tabSearchParams] = useSearchParams()
+  const [modalTab, setModalTab] = useState(() => tabSearchParams.get('setup') === 'company' ? 'create' : 'join')
   const [orgCode, setOrgCode] = useState('')
   const [orgName, setOrgName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [createdCode, setCreatedCode] = useState(null)
+
+  useEffect(() => {
+    if (tabSearchParams.get('setup') === 'company') setModalTab('create')
+  }, [tabSearchParams])
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const hasOrg = !!user?.orgId
@@ -244,6 +250,7 @@ function MenuCard({ icon, label, onClick, color, badge }) {
 
 export default function MobileDashboard() {
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   
   // Requirement: Delay employee lookup until auth user and orgId are available
   const canFetchEmployees = user && !!user.orgId
@@ -425,6 +432,29 @@ export default function MobileDashboard() {
         permission.export === true)
     })
   }, [allModules, user?.permissions, user?.role])
+
+  useEffect(() => {
+    const setup = searchParams.get('setup')
+    if (!user?.orgId || !['company', 'employee'].includes(setup)) return
+
+    const isAdmin = user?.role?.toLowerCase() === 'admin'
+    const employeePermissions = user?.permissions?.Employees || {}
+    const targetTab = setup === 'company'
+      ? (isAdmin ? 'settings' : null)
+      : (isAdmin || (employeePermissions.view === true && employeePermissions.create === true) ? 'employees' : null)
+    if (!targetTab) return
+
+    setActiveTab(targetTab)
+    if (targetTab === 'settings') setSettingsSubTab('organization')
+    setShowMenu(false)
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('setup')
+    nextParams.set('tab', targetTab)
+    if (targetTab === 'settings') nextParams.set('sub', 'organization')
+    else nextParams.delete('sub')
+    setSearchParams(nextParams, { replace: true })
+  }, [searchParams, setSearchParams, user])
 
   const categorizedModules = useMemo(() => {
     // Exclude the 'home' tile itself from the dashboard view

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react'
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -15,6 +15,7 @@ import {
 
 import { doc, getDoc, setDoc, collection, query, where, getDocs, collectionGroup, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
+import { createOnboarding, validOnboarding } from '../lib/onboarding'
 
 const AuthContext = createContext()
 
@@ -175,6 +176,12 @@ async function readUserDoc(uid, targetOrgId = null) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const userRef = useRef(user)
+  const onboardingWritesRef = useRef({ uid: null, latestRequestedAt: 0, queue: Promise.resolve() })
+
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
 
   useEffect(() => {
     console.log('AuthProvider: Setting up onAuthStateChanged')
@@ -306,6 +313,7 @@ export function AuthProvider({ children }) {
       role: assignedRole,
       employeeId: employeeId,
       loginEnabled: true,
+      onboarding: createOnboarding(),
       onboardingComplete: false, // Flag to trigger onboarding UI
       createdAt: new Date().toISOString(),
     }
@@ -331,6 +339,7 @@ export function AuthProvider({ children }) {
           orgId: null,
           role: null,
           loginEnabled: true,
+          onboarding: createOnboarding(),
           onboardingComplete: false,
           createdAt: new Date().toISOString(),
         }
@@ -365,6 +374,57 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const saveOnboarding = async (progress) => {
+    if (!validOnboarding(progress)) throw new TypeError('Invalid onboarding progress.')
+
+    const uid = auth.currentUser?.uid
+    if (!uid || userRef.current?.uid !== uid) return false
+
+    const currentProgress = userRef.current?.uid === uid ? userRef.current.onboarding : null
+    const requestedAt = Number.isFinite(progress.updatedAt) ? progress.updatedAt : 0
+    const currentAt = validOnboarding(currentProgress) && Number.isFinite(currentProgress.updatedAt)
+      ? currentProgress.updatedAt
+      : 0
+    if (onboardingWritesRef.current.uid !== uid) {
+      onboardingWritesRef.current = { uid, latestRequestedAt: currentAt, queue: Promise.resolve() }
+    }
+    const writes = onboardingWritesRef.current
+    if (requestedAt < Math.max(currentAt, writes.latestRequestedAt)) return false
+    writes.latestRequestedAt = Math.max(writes.latestRequestedAt, requestedAt)
+
+    const pendingWrite = writes.queue.then(async () => {
+      if (auth.currentUser?.uid !== uid || userRef.current?.uid !== uid) return false
+      const latestProgress = userRef.current?.uid === uid ? userRef.current.onboarding : null
+      const latestAt = validOnboarding(latestProgress) && Number.isFinite(latestProgress.updatedAt)
+        ? latestProgress.updatedAt
+        : 0
+      if (requestedAt < latestAt || requestedAt < writes.latestRequestedAt) return false
+
+      await setDoc(doc(db, 'users', uid), {
+        onboarding: progress,
+        onboardingComplete: progress.status === 'complete',
+      }, { merge: true })
+
+      setUser((current) => {
+        if (current?.uid !== uid) return current
+        if (validOnboarding(current.onboarding) &&
+            Number.isFinite(current.onboarding.updatedAt) &&
+            Number.isFinite(progress.updatedAt) &&
+            current.onboarding.updatedAt > progress.updatedAt) {
+          return current
+        }
+        return {
+          ...current,
+          onboarding: progress,
+          onboardingComplete: progress.status === 'complete',
+        }
+      })
+      return true
+    })
+    writes.queue = pendingWrite.catch(() => false)
+    return pendingWrite
+  }
+
   const switchOrganisation = async (orgId) => {
     if (!user?.uid) return
     setLoading(true)
@@ -391,6 +451,23 @@ export function AuthProvider({ children }) {
     const slug = orgName.trim().toLowerCase().replace(/\s+/g, '-')
     const code = `${slug}-${Date.now().toString(36)}`
 
+    const latestOnboardingTime = Math.max(
+      Number.isFinite(currentUser?.onboarding?.updatedAt) ? currentUser.onboarding.updatedAt : 0,
+      Number.isFinite(userRef.current?.onboarding?.updatedAt) ? userRef.current.onboarding.updatedAt : 0,
+      onboardingWritesRef.current.uid === firebaseUser.uid ? onboardingWritesRef.current.latestRequestedAt : 0,
+    )
+    const onboarding = createOnboarding({
+      pendingOrg: { code, name: orgName.trim() },
+      updatedAt: Math.max(Date.now(), latestOnboardingTime + 1),
+    })
+    const previousWrites = onboardingWritesRef.current
+    if (previousWrites.uid === firebaseUser.uid) {
+      previousWrites.latestRequestedAt = onboarding.updatedAt
+      await previousWrites.queue
+    } else {
+      onboardingWritesRef.current = { uid: firebaseUser.uid, latestRequestedAt: onboarding.updatedAt, queue: Promise.resolve() }
+    }
+
     const orgData = {
       name: orgName.trim(),
       code,
@@ -410,7 +487,9 @@ const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
         await setDoc(doc(db, 'users', firebaseUser.uid), { 
           orgId: code,
           currentOrgId: code,
-          memberships: updatedMemberships 
+          memberships: updatedMemberships,
+          onboarding,
+          onboardingComplete: false,
         }, { merge: true })
         
         // Verify the save
@@ -478,6 +557,7 @@ const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
     register,
     loginWithGoogle,
     linkGoogleToEmail,
+    saveOnboarding,
     createOrganisation,
     resetPassword,
     joinOrganisation,
