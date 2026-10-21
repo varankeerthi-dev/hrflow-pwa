@@ -3,6 +3,7 @@ import { getDocs, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, o
 import { tasksCol, taskDoc } from '../lib/firestore'
 import { useAuth } from './useAuth'
 import { cleanFirestoreData } from '../lib/taskUtils'
+import { saveTaskProgress, withoutTaskProgress } from '../lib/taskProgress'
 
 export function useTasks(orgId) {
   const { user } = useAuth()
@@ -78,6 +79,7 @@ export function useTasks(orgId) {
 
   const updateTask = async (taskId, updates) => {
     if (!orgId || !taskId) return
+    updates = withoutTaskProgress(updates)
     // Optimistic local update for instantaneous UI feedback
     setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, ...updates } : t)))
 
@@ -110,5 +112,7 @@ export function useTasks(orgId) {
     }
   }
 
-  return { tasks, loading, error, addTask, updateTask, deleteTask }
+  const updateTaskProgress = (taskId, input) => saveTaskProgress(orgId, taskId, user, input)
+
+  return { tasks, loading, error, addTask, updateTask, deleteTask, updateTaskProgress }
 }

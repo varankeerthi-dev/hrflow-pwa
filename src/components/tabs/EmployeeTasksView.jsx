@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useTasks } from '../../hooks/useTasks'
+import TaskProgress from '../tasks/TaskProgress'
 import { CheckCircle2, Circle, PlayCircle, Clock, Calendar, User, Filter, Search } from 'lucide-react'
 
 const STATUS_CONFIG = {
@@ -20,7 +21,7 @@ const PRIORITY_CONFIG = {
 
 export default function EmployeeTasksView({ employeeId, employee }) {
   const { user } = useAuth()
-  const { tasks, loading, updateTask } = useTasks(user?.orgId)
+  const { tasks, loading, updateTask, updateTaskProgress } = useTasks(user?.orgId)
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -232,6 +233,13 @@ export default function EmployeeTasksView({ employeeId, employee }) {
                         </div>
                       )}
                     </div>
+
+                    <details className="mt-4">
+                      <summary className="text-sm font-medium text-blue-700 cursor-pointer">Progress &amp; follow-up{task.nextFollowUpDate ? ` · ${task.nextFollowUpDate}` : ''}</summary>
+                      <div className="mt-3">
+                        <TaskProgress task={task} user={user} onSave={updateTaskProgress} />
+                      </div>
+                    </details>
 
                     {/* Status Actions */}
                     {task.status !== 'Completed' && (

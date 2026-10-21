@@ -41,6 +41,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 import Modal from './ui/Modal'
 import TaskChecklistBuilder from './tasks/TaskChecklistBuilder'
+import TaskProgress from './tasks/TaskProgress'
 import AssignUserPicker from './tasks/AssignUserPicker'
 import { parseNaturalDate } from '../lib/dateUtils'
 import { createDefaultChecklistItem, createDefaultSubtask, ensureItemIds } from '../lib/taskUtils'
@@ -75,7 +76,7 @@ const getInitials = (name) => {
 export default function MobileTasksView() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { tasks, loading, addTask, updateTask, deleteTask } = useTasks(user?.orgId)
+  const { tasks, loading, addTask, updateTask, deleteTask, updateTaskProgress } = useTasks(user?.orgId)
   
   // Main tabs: Team | Personal | Ideas
   const [activeTab, setActiveTab] = useState('team')
@@ -1406,7 +1407,10 @@ export default function MobileTasksView() {
       {/* Task Detail Modal */}
       {showTaskDetail && (
         <TaskDetailModal
-          task={showTaskDetail}
+          key={showTaskDetail.id}
+          task={tasks.find(task => task.id === showTaskDetail.id) || showTaskDetail}
+          user={user}
+          onProgressUpdate={updateTaskProgress}
           employees={taskEmployees}
           onClose={() => setShowTaskDetail(null)}
           onUpdate={updateTask}
@@ -1867,7 +1871,7 @@ function TaskItem({
 }
 
 // Task Detail Modal Component
-function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
+function TaskDetailModal({ task, user, employees, onClose, onUpdate, onDelete, onProgressUpdate }) {
   const [editedTask, setEditedTask] = useState({
     ...task,
     assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : [],
@@ -2026,6 +2030,7 @@ function TaskDetailModal({ task, employees, onClose, onUpdate, onDelete }) {
 
         {/* Content Body */}
         <div className="p-4 space-y-5 overflow-y-auto flex-1 font-body">
+          <TaskProgress task={task} user={user} onSave={onProgressUpdate} />
           {/* Assignees */}
           <div className="space-y-2">
             <p className="text-xs text-gray-500 uppercase font-medium font-heading">Assigned to</p>

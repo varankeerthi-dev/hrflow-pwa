@@ -55,6 +55,7 @@ import ChecklistView from '../../modules/checklist/components/ChecklistView'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import TaskChecklistBuilder from '../tasks/TaskChecklistBuilder'
+import TaskProgress from '../tasks/TaskProgress'
 import AssignUserPicker from '../tasks/AssignUserPicker'
 import { parseNaturalDate } from '../../lib/dateUtils'
 import { createDefaultChecklistItem, createDefaultSubtask, ensureItemIds } from '../../lib/taskUtils'
@@ -126,7 +127,7 @@ export default function TasksTab({ defaultSubTab }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { tasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(user?.orgId)
+  const { tasks, loading: tasksLoading, addTask, updateTask, deleteTask, updateTaskProgress } = useTasks(user?.orgId)
   const { reminders, loading: remindersLoading, addReminder, dismissReminder, deleteReminder } = useReminders(user?.orgId)
   
   const loading = tasksLoading || remindersLoading
@@ -3743,6 +3744,7 @@ export default function TasksTab({ defaultSubTab }) {
               </div>
             </div>
 
+            <TaskProgress key={editingTask.id} task={tasks.find(task => task.id === editingTask.id) || editingTask} user={user} onSave={updateTaskProgress} />
             {/* Client Tracking */}
             <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
               <div className="bg-slate-50/60 px-3.5 py-2 border-b border-slate-200/80 flex items-center justify-between">
@@ -4003,7 +4005,10 @@ export default function TasksTab({ defaultSubTab }) {
             {/* 3-Column Single-Window Layout: No page scroll down */}
             <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 p-4 bg-slate-50/50 overflow-y-auto lg:overflow-hidden">
               {/* Column 1: Description & Assignees */}
-              <div className="lg:col-span-4 flex flex-col gap-3 min-h-0 h-full">
+              <div className="lg:col-span-4 flex flex-col gap-3 min-h-0 h-full overflow-y-auto">
+                <div className="shrink-0">
+                  <TaskProgress key={drawerTask.id} task={tasks.find(task => task.id === drawerTask.id) || drawerTask} user={user} onSave={updateTaskProgress} />
+                </div>
                 {/* Description Card */}
                 <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col shrink-0 min-h-[140px] max-h-[200px]">
                   <div className="flex items-center justify-between mb-1.5 shrink-0">
@@ -4022,7 +4027,7 @@ export default function TasksTab({ defaultSubTab }) {
                 </div>
 
                 {/* Assignees Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col flex-1 min-h-0">
+                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col flex-1 min-h-[160px] shrink-0">
                   <div className="flex items-center justify-between mb-2 shrink-0">
                     <label className="text-[11px] font-bold text-slate-800 font-heading uppercase tracking-wider flex items-center gap-1.5">
                       <User size={12} className="text-slate-500" />

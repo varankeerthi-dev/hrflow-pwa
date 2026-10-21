@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:task-progress": "node --test test/taskProgress.test.mjs",
     "test:communications": "node --test test/communications.test.mjs",
     "test:share": "node --test test/share.test.mjs",
     "test:leave-entitlements": "node --test test/leaveEntitlements.test.mjs",
