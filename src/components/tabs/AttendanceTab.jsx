@@ -708,20 +708,6 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
               <Copy size={12} />
             </button>
           )}
-          {showRemarksCopyModal && activeRemarksCopyEmpId === row.employeeId && (
-            <CopyToRemarksDropdown
-              sourceRow={row}
-              activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
-              selectedEmps={selectedRemarksEmps}
-              setSelectedEmps={setSelectedRemarksEmps}
-              onApply={handleRemarksCopySubmit}
-              onClose={() => {
-                setShowRemarksCopyModal(false)
-                setActiveRemarksCopyEmpId(null)
-                setSelectedRemarksEmps([])
-              }}
-            />
-          )}
         </div>
       </div>
       {eligible.length > 0 && <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 pb-0.5">{eligible.map(cat => <label key={cat.id} className="inline-flex min-h-6 shrink-0 items-center gap-1 bg-emerald-50 px-1.5 text-[10px] text-emerald-800"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-3 w-3 rounded border-gray-300 text-indigo-600" /><span>{cat.name}</span><span className="font-semibold">₹{getAllowanceAmount(cat)}</span></label>)}</div>}
@@ -748,6 +734,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
       ref={dropdownRef}
       className="absolute top-0 left-full ml-2 z-[1000] bg-white rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-100 p-2.5 w-[210px] font-inter animate-in fade-in slide-in-from-left-2 duration-200"
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="pb-1.5 border-b border-gray-100 mb-2">
         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.08em]">Copy to</p>
@@ -798,6 +785,9 @@ function CopyToRemarksDropdown({ activeEmployees, sourceRow, selectedEmps, setSe
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        if (event.target.closest && event.target.closest('.copy-remarks-dropdown-container')) {
+          return;
+        }
         onClose();
       }
     }
@@ -810,9 +800,26 @@ function CopyToRemarksDropdown({ activeEmployees, sourceRow, selectedEmps, setSe
     .map(s => s.trim())
     .filter(Boolean);
 
-  const allSelected = activeEmployees.length > 0 && selectedEmps.length === activeEmployees.length;
+  const isEmpSelected = (empId) => {
+    return Array.isArray(selectedEmps) && selectedEmps.some(id => String(id) === String(empId));
+  };
 
-  const handleToggleAll = () => {
+  const handleToggleEmp = (empId) => {
+    setSelectedEmps(prev => {
+      const arr = Array.isArray(prev) ? prev : [];
+      if (arr.some(id => String(id) === String(empId))) {
+        return arr.filter(id => String(id) !== String(empId));
+      } else {
+        return [...arr, empId];
+      }
+    });
+  };
+
+  const allSelected = activeEmployees.length > 0 && activeEmployees.every(e => isEmpSelected(e.id));
+
+  const handleToggleAll = (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (allSelected) {
       setSelectedEmps([]);
     } else {
@@ -823,21 +830,25 @@ function CopyToRemarksDropdown({ activeEmployees, sourceRow, selectedEmps, setSe
   return (
     <div
       ref={dropdownRef}
-      className="absolute top-0 right-0 sm:left-full sm:right-auto ml-2 z-[1000] bg-white rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.15)] border border-slate-200 p-3 w-[240px] font-body animate-in fade-in slide-in-from-left-2 duration-200"
+      className="copy-remarks-dropdown-container absolute top-0 right-0 sm:left-full sm:right-auto ml-2 z-[1000] bg-white rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.15)] border border-slate-200 p-3 w-[250px] font-body animate-in fade-in slide-in-from-left-2 duration-200"
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-2">
         <div>
           <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.08em] font-heading">
             Copy Site(s) To
           </p>
-          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[170px]" title={sourceRow?.remarks}>
+          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[180px]" title={sourceRow?.remarks}>
             From: {sourceRow?.name}
           </p>
         </div>
         <button
           type="button"
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors"
           title="Close"
           aria-label="Close copy dropdown"
@@ -849,14 +860,18 @@ function CopyToRemarksDropdown({ activeEmployees, sourceRow, selectedEmps, setSe
       <div className="mb-2 bg-indigo-50/60 p-2 rounded-lg border border-indigo-100/70">
         <p className="text-[9px] font-bold text-indigo-700 uppercase mb-1">Sites to copy:</p>
         <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
-          {sites.map((site, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white text-indigo-900 border border-indigo-200 shadow-2xs"
-            >
-              {site}
-            </span>
-          ))}
+          {sites.length === 0 ? (
+            <span className="text-[10px] text-slate-400 italic">No sites selected</span>
+          ) : (
+            sites.map((site, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white text-indigo-900 border border-indigo-200 shadow-2xs"
+              >
+                {site}
+              </span>
+            ))
+          )}
         </div>
       </div>
 
@@ -865,45 +880,54 @@ function CopyToRemarksDropdown({ activeEmployees, sourceRow, selectedEmps, setSe
         <button
           type="button"
           onClick={handleToggleAll}
-          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
         >
           {allSelected ? 'Deselect All' : 'Select All'}
         </button>
       </div>
 
-      <div className="max-h-[150px] overflow-y-auto border border-slate-200 rounded-lg mb-2.5 bg-slate-50/40">
+      <div className="max-h-[160px] overflow-y-auto border border-slate-200 rounded-lg mb-2.5 bg-slate-50/40">
         {activeEmployees.length === 0 ? (
-          <div className="p-3 text-center text-xs text-slate-400 italic">No other employees available</div>
+          <div className="p-3 text-center text-xs text-slate-400 italic">No other employees in table</div>
         ) : (
-          activeEmployees.map(emp => (
-            <label
-              key={emp.id}
-              className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-white cursor-pointer border-b border-slate-100 last:border-0 transition-colors group"
-            >
-              <input
-                type="checkbox"
-                checked={selectedEmps.includes(emp.id)}
-                onChange={e => {
-                  if (e.target.checked) setSelectedEmps(p => [...p, emp.id])
-                  else setSelectedEmps(p => p.filter(id => id !== emp.id))
+          activeEmployees.map(emp => {
+            const selected = isEmpSelected(emp.id);
+            return (
+              <div
+                key={emp.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleEmp(emp.id);
                 }}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="text-[11px] font-medium text-slate-700 truncate group-hover:text-slate-900">
-                {emp.name}
-              </span>
-            </label>
-          ))
+                className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-100 last:border-0 transition-colors select-none ${
+                  selected ? 'bg-indigo-50/90 font-medium' : 'hover:bg-white'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  readOnly
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer pointer-events-none"
+                />
+                <span className="text-[11px] text-slate-700 truncate flex-1 cursor-pointer">
+                  {emp.name}
+                </span>
+              </div>
+            );
+          })
         )}
       </div>
 
       <button
         type="button"
-        disabled={selectedEmps.length === 0}
-        onClick={onApply}
+        disabled={!selectedEmps || selectedEmps.length === 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          onApply();
+        }}
         className="h-8 w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-[10px] shadow-sm uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-heading active:scale-[0.98]"
       >
-        <Copy size={12} /> Apply ({selectedEmps.length})
+        <Copy size={12} /> Apply ({selectedEmps ? selectedEmps.length : 0})
       </button>
     </div>
   );
@@ -1855,6 +1879,11 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }, [employees, rowOrder, selectedDate])
 
   const activeEmployees = useMemo(() => sortedEmployees, [sortedEmployees])
+  const copyTargetEmployees = useMemo(() => {
+    const rowEmps = rows.filter(r => r.employeeId && !r.isPlaceholder).map(r => ({ id: r.employeeId, name: r.name }))
+    if (rowEmps.length > 0) return rowEmps
+    return activeEmployees.map(e => ({ id: e.id, name: e.name }))
+  }, [rows, activeEmployees])
   const isSunday = new Date(selectedDate).getDay() === 0
   const isDayShift = orgData?.shiftStrategy === 'Day'
   
@@ -2579,14 +2608,22 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }
 
   const handleRemarksCopySubmit = () => {
-    if (!activeRemarksCopyEmpId || !remarksCopyData || selectedRemarksEmps.length === 0) return
+    if (!activeRemarksCopyEmpId || !selectedRemarksEmps || selectedRemarksEmps.length === 0) return
     setDirty(true)
 
-    const sourceRemarks = remarksCopyData.remarks || ''
-    const sourceVisits = Array.isArray(remarksCopyData.siteVisits) ? remarksCopyData.siteVisits : []
+    const sourceRow = rows.find(r => String(r.employeeId) === String(activeRemarksCopyEmpId))
+    const sourceRemarks = sourceRow?.remarks || remarksCopyData?.remarks || ''
+    if (!sourceRemarks) return
+
+    const sourceVisits = Array.isArray(sourceRow?.siteVisits) && sourceRow.siteVisits.length > 0
+      ? sourceRow.siteVisits
+      : Array.isArray(remarksCopyData?.siteVisits)
+        ? remarksCopyData.siteVisits
+        : []
 
     setRows(prev => prev.map(r => {
-      if (selectedRemarksEmps.includes(r.employeeId)) {
+      const isTarget = selectedRemarksEmps.some(id => String(id) === String(r.employeeId))
+      if (isTarget) {
         if (isLeaveProtected(r) && !r.leaveOverride?.confirmed) {
           return r
         }
@@ -2627,7 +2664,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         return {
           ...r,
           remarks: sourceRemarks,
-          siteVisits: newVisits
+          siteVisits: newVisits,
+          isAbsent: false,
+          status: r.status === 'Absent' ? 'Present' : (r.status || 'Present')
         }
       }
       return r
@@ -2769,7 +2808,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               const selectedAllowances = allowanceSelections[row.employeeId] || []
               return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : (row.status === 'Half-Day' || row.isHalfDay) ? 'border-amber-200 bg-amber-50/20' : row.status === 'Off Day' ? 'border-blue-200 bg-blue-50/20' : ''}`}>
                 <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div>{(row.status === 'Half-Day' || row.isHalfDay) && <div className="text-[10px] font-semibold text-amber-600">HD: {row.halfDayReason || 'Half Day'}</div>}{row.status === 'Off Day' && <div className="text-[10px] font-semibold text-blue-600">Off: {row.offDayReason || 'Weekly Off'}</div>}</div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><div className="flex items-center gap-1"><button type="button" onClick={() => handleOpenStatusModal(row, 'Half-Day')} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 hover:text-amber-600 flex items-center justify-center active:bg-amber-50 disabled:opacity-30" title="More actions" aria-label="More actions"><MoreVertical size={16} /></button><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div></div>
-                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="flex items-center justify-between pb-1"><div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div>{row.remarks && !row.isAbsent && (<button type="button" onClick={() => handleOpenRemarksCopy(row)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95"><Copy size={11} /> Copy to others</button>)}</div><div className="relative"><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} onEnter={() => handleOpenRemarksCopy(row)} onOpenCopy={() => handleOpenRemarksCopy(row)} className="w-full" />{showRemarksCopyModal && activeRemarksCopyEmpId === row.employeeId && (<CopyToRemarksDropdown sourceRow={row} activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)} selectedEmps={selectedRemarksEmps} setSelectedEmps={setSelectedRemarksEmps} onApply={handleRemarksCopySubmit} onClose={() => { setShowRemarksCopyModal(false); setActiveRemarksCopyEmpId(null); setSelectedRemarksEmps([]) }} />)}</div></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
+                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="flex items-center justify-between pb-1"><div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div>{row.remarks && !row.isAbsent && (<button type="button" onClick={() => handleOpenRemarksCopy(row)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95"><Copy size={11} /> Copy to others</button>)}</div><div className="relative"><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} onEnter={() => handleOpenRemarksCopy(row)} onOpenCopy={() => handleOpenRemarksCopy(row)} className="w-full" /></div></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
               </div>
             })}</div>
             {pendingRemoval && <div className="fixed inset-x-3 bottom-[78px] z-[90] flex items-center justify-between gap-3 rounded-lg bg-gray-900 px-3 py-2.5 text-white shadow-xl md:hidden" role="status" aria-live="polite"><span className="min-w-0 truncate text-xs">Removed {pendingRemoval.row.name || 'attendance row'}</span><button type="button" onClick={handleUndoClearRow} className="shrink-0 rounded-md bg-white/15 px-3 py-1.5 text-xs font-semibold text-white active:bg-white/25">Undo</button></div>}
@@ -3030,7 +3069,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             {showRemarksCopyModal && activeRemarksCopyEmpId === row.employeeId && (
                               <CopyToRemarksDropdown
                                 sourceRow={row}
-                                activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
+                                activeEmployees={copyTargetEmployees.filter(e => String(e.id) !== String(row.employeeId))}
                                 selectedEmps={selectedRemarksEmps}
                                 setSelectedEmps={setSelectedRemarksEmps}
                                 onApply={handleRemarksCopySubmit}
