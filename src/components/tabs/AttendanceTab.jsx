@@ -650,7 +650,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   );
 };
 
-function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, siteConfig, onOpenSiteTimings, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday, onOpenStatusModal }) {
+function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, siteConfig, onOpenSiteTimings, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday, onOpenStatusModal, onOpenRemarksCopy, showRemarksCopyModal, activeRemarksCopyEmpId, selectedRemarksEmps, setSelectedRemarksEmps, handleRemarksCopySubmit, setShowRemarksCopyModal, setActiveRemarksCopyEmpId, activeEmployees }) {
   const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
   const selectedAllowances = allowanceSelections[row.employeeId] || []
   const statusOptions = [{ id: 'Present', label: 'Present' }, { id: 'Absent', label: 'Absent' }, ...((row.status === 'Half-Day' || row.isHalfDay) ? [{ id: 'Half-Day', label: 'Half-Day' }] : []), ...(row.status === 'Off Day' ? [{ id: 'Off Day', label: 'Off Day' }] : []), ...(isSunday ? [{ id: 'SunWorked', label: 'Worked' }, { id: 'SunHoliday', label: 'Holiday' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked' }, { id: 'Holiday', label: 'Holiday' }] : [])]
@@ -682,17 +682,46 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)] items-start gap-1.5 pt-1.5">
         <div className="relative min-w-0"><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="compact-mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div>
         <div className="relative min-w-0"><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="compact-mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div>
-        <div className="min-w-0">
-          <RemarksDropdown
-            value={row.remarks || ''}
-            onChange={val => updateRow(row.employeeId, 'remarks', val)}
-            onAddOption={handleAddRemarkOption}
-            options={siteConfig || remarksOptions}
-            disabled={row.isAbsent}
-            siteVisits={row.siteVisits || []}
-            onSiteClick={(siteName) => onOpenSiteTimings?.(row, siteName)}
-            className="w-full"
-          />
+        <div className="relative min-w-0 flex items-center gap-1">
+          <div className="flex-1 min-w-0">
+            <RemarksDropdown
+              value={row.remarks || ''}
+              onChange={val => updateRow(row.employeeId, 'remarks', val)}
+              onAddOption={handleAddRemarkOption}
+              options={siteConfig || remarksOptions}
+              disabled={row.isAbsent}
+              siteVisits={row.siteVisits || []}
+              onSiteClick={(siteName) => onOpenSiteTimings?.(row, siteName)}
+              onEnter={() => onOpenRemarksCopy?.(row)}
+              onOpenCopy={() => onOpenRemarksCopy?.(row)}
+              className="w-full"
+            />
+          </div>
+          {row.remarks && !row.isAbsent && (
+            <button
+              type="button"
+              onClick={() => onOpenRemarksCopy?.(row)}
+              className="h-7 w-7 shrink-0 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors"
+              title="Copy site(s) to other employees"
+              aria-label="Copy site to other employees"
+            >
+              <Copy size={12} />
+            </button>
+          )}
+          {showRemarksCopyModal && activeRemarksCopyEmpId === row.employeeId && (
+            <CopyToRemarksDropdown
+              sourceRow={row}
+              activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
+              selectedEmps={selectedRemarksEmps}
+              setSelectedEmps={setSelectedRemarksEmps}
+              onApply={handleRemarksCopySubmit}
+              onClose={() => {
+                setShowRemarksCopyModal(false)
+                setActiveRemarksCopyEmpId(null)
+                setSelectedRemarksEmps([])
+              }}
+            />
+          )}
         </div>
       </div>
       {eligible.length > 0 && <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 pb-0.5">{eligible.map(cat => <label key={cat.id} className="inline-flex min-h-6 shrink-0 items-center gap-1 bg-emerald-50 px-1.5 text-[10px] text-emerald-800"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-3 w-3 rounded border-gray-300 text-indigo-600" /><span>{cat.name}</span><span className="font-semibold">₹{getAllowanceAmount(cat)}</span></label>)}</div>}
@@ -757,6 +786,124 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
         className="h-[28px] w-full bg-indigo-600 text-white font-bold rounded-lg text-[10px] shadow-sm uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5"
       >
         <Copy size={12} /> Apply
+      </button>
+    </div>
+  );
+}
+
+// ─── Dropdown Remarks / Sites Copy Picker ──────────────────────────────────
+function CopyToRemarksDropdown({ activeEmployees, sourceRow, selectedEmps, setSelectedEmps, onApply, onClose }) {
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  const sites = (sourceRow?.remarks || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const allSelected = activeEmployees.length > 0 && selectedEmps.length === activeEmployees.length;
+
+  const handleToggleAll = () => {
+    if (allSelected) {
+      setSelectedEmps([]);
+    } else {
+      setSelectedEmps(activeEmployees.map(e => e.id));
+    }
+  };
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="absolute top-0 right-0 sm:left-full sm:right-auto ml-2 z-[1000] bg-white rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.15)] border border-slate-200 p-3 w-[240px] font-body animate-in fade-in slide-in-from-left-2 duration-200"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-2">
+        <div>
+          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.08em] font-heading">
+            Copy Site(s) To
+          </p>
+          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[170px]" title={sourceRow?.remarks}>
+            From: {sourceRow?.name}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors"
+          title="Close"
+          aria-label="Close copy dropdown"
+        >
+          <X size={13} />
+        </button>
+      </div>
+
+      <div className="mb-2 bg-indigo-50/60 p-2 rounded-lg border border-indigo-100/70">
+        <p className="text-[9px] font-bold text-indigo-700 uppercase mb-1">Sites to copy:</p>
+        <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+          {sites.map((site, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white text-indigo-900 border border-indigo-200 shadow-2xs"
+            >
+              {site}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between px-1 mb-1.5">
+        <span className="text-[10px] font-bold text-slate-500 uppercase">Select Employees</span>
+        <button
+          type="button"
+          onClick={handleToggleAll}
+          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+        >
+          {allSelected ? 'Deselect All' : 'Select All'}
+        </button>
+      </div>
+
+      <div className="max-h-[150px] overflow-y-auto border border-slate-200 rounded-lg mb-2.5 bg-slate-50/40">
+        {activeEmployees.length === 0 ? (
+          <div className="p-3 text-center text-xs text-slate-400 italic">No other employees available</div>
+        ) : (
+          activeEmployees.map(emp => (
+            <label
+              key={emp.id}
+              className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-white cursor-pointer border-b border-slate-100 last:border-0 transition-colors group"
+            >
+              <input
+                type="checkbox"
+                checked={selectedEmps.includes(emp.id)}
+                onChange={e => {
+                  if (e.target.checked) setSelectedEmps(p => [...p, emp.id])
+                  else setSelectedEmps(p => p.filter(id => id !== emp.id))
+                }}
+                className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-[11px] font-medium text-slate-700 truncate group-hover:text-slate-900">
+                {emp.name}
+              </span>
+            </label>
+          ))
+        )}
+      </div>
+
+      <button
+        type="button"
+        disabled={selectedEmps.length === 0}
+        onClick={onApply}
+        className="h-8 w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-[10px] shadow-sm uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-heading active:scale-[0.98]"
+      >
+        <Copy size={12} /> Apply ({selectedEmps.length})
       </button>
     </div>
   );
@@ -1453,6 +1600,11 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const [copyData, setCopyData] = useState(null)
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [activeCopyEmpId, setActiveCopyEmpId] = useState(null);
+  const [remarksCopyData, setRemarksCopyData] = useState(null)
+  const [showRemarksCopyModal, setShowRemarksCopyModal] = useState(false)
+  const [activeRemarksCopyEmpId, setActiveRemarksCopyEmpId] = useState(null)
+  const [selectedRemarksEmps, setSelectedRemarksEmps] = useState([])
+  const [statusResetConfirm, setStatusResetConfirm] = useState(null)
 
   useEffect(() => () => {
     if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
@@ -2189,8 +2341,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }
   }
 
-  const handleStatusChange = (empId, newStatus) => {
+  const executeStatusChange = (empId, newStatus) => {
     const currentRow = rows.find((row) => row.employeeId === empId)
+    if (!currentRow) return
     if (isLeaveProtected(currentRow) && !currentRow.leaveOverride?.confirmed) {
       setLeaveOverrideTarget(currentRow)
       setLeaveOverrideReason('')
@@ -2224,6 +2377,35 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       }
       return updated
     }))
+  }
+
+  const handleStatusChange = (empId, newStatus) => {
+    const currentRow = rows.find((row) => row.employeeId === empId)
+    if (!currentRow) return
+
+    // If changing to a status that wipes timings, check if timings or remarks exist
+    const willClearTimes = newStatus === 'Absent' || newStatus === 'SunHoliday' || newStatus === 'Holiday' || newStatus === 'Off Day'
+    const hasRecordedTimes = Boolean(
+      (currentRow.inTime && String(currentRow.inTime).trim()) ||
+      (currentRow.outTime && String(currentRow.outTime).trim()) ||
+      (currentRow.otHours && String(currentRow.otHours).trim() !== '00:00') ||
+      (newStatus === 'Absent' && currentRow.remarks && String(currentRow.remarks).trim())
+    )
+
+    if (willClearTimes && hasRecordedTimes) {
+      setStatusResetConfirm({
+        empId,
+        newStatus,
+        name: currentRow.name,
+        inTime: currentRow.inTime,
+        outTime: currentRow.outTime,
+        otHours: currentRow.otHours,
+        remarks: currentRow.remarks
+      })
+      return
+    }
+
+    executeStatusChange(empId, newStatus)
   }
 
   const confirmLeaveOverride = () => {
@@ -2382,6 +2564,81 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     setShowCopyModal(false); setSelectedEmps([]); setActiveCopyEmpId(null);
   }
 
+  const handleOpenRemarksCopy = (row) => {
+    if (!row || !row.employeeId || !row.remarks) return
+    setActiveRemarksCopyEmpId(row.employeeId)
+    setRemarksCopyData({
+      remarks: row.remarks,
+      siteVisits: row.siteVisits || [],
+      sourceName: row.name
+    })
+    setSelectedRemarksEmps([])
+    setShowRemarksCopyModal(true)
+    setShowCopyModal(false)
+    setActiveCopyEmpId(null)
+  }
+
+  const handleRemarksCopySubmit = () => {
+    if (!activeRemarksCopyEmpId || !remarksCopyData || selectedRemarksEmps.length === 0) return
+    setDirty(true)
+
+    const sourceRemarks = remarksCopyData.remarks || ''
+    const sourceVisits = Array.isArray(remarksCopyData.siteVisits) ? remarksCopyData.siteVisits : []
+
+    setRows(prev => prev.map(r => {
+      if (selectedRemarksEmps.includes(r.employeeId)) {
+        if (isLeaveProtected(r) && !r.leaveOverride?.confirmed) {
+          return r
+        }
+
+        const sites = sourceRemarks.split(',').map(s => s.trim()).filter(Boolean)
+        let newVisits = []
+        if (sites.length >= 2) {
+          newVisits = sites.map((siteName, i) => {
+            const existing = sourceVisits.find(v => v.siteName === siteName)
+            if (existing) {
+              return {
+                siteName,
+                inTime: existing.inTime || (i === 0 ? (r.inTime || '09:00') : ''),
+                outTime: existing.outTime || (i === sites.length - 1 ? (r.outTime || '18:00') : ''),
+                hours: existing.hours || 0,
+                isOvernight: existing.isOvernight || false
+              }
+            }
+            return {
+              siteName,
+              inTime: i === 0 ? (r.inTime || '09:00') : '',
+              outTime: i === sites.length - 1 ? (r.outTime || '18:00') : '',
+              hours: 0,
+              isOvernight: false
+            }
+          })
+        } else if (sites.length === 1) {
+          const firstVisit = sourceVisits[0]
+          newVisits = [{
+            siteName: sites[0],
+            inTime: firstVisit?.inTime || r.inTime || '',
+            outTime: firstVisit?.outTime || r.outTime || '',
+            hours: firstVisit?.hours || 0,
+            isOvernight: firstVisit?.isOvernight || false
+          }]
+        }
+
+        return {
+          ...r,
+          remarks: sourceRemarks,
+          siteVisits: newVisits
+        }
+      }
+      return r
+    }))
+
+    setShowRemarksCopyModal(false)
+    setSelectedRemarksEmps([])
+    setActiveRemarksCopyEmpId(null)
+    setRemarksCopyData(null)
+  }
+
   const handleMarkAllHoliday = async () => {
     if (!rows.length) return
     if (isFutureDate(selectedDate)) {
@@ -2506,13 +2763,13 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && r.status !== 'Off Day' && r.status !== 'Half-Day' && !r.isHalfDay && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-100/80 p-1"><span className="pl-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Roster view</span><div className="flex items-center gap-1"><button type="button" onClick={() => setCompactMode(false)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${!compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={!compactMode}><LayoutGrid size={13} /> Cards</button><button type="button" onClick={() => setCompactMode(true)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={compactMode}><List size={13} /> Compact</button></div></div>
             <div className={compactMode ? 'divide-y divide-gray-100' : 'flex flex-col gap-3'}>{empLoading ? <div className="bg-white rounded-xl border border-gray-200 py-16 flex justify-center"><Spinner /></div> : rows.length === 0 ? <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">Generate active employees to begin.</div> : rows.map((row, idx) => {
-              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} siteConfig={siteConfig} onOpenSiteTimings={handleOpenSiteTimings} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} onOpenStatusModal={handleOpenStatusModal} />
+              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} siteConfig={siteConfig} onOpenSiteTimings={handleOpenSiteTimings} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} onOpenStatusModal={handleOpenStatusModal} onOpenRemarksCopy={handleOpenRemarksCopy} showRemarksCopyModal={showRemarksCopyModal} activeRemarksCopyEmpId={activeRemarksCopyEmpId} selectedRemarksEmps={selectedRemarksEmps} setSelectedRemarksEmps={setSelectedRemarksEmps} handleRemarksCopySubmit={handleRemarksCopySubmit} setShowRemarksCopyModal={setShowRemarksCopyModal} setActiveRemarksCopyEmpId={setActiveRemarksCopyEmpId} activeEmployees={activeEmployees} />
               const mobileStatusOptions = [{ id: 'Present', label: 'Present', color: 'green' }, { id: 'Absent', label: 'Absent', color: 'red' }, ...((row.status === 'Half-Day' || row.isHalfDay) ? [{ id: 'Half-Day', label: 'Half-Day', color: 'amber' }] : []), ...(row.status === 'Off Day' ? [{ id: 'Off Day', label: 'Off Day', color: 'blue' }] : []), ...(isSunday ? [{ id: 'SunWorked', label: 'Worked', color: 'amber' }, { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked', color: 'amber' }, { id: 'Holiday', label: 'Holiday', color: 'indigo' }] : [])]
               const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
               const selectedAllowances = allowanceSelections[row.employeeId] || []
               return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : (row.status === 'Half-Day' || row.isHalfDay) ? 'border-amber-200 bg-amber-50/20' : row.status === 'Off Day' ? 'border-blue-200 bg-blue-50/20' : ''}`}>
                 <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div>{(row.status === 'Half-Day' || row.isHalfDay) && <div className="text-[10px] font-semibold text-amber-600">HD: {row.halfDayReason || 'Half Day'}</div>}{row.status === 'Off Day' && <div className="text-[10px] font-semibold text-blue-600">Off: {row.offDayReason || 'Weekly Off'}</div>}</div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><div className="flex items-center gap-1"><button type="button" onClick={() => handleOpenStatusModal(row, 'Half-Day')} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 hover:text-amber-600 flex items-center justify-center active:bg-amber-50 disabled:opacity-30" title="More actions" aria-label="More actions"><MoreVertical size={16} /></button><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div></div>
-                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
+                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday' || row.status === 'Off Day'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="flex items-center justify-between pb-1"><div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div>{row.remarks && !row.isAbsent && (<button type="button" onClick={() => handleOpenRemarksCopy(row)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95"><Copy size={11} /> Copy to others</button>)}</div><div className="relative"><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} onEnter={() => handleOpenRemarksCopy(row)} onOpenCopy={() => handleOpenRemarksCopy(row)} className="w-full" />{showRemarksCopyModal && activeRemarksCopyEmpId === row.employeeId && (<CopyToRemarksDropdown sourceRow={row} activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)} selectedEmps={selectedRemarksEmps} setSelectedEmps={setSelectedRemarksEmps} onApply={handleRemarksCopySubmit} onClose={() => { setShowRemarksCopyModal(false); setActiveRemarksCopyEmpId(null); setSelectedRemarksEmps([]) }} />)}</div></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'blue' ? 'bg-blue-100 text-blue-700 border-blue-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
               </div>
             })}</div>
             {pendingRemoval && <div className="fixed inset-x-3 bottom-[78px] z-[90] flex items-center justify-between gap-3 rounded-lg bg-gray-900 px-3 py-2.5 text-white shadow-xl md:hidden" role="status" aria-live="polite"><span className="min-w-0 truncate text-xs">Removed {pendingRemoval.row.name || 'attendance row'}</span><button type="button" onClick={handleUndoClearRow} className="shrink-0 rounded-md bg-white/15 px-3 py-1.5 text-xs font-semibold text-white active:bg-white/25">Undo</button></div>}
@@ -2741,16 +2998,49 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                           })()}
                         </td>
                         <td className="px-3 align-middle">
-                          <div className="min-w-0">
-                            <RemarksDropdown
-                              value={row.remarks || ''}
-                              onChange={val => updateRow(row.employeeId, 'remarks', val)}
-                              onAddOption={handleAddRemarkOption}
-                              options={siteConfig || remarksOptions}
-                              disabled={!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
-                              siteVisits={row.siteVisits || []}
-                              onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)}
-                            />
+                          <div className="relative min-w-0 flex items-center gap-1.5">
+                            <div className="flex-1 min-w-0">
+                              <RemarksDropdown
+                                value={row.remarks || ''}
+                                onChange={val => updateRow(row.employeeId, 'remarks', val)}
+                                onAddOption={handleAddRemarkOption}
+                                options={siteConfig || remarksOptions}
+                                disabled={!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
+                                siteVisits={row.siteVisits || []}
+                                onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)}
+                                onEnter={() => {
+                                  if (row.remarks && row.remarks.trim()) {
+                                    handleOpenRemarksCopy(row)
+                                  }
+                                }}
+                                onOpenCopy={() => handleOpenRemarksCopy(row)}
+                              />
+                            </div>
+                            {row.remarks && !row.isAbsent && !row.isPlaceholder && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRemarksCopy(row)}
+                                className="h-7 w-7 shrink-0 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 flex items-center justify-center transition-all"
+                                title="Copy site(s) to other employees"
+                                aria-label={`Copy sites from ${row.name} to other employees`}
+                              >
+                                <Copy size={13} />
+                              </button>
+                            )}
+                            {showRemarksCopyModal && activeRemarksCopyEmpId === row.employeeId && (
+                              <CopyToRemarksDropdown
+                                sourceRow={row}
+                                activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
+                                selectedEmps={selectedRemarksEmps}
+                                setSelectedEmps={setSelectedRemarksEmps}
+                                onApply={handleRemarksCopySubmit}
+                                onClose={() => {
+                                  setShowRemarksCopyModal(false)
+                                  setActiveRemarksCopyEmpId(null)
+                                  setSelectedRemarksEmps([])
+                                }}
+                              />
+                            )}
                           </div>
                         </td>
                         <td className="px-2 align-middle">
@@ -3869,6 +4159,115 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                 className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Saving...' : 'Save Record'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Per-Employee Status Reset Confirmation Modal */}
+      {statusResetConfirm && (
+        <div
+          className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150"
+          onClick={() => setStatusResetConfirm(null)}
+        >
+          <div
+            className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base text-slate-900">
+                    Reset Attendance Data?
+                  </h3>
+                  <p className="font-body text-xs text-slate-500">
+                    {statusResetConfirm.name} · {displayDate(selectedDate)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatusResetConfirm(null)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
+                aria-label="Close dialog"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 font-body">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Marking <strong className="text-slate-800">{statusResetConfirm.name}</strong> as <strong className="text-slate-900">{statusResetConfirm.newStatus}</strong> will reset the following recorded entries:
+              </p>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2 text-xs">
+                {statusResetConfirm.inTime && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 font-medium">In Time</span>
+                    <span className="font-mono font-semibold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {formatTimeDisplay(statusResetConfirm.inTime)}
+                    </span>
+                  </div>
+                )}
+                {statusResetConfirm.outTime && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 font-medium">Out Time</span>
+                    <span className="font-mono font-semibold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {formatTimeDisplay(statusResetConfirm.outTime)}
+                    </span>
+                  </div>
+                )}
+                {statusResetConfirm.otHours && statusResetConfirm.otHours !== '00:00' && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 font-medium">OT Hours</span>
+                    <span className="font-mono font-semibold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {statusResetConfirm.otHours}
+                    </span>
+                  </div>
+                )}
+                {statusResetConfirm.newStatus === 'Absent' && statusResetConfirm.remarks && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 font-medium">Sites / Remarks</span>
+                    <span className="font-medium text-slate-800 max-w-[200px] truncate" title={statusResetConfirm.remarks}>
+                      {statusResetConfirm.remarks}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg bg-amber-50 border border-amber-200/80 p-3 text-xs text-amber-900 flex items-start gap-2">
+                <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
+                <span>
+                  Are you sure you want to reset this employee's timings and mark as <strong>{statusResetConfirm.newStatus}</strong>?
+                </span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStatusResetConfirm(null)}
+                className="h-9 px-4 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold font-body transition-colors"
+              >
+                Cancel (Keep Timings)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { empId, newStatus } = statusResetConfirm
+                  setStatusResetConfirm(null)
+                  executeStatusChange(empId, newStatus)
+                }}
+                className="h-9 px-5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-bold font-heading shadow-sm active:scale-[0.98] transition-all"
+              >
+                Yes, Reset & Mark {statusResetConfirm.newStatus}
               </button>
             </div>
           </div>

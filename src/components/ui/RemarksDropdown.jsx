@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { X, Check } from 'lucide-react'
+import { X, Check, Copy } from 'lucide-react'
 
 function formatTimeDisplay(time24) {
   if (!time24) return ''
@@ -20,7 +20,9 @@ export default function RemarksDropdown({
   className,
   placeholder = "Select or type...",
   siteVisits = [],
-  onSiteClick
+  onSiteClick,
+  onEnter,
+  onOpenCopy
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -122,6 +124,31 @@ export default function RemarksDropdown({
     onChange(newSelected.join(', '))
   }
 
+  const handleKeyDown = (e) => {
+    if (disabled) return
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const query = searchTerm.trim().toLowerCase()
+      if (query) {
+        const exact = displayOptions.find(opt => opt.name.toLowerCase() === query)
+        if (exact) {
+          handleSelect(exact.name)
+        } else if (displayOptions.length > 0) {
+          handleSelect(displayOptions[0].name)
+        } else {
+          handleAddNew(searchTerm)
+        }
+      }
+      setIsOpen(false)
+      if (onEnter) {
+        onEnter()
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false)
+      setSearchTerm('')
+    }
+  }
+
   return (
     <div className={`relative w-full ${className || ''}`} ref={containerRef}>
       <div
@@ -203,6 +230,7 @@ export default function RemarksDropdown({
             setSearchTerm(e.target.value)
             if (!isOpen) setIsOpen(true)
           }}
+          onKeyDown={handleKeyDown}
           onFocus={() => !disabled && setIsOpen(true)}
           disabled={disabled}
           placeholder={selectedValues.length === 0 ? placeholder : ""}
@@ -260,6 +288,25 @@ export default function RemarksDropdown({
             >
               <span className="font-bold">+</span>
               <span>Use "<span className="font-semibold">{searchTerm.trim()}</span>" as new site</span>
+            </div>
+          )}
+
+          {selectedValues.length > 0 && onOpenCopy && (
+            <div
+              className="px-3 py-2 bg-indigo-50/70 border-t border-indigo-100 flex items-center justify-between text-xs text-indigo-700 hover:bg-indigo-100 cursor-pointer font-medium transition-colors select-none"
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsOpen(false)
+                onOpenCopy()
+              }}
+            >
+              <span className="flex items-center gap-1.5 font-semibold text-[11px]">
+                <Copy size={12} className="text-indigo-600" />
+                <span>Copy site(s) to other employees</span>
+              </span>
+              <kbd className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-indigo-200 text-indigo-600 shadow-2xs">
+                ↵ Enter
+              </kbd>
             </div>
           )}
         </div>
