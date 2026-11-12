@@ -252,7 +252,7 @@ export default function Dashboard() {
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [salarySubTab, setSalarySubTab] = useState('detailed')
   const [salaryActiveTab, setSalaryActiveTab] = useState('salary-summary')
-  const [tasksSubTab, setTasksSubTab] = useState('checklist')
+  const [tasksSubTab, setTasksSubTab] = useState('team')
   const [settingsSubTab, setSettingsSubTab] = useState(null)
   const [attendanceSubTab, setAttendanceSubTab] = useState('attendance')
   const [advanceSubTab, setAdvanceSubTab] = useState('Add Advance')
@@ -379,6 +379,12 @@ export default function Dashboard() {
       setTabSearchParams({ tab: 'advance', sub: 'Add Advance' })
       return true
     }
+    if (tabId === 'tasks') {
+      setActiveTab('tasks')
+      setTasksSubTab('team')
+      setTabSearchParams({ tab: 'tasks', tasksTab: 'team' })
+      return true
+    }
     if (tabId !== activeTab) {
       setActiveTab(tabId)
       setTabSearchParams({ tab: tabId })
@@ -390,6 +396,7 @@ export default function Dashboard() {
     const tabParam = tabSearchParams.get('tab')
     const subParam = tabSearchParams.get('sub')
     const setupParam = tabSearchParams.get('setup')
+    const tasksTabParam = tabSearchParams.get('tasksTab')
     if (tabParam === 'expense') {
       setActiveTab('advance')
       setAdvanceSubTab('Add Expense')
@@ -397,6 +404,13 @@ export default function Dashboard() {
       setActiveTab('advance')
       if (subParam && ['Add Advance', 'Add Expense', 'Cash Summary', 'Reports'].includes(subParam)) {
         setAdvanceSubTab(subParam)
+      }
+    } else if (tabParam === 'tasks') {
+      setActiveTab('tasks')
+      if (tasksTabParam && ['team', 'personal', 'idea', 'reminders', 'announcements', 'checklist'].includes(tasksTabParam.toLowerCase())) {
+        setTasksSubTab(tasksTabParam === 'announcements' ? 'reminders' : tasksTabParam.toLowerCase())
+      } else {
+        setTasksSubTab('team')
       }
     } else if (tabParam && visibleTabs.find(t => t.id === tabParam)) {
       setActiveTab(tabParam)
@@ -438,7 +452,7 @@ export default function Dashboard() {
         onClick={onClick} 
         onMouseEnter={(e) => handleSidebarHover(e, tab.label)}
         onMouseLeave={handleSidebarLeave}
-        className={`group flex items-center gap-2 rounded px-2 text-[13px] font-medium tracking-[0.01em] transition-colors relative ${small ? 'h-6' : 'h-7'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'} ${isActive ? 'bg-blue-50/80 text-blue-700 font-semibold before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:bg-blue-600 before:rounded-r' : 'text-neutral-600 hover:bg-black/[0.03] hover:text-neutral-900'}`}
+        className={`group flex items-center gap-2 rounded px-2 text-[13px] font-medium tracking-[0.01em] transition-colors ${small ? 'h-6' : 'h-7'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'} ${isActive ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-neutral-600 hover:bg-black/[0.03] hover:text-neutral-900'}`}
       >
         <span className={`shrink-0 ${isActive ? 'text-blue-600' : 'text-neutral-400 group-hover:text-neutral-700'}`}>
           {tab.icon && React.cloneElement(tab.icon, { size: 14, strokeWidth: isActive ? 2 : 1.75 })}
@@ -633,7 +647,7 @@ export default function Dashboard() {
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'chat': return <ChatTab />
-      case 'tasks': return <TasksTab defaultSubTab={tasksSubTab} />
+      case 'tasks': return <TasksTab defaultSubTab={tasksSubTab} onSubTabChange={setTasksSubTab} />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings': return <SettingsTab initialSubTab={settingsSubTab} />
       case 'help': return <HelpTab />
@@ -714,11 +728,16 @@ export default function Dashboard() {
                     <div key={item.label} className="relative group">
                       <button 
                         onClick={() => { 
+                          if (item.tab === 'tasks' && item.tasksSubTab) {
+                            setActiveTab('tasks')
+                            setTasksSubTab(item.tasksSubTab)
+                            setTabSearchParams({ tab: 'tasks', tasksTab: item.tasksSubTab })
+                            return
+                          }
                           if (!navigateToTab(item.tab)) return
                           if (item.tab === 'attendance-list' && item.attendanceSubTab) setAttendanceSubTab(item.attendanceSubTab);
                           if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); 
                           if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
-                          if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
                         }} 
                         className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition duration-150 flex items-center gap-1.5 cursor-pointer ${
                           item.label === 'Daily Checklist'

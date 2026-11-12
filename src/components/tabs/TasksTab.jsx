@@ -123,7 +123,17 @@ const TABS = [
   { id: 'checklist', label: 'Checklist', icon: <CheckSquare size={14} /> }
 ]
 
-export default function TasksTab({ defaultSubTab }) {
+const normalizeTasksSubTab = (value) => {
+  const v = (value || '').toLowerCase().trim()
+  if (!v) return null
+  if (v === 'announcements') return 'reminders'
+  if (['team', 'personal', 'idea', 'reminders', 'checklist'].includes(v)) return v
+  return null
+}
+
+const encodeTasksSubTab = (tabId) => (tabId === 'reminders' ? 'announcements' : tabId)
+
+export default function TasksTab({ defaultSubTab, onSubTabChange }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -132,7 +142,10 @@ export default function TasksTab({ defaultSubTab }) {
   
   const loading = tasksLoading || remindersLoading
   
-  const [activeTab, setActiveTab] = useState(defaultSubTab || 'team')
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlTab = normalizeTasksSubTab(searchParams.get('tasksTab'))
+    return urlTab || normalizeTasksSubTab(defaultSubTab) || 'team'
+  })
   const [viewMode, setViewMode] = useState('board')
   const [calendarDate, setCalendarDate] = useState(new Date())
   const [statusFilter, setStatusFilter] = useState({
@@ -268,21 +281,24 @@ export default function TasksTab({ defaultSubTab }) {
   })
   const [clientFilter, setClientFilter] = useState('all')
 
-  const normalizeTasksSubTab = (value) => {
-    const v = (value || '').toLowerCase().trim()
-    if (!v) return null
-    if (v === 'announcements') return 'reminders'
-    if (['team', 'personal', 'idea', 'reminders', 'checklist'].includes(v)) return v
-    return null
-  }
-
-  const encodeTasksSubTab = (tabId) => (tabId === 'reminders' ? 'announcements' : tabId)
-
   useEffect(() => {
     const desired = normalizeTasksSubTab(searchParams.get('tasksTab'))
     if (!desired) return
     setActiveTab((prev) => (prev === desired ? prev : desired))
   }, [searchParams])
+
+  useEffect(() => {
+    if (defaultSubTab) {
+      const normalized = normalizeTasksSubTab(defaultSubTab)
+      if (normalized) {
+        setActiveTab((prev) => (prev === normalized ? prev : normalized))
+      }
+    }
+  }, [defaultSubTab])
+
+  useEffect(() => {
+    onSubTabChange?.(activeTab)
+  }, [activeTab, onSubTabChange])
 
   useEffect(() => {
     const encoded = encodeTasksSubTab(activeTab)

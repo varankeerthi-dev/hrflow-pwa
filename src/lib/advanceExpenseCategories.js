@@ -70,6 +70,13 @@ export function isGivenToOthersCategory(category) {
     .toLowerCase() === 'given to others'
 }
 
+export function isSubcontractorCategory(category) {
+  if (!category) return false
+  const raw = typeof category === 'string' ? category : category?.name || ''
+  const clean = String(raw).toLowerCase().replace(/[\s_-]+/g, '')
+  return clean.includes('subcontractor') || clean.includes('subcontract')
+}
+
 export function isAdvanceCategory(cat, advanceCategories = []) {
   if (!cat) return false
   const raw = typeof cat === 'string' ? cat : cat?.name || ''

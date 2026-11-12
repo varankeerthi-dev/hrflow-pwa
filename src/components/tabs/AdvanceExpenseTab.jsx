@@ -15,6 +15,7 @@ import Modal from '../ui/Modal'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs'
 import { formatINR } from '../../lib/salaryUtils'
+import { useSubcontractors } from '../../hooks/useSubcontractors'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { registerPdfCurrencyFont } from '../../lib/pdfCurrencyFont'
@@ -33,6 +34,7 @@ import {
   DEFAULT_COMPANY_ACCOUNTS,
   isPetrolCategory,
   isGivenToOthersCategory,
+  isSubcontractorCategory,
   isAdvanceCategory,
   isExpenseCategory,
   getAccountingEntryType as resolveAccountingEntryType,
@@ -661,6 +663,7 @@ function AdvanceExpenseMobileRow({
 export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange, onDirtyChange, portalMode = false, portalEmployeeId = null }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
+  const { subcontractors, subcontractorNames, quickAddSubcontractorName } = useSubcontractors(user?.orgId, user)
   
   // Sort employees: Active employees at top, Inactive employees at bottom
   const sortedEmployees = useMemo(() => {
@@ -1814,6 +1817,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   // Paid To Dropdown Component Helper
   const PaidToDropdown = ({ rowId, row, isMobile = false }) => {
     const requiresPaidTo = isCategoryPayableToOthers(row.category)
+    const isSubcontractor = isSubcontractorCategory(row.category)
 
     const selfExpenseEmployeeId = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : ''
     const currentPaymentSource = row.paymentSource || (activeModule === 'Add Advance' ? 'company_account' : 'employee')
@@ -1826,6 +1830,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     ))
     const employeeOptions = activeEmps.map(e => ({ label: e.name, value: e.id }))
 
+    // Subcontractor options: list of saved contractors for this tenant
+    const subcontractorOptions = (subcontractors || [])
+      .filter(s => s.status !== 'Inactive')
+      .map(s => ({
+        label: s.name + (s.specialization ? ` (${s.specialization})` : ''),
+        value: s.name
+      }))
+
     const displayValue = (() => {
       if (row.paidToType === 'custom' && row.paidToCustomName) {
         return row.paidToCustomName
@@ -1834,7 +1846,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const emp = employees.find(e => e.id === row.paidTo)
         return emp ? emp.name : row.paidTo
       }
-      return isMobile ? 'Select recipient...' : 'Select...'
+      return isSubcontractor
+        ? (isMobile ? 'Select subcontractor...' : 'Select contractor...')
+        : (isMobile ? 'Select recipient...' : 'Select...')
     })()
 
     if (!requiresPaidTo) {
@@ -1844,6 +1858,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         </div>
       )
     }
+
+    const isCurrentCustomSaved = isSubcontractor && row.paidToCustomName && (subcontractorNames || []).some(
+      name => name.toLowerCase() === (row.paidToCustomName || '').trim().toLowerCase()
+    )
 
     return (
       <div className="space-y-1.5">
@@ -1908,31 +1926,86 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           </div>
         )}
 
-        {/* Recipient Dropdown */}
+        {/* Recipient Dropdown: Shows Subcontractors when subcontractor category, else employees */}
         <Dropdown
-          value={row.paidToType === 'employee' ? (row.paidTo || '') : ''}
-          onChange={(val) => handleRowChange(rowId, 'paidTo', val)}
-          options={employeeOptions}
+          value={
+            isSubcontractor
+              ? (row.paidToCustomName || '')
+              : (row.paidToType === 'employee' ? (row.paidTo || '') : '')
+          }
+          onChange={(val) => {
+            if (isSubcontractor) {
+              handleRowChange(rowId, 'paidToType', 'custom')
+              handleRowChange(rowId, 'paidToCustomName', val)
+              handleRowChange(rowId, 'paidTo', '')
+            } else {
+              handleRowChange(rowId, 'paidTo', val)
+              handleRowChange(rowId, 'paidToType', 'employee')
+              handleRowChange(rowId, 'paidToCustomName', '')
+            }
+          }}
+          options={isSubcontractor ? subcontractorOptions : employeeOptions}
           placeholder={displayValue}
           searchable
           allowCustom
-          customActive={row.paidToType === 'custom'}
-          onAddOther={() => handleRowChange(rowId, 'paidToType', 'custom')}
+          customActive={row.paidToType === 'custom' && (!isSubcontractor || !isCurrentCustomSaved)}
+          onAddOther={() => {
+            handleRowChange(rowId, 'paidToType', 'custom')
+            if (!row.paidToCustomName) handleRowChange(rowId, 'paidToCustomName', '')
+          }}
           size={isMobile ? 'md' : 'xs'}
           panelWidth={isMobile ? 'w-64' : undefined}
+          emptyText={isSubcontractor ? 'No contractors saved. Click "+ Add Other..." below' : 'No employees'}
         />
 
-        {/* Custom Name Input - shown when "Add Other..." is selected */}
+        {/* Custom Name / Inline Save Input:
+            When "Add Other..." is chosen, allows typing and saving to tenant organisation just like "add new category"! */}
         {row.paidToType === 'custom' && (
-          <input
-            type="text"
-            value={row.paidToCustomName || ''}
-            onChange={(e) => handleRowChange(rowId, 'paidToCustomName', e.target.value)}
-            placeholder="Enter recipient name..."
-            className={`w-full border border-zinc-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-1 ${
-              isMobile ? 'h-11 px-3 text-sm' : 'h-8 text-xs'
-            }`}
-          />
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 mt-1">
+              <input
+                type="text"
+                value={row.paidToCustomName || ''}
+                onChange={(e) => handleRowChange(rowId, 'paidToCustomName', e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (isSubcontractor && row.paidToCustomName?.trim()) {
+                      await quickAddSubcontractorName(row.paidToCustomName.trim())
+                    }
+                  }
+                }}
+                placeholder={isSubcontractor ? 'Type contractor & hit Enter...' : 'Enter recipient name...'}
+                className={`w-full border border-slate-200 rounded-lg px-2.5 text-xs font-medium outline-none focus:border-blue-500 bg-white shadow-2xs ${
+                  isMobile ? 'h-10 text-sm' : 'h-8 text-xs'
+                }`}
+                autoFocus={!row.paidToCustomName}
+              />
+              {isSubcontractor && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (row.paidToCustomName?.trim()) {
+                      await quickAddSubcontractorName(row.paidToCustomName.trim())
+                    }
+                  }}
+                  className={`h-8 px-2.5 rounded-lg text-[10px] font-bold shrink-0 transition-colors shadow-2xs font-heading cursor-pointer flex items-center gap-1 ${
+                    isCurrentCustomSaved
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                  title={isCurrentCustomSaved ? 'Saved to organisation' : 'Save contractor to organisation'}
+                >
+                  {isCurrentCustomSaved ? '✓ Saved' : 'Save'}
+                </button>
+              )}
+            </div>
+            {isSubcontractor && isCurrentCustomSaved && (
+              <span className="text-[10px] text-emerald-600 font-medium block">
+                ✓ Saved contractor for this organisation
+              </span>
+            )}
+          </div>
         )}
       </div>
     )
@@ -8623,7 +8696,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           {/* Reports Container for Screenshot */}
           <div ref={reportsContainerRef} className="space-y-4 font-['Inter',sans-serif] w-full max-w-full">
             {reportActiveTab === 'register' && (
-            <div className="w-full max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
+            <div className="w-full max-w-4xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
               <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2 gap-4 w-full">
                 <div className="flex items-center gap-2">
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-800">Advance & Expense Register</h3>
@@ -8683,10 +8756,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       {reportSelectedEmployees.length === 0 && (
                         <th className="w-[130px] max-w-[130px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Employee</th>
                       )}
-                        <th className="min-w-[140px] max-w-[170px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700">Category</th>
-                        <th className="min-w-[150px] max-w-[200px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700">Remarks</th>
+                      <th className="min-w-[140px] max-w-[170px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700">Category</th>
                       <th className="w-[90px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-emerald-700 whitespace-nowrap">Advance</th>
                       <th className="w-[105px] border-r border-slate-200 px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-rose-700 whitespace-nowrap">Expense</th>
+                      <th className="w-[130px] max-w-[160px] border-r border-slate-200 px-2 py-1 text-left text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Remarks</th>
                       <th className="w-[85px] border-r border-slate-200 px-2 py-1 text-center text-[10px] font-bold uppercase tracking-tight text-slate-700 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
@@ -8789,9 +8862,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 )}
                               </div>
                             </td>
-                            <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-700 max-w-[200px] align-top break-words" title={displayRemarks}>
-                              {displayRemarks}
-                            </td>
                             <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] tabular-nums whitespace-nowrap text-left">
                               {isAdvance ? (
                                 <div className="flex flex-col items-start gap-0.5">
@@ -8825,6 +8895,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               ) : (
                                 <span className="text-slate-300 font-normal">—</span>
                               )}
+                            </td>
+                            <td className="border-r border-slate-200 px-2 py-1 text-[10px] font-medium text-slate-700 max-w-[160px] truncate align-top" title={displayRemarks}>
+                              {displayRemarks}
                             </td>
                             <td className="border-r border-slate-200 px-1.5 py-1 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center gap-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
@@ -8901,7 +8974,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <td className="border-r border-slate-200 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" colSpan={reportSelectedEmployees.length > 0 ? 2 : 3}>
                           Total ({reportUnifiedRows.length} {reportUnifiedRows.length === 1 ? 'record' : 'records'})
                         </td>
-                        <td className="border-r border-slate-200 px-2.5 py-1 whitespace-nowrap"></td>
                         <td className="border-r border-slate-200 px-2.5 py-1 text-left text-[10px] tabular-nums font-bold text-emerald-700 whitespace-nowrap">
                           ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                             reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Advance').reduce((sum, r) => sum + effectiveAmount(r), 0)
@@ -8912,6 +8984,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Expense').reduce((sum, r) => sum + effectiveAmount(r), 0)
                           )}
                         </td>
+                        <td className="border-r border-slate-200 px-2.5 py-1 whitespace-nowrap"></td>
                         <td className="border-r border-slate-200 px-1.5 py-1 text-center whitespace-nowrap"></td>
                       </tr>
                     </tfoot>
