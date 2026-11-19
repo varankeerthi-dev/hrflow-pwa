@@ -215,25 +215,29 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       const endDay = new Date(year, mon, 0).getDate()
       const end = `${month}-${String(endDay).padStart(2, '0')}`
 
-      const q = query(
-        attendanceCol(user.orgId),
-        where('employeeId', '==', employeeId),
-        where('date', '>=', start),
-        where('date', '<=', end)
-      )
-      const snap = await getDocs(q)
-      const map = {}
-      snap.docs.forEach(d => {
-        const rec = d.data()
-        map[rec.date] = rec
-      })
+      try {
+        const q = query(
+          attendanceCol(user.orgId),
+          where('employeeId', '==', employeeId)
+        )
+        const snap = await getDocs(q)
+        const map = {}
+        snap.docs.forEach(d => {
+          const rec = d.data()
+          if (rec.date >= start && rec.date <= end) {
+            map[rec.date] = rec
+          }
+        })
 
-      const days = []
-      for (let i = 1; i <= endDay; i++) {
-        const dStr = `${month}-${String(i).padStart(2, '0')}`
-        days.push({ date: dStr, record: map[dStr] || null })
+        const days = []
+        for (let i = 1; i <= endDay; i++) {
+          const dStr = `${month}-${String(i).padStart(2, '0')}`
+          days.push({ date: dStr, record: map[dStr] || null })
+        }
+        setAttendanceRows(days)
+      } catch (err) {
+        console.error('Failed to load monthly attendance:', err)
       }
-      setAttendanceRows(days)
     }
 
     loadMonth()

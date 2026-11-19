@@ -173,22 +173,59 @@ function AdvanceExpenseMobileRow({
   selfEmployeeId = ''
 }) {
   const categoryRequiresPaidTo = isCategoryPayableToOthers
-    ? isCategoryPayableToOthers(row.category)
-    : ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
+    ? (isCategoryPayableToOthers(row.category) || isCategoryPayableToOthers(row.customCategory))
+    : ['salary to others', 'given to others'].some((value) => (row.category || row.customCategory || '').toLowerCase().includes(value))
 
   const isMedical = Boolean(row.isMedical || isMedicalCategory(row.category) || isMedicalCategory(row.customCategory))
   const showEmployeeField = (!portalMode && !hideEmployee) || ((portalMode || hideEmployee) && isMedical)
 
   return (
-    <article className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden font-body transition-all">
+    <article
+      id={`mobile-card-${row.id}`}
+      className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden font-body transition-all"
+    >
+      {/* Card Header: Row Number Badge + Amount Tag + Duplicate & Delete Actions */}
+      <div className="bg-slate-50/75 border-b border-slate-100 px-3.5 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-white border border-slate-200/90 px-2 py-0.5 rounded-md font-mono shadow-2xs">
+            Row {idx + 1}
+          </span>
+          {Boolean(row.amount && parseFloat(row.amount) > 0) && (
+            <span className="text-[11px] font-bold text-slate-700 font-mono">
+              ₹{Number(row.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => handleDuplicateRow(row.id)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg active:scale-95 transition cursor-pointer font-heading"
+            title="Duplicate row"
+          >
+            <Copy size={13} className="text-slate-500" />
+            <span>Duplicate</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteRow(row.id)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg active:scale-95 transition cursor-pointer font-heading"
+            title="Delete row"
+          >
+            <Trash2 size={13} className="text-rose-500" />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+
       {/* Card Form Content */}
-      <div className="p-4 space-y-3.5">
+      <div className="p-3.5 space-y-2.5">
         {/* Row 1: Employee & Date (Two Column Grid) */}
         {showEmployeeField ? (
-          <div className="grid grid-cols-2 gap-3 items-start">
+          <div className="grid grid-cols-2 gap-2.5 items-start">
             {/* Field: Employee */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading truncate" title={isMedical ? 'Beneficiary Staff Member' : 'Employee'}>
+              <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading truncate" title={isMedical ? 'Beneficiary Staff Member' : 'Employee'}>
                 {isMedical ? 'Beneficiary' : 'Employee'} <span className="text-rose-500 font-bold">*</span>
               </label>
               <div className="relative">
@@ -202,7 +239,7 @@ function AdvanceExpenseMobileRow({
                   placeholder={isMedical ? "Beneficiary..." : "Select..."}
                   searchable
                   size="sm"
-                  className="w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
+                  className="w-full [&>button]:h-9.5 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
                   panelWidth="w-[min(20rem,calc(100vw-2rem))]"
                   mobileMenu
                   autoFocusSearch={false}
@@ -213,7 +250,7 @@ function AdvanceExpenseMobileRow({
 
             {/* Field: Date */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+              <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
                 Date <span className="text-rose-500 font-bold">*</span>
               </label>
               <div className="relative">
@@ -225,7 +262,7 @@ function AdvanceExpenseMobileRow({
                   popperClassName="z-[99999]"
                   popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
                   customInput={
-                    <div className="flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
+                    <div className="flex h-9.5 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
                       <span className="truncate">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select'}</span>
                       <Calendar size={14} className="text-slate-400 shrink-0 ml-1" />
                     </div>
@@ -237,12 +274,12 @@ function AdvanceExpenseMobileRow({
         ) : (
           /* Employee hidden (Self mode) */
           activeModule === 'Add Advance' ? (
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2.5">
+                <label className="text-[10px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
                   Date <span className="text-rose-500 font-bold">*</span>
                 </label>
-                <div className="flex-1 max-w-[200px]">
+                <div className="flex-1 max-w-[180px]">
                   <DatePicker
                     selected={row.date ? parseISO(row.date) : null}
                     maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
@@ -251,7 +288,7 @@ function AdvanceExpenseMobileRow({
                     popperClassName="z-[99999]"
                     popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
                     customInput={
-                      <div className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex h-9.5 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
                         <span className="truncate">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</span>
                         <Calendar size={14} className="text-slate-400 shrink-0 ml-1" />
                       </div>
@@ -259,26 +296,26 @@ function AdvanceExpenseMobileRow({
                   />
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
+              <div className="flex items-center justify-between gap-2.5">
+                <label className="text-[10px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
                   Payroll Month <span className="text-rose-500 font-bold">*</span>
                 </label>
-                <div className="flex-1 max-w-[200px]">
+                <div className="flex-1 max-w-[180px]">
                   <input
                     type="month"
                     value={row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date)}
                     onChange={(e) => handleRowChange(row.id, 'deductionMonth', e.target.value)}
-                    className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs text-center"
+                    className="flex h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs text-center"
                   />
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3">
-              <label className="text-[11px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
+            <div className="flex items-center justify-between gap-2.5">
+              <label className="text-[10px] font-bold text-slate-500 tracking-wider uppercase font-heading shrink-0">
                 Date <span className="text-rose-500 font-bold">*</span>
               </label>
-              <div className="flex-1 max-w-[200px]">
+              <div className="flex-1 max-w-[180px]">
                 <DatePicker
                   selected={row.date ? parseISO(row.date) : null}
                   maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
@@ -287,7 +324,7 @@ function AdvanceExpenseMobileRow({
                   popperClassName="z-[99999]"
                   popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
                   customInput={
-                    <div className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
+                    <div className="flex h-9.5 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none shadow-2xs hover:border-slate-300 transition">
                       <span className="truncate">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</span>
                       <Calendar size={14} className="text-slate-400 shrink-0 ml-1" />
                     </div>
@@ -301,24 +338,24 @@ function AdvanceExpenseMobileRow({
         {/* Row for Payroll Month if Employee is visible and activeModule is Add Advance */}
         {showEmployeeField && activeModule === 'Add Advance' && (
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+            <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
               Payroll Month <span className="text-rose-500 font-bold">*</span>
             </label>
             <input
               type="month"
               value={row.deductionMonth || getDefaultAdvanceDeductionMonth(row.date)}
               onChange={(e) => handleRowChange(row.id, 'deductionMonth', e.target.value)}
-              className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs text-center"
+              className="flex h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs text-center"
             />
             <p className="mt-1 text-[9px] text-slate-400">Target payroll deduction month for salary advance recovery.</p>
           </div>
         )}
 
         {/* Row 2: Category & Amount (Two Column Grid) */}
-        <div className="grid grid-cols-2 gap-3 items-start">
+        <div className="grid grid-cols-2 gap-2.5 items-start">
           {/* Field: Category */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+            <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
               Category <span className="text-rose-500 font-bold">*</span>
             </label>
             <Dropdown
@@ -336,7 +373,7 @@ function AdvanceExpenseMobileRow({
               allowCustom
               customActive={row.category === 'custom'}
               onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
-              className="w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
+              className="w-full [&>button]:h-9.5 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
               panelWidth="w-[min(20rem,calc(100vw-2rem))]"
               mobileMenu
               autoFocusSearch={false}
@@ -345,18 +382,18 @@ function AdvanceExpenseMobileRow({
 
           {/* Field: Amount */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+            <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
               Amount <span className="text-rose-500 font-bold">*</span>
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm font-semibold pointer-events-none select-none">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400 text-xs font-semibold pointer-events-none select-none">
                 ₹
               </span>
               <input
                 type="number"
                 value={row.amount}
                 onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-7 pr-3 text-right text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs font-mono"
+                className="h-9.5 w-full rounded-xl border border-slate-200 bg-white pl-6 pr-3 text-right text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs font-mono"
                 placeholder="0.00"
                 inputMode="decimal"
                 step="0.01"
@@ -367,7 +404,7 @@ function AdvanceExpenseMobileRow({
 
         {/* Custom Category Input (if chosen) */}
         {row.category === 'custom' && (
-          <div className="flex items-center gap-1.5 pt-1">
+          <div className="flex items-center gap-1.5 pt-0.5">
             <input
               type="text"
               value={row.customCategory || ''}
@@ -378,14 +415,14 @@ function AdvanceExpenseMobileRow({
                   saveNewCategory && saveNewCategory(row.id, row.customCategory)
                 }
               }}
-              className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs outline-none focus:border-blue-500 bg-white shadow-2xs"
+              className="h-9 w-full rounded-xl border border-slate-200 px-3 text-xs outline-none focus:border-blue-500 bg-white shadow-2xs"
               placeholder="Type category & hit Enter..."
               autoFocus
             />
             <button
               type="button"
               onClick={() => saveNewCategory && saveNewCategory(row.id, row.customCategory)}
-              className="h-10 px-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shrink-0 transition-colors shadow-sm font-heading cursor-pointer"
+              className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shrink-0 transition-colors shadow-sm font-heading cursor-pointer"
               title="Save category to organisation"
             >
               Save
@@ -507,14 +544,14 @@ function AdvanceExpenseMobileRow({
 
         {/* Row 3: Brief Description */}
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+          <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
             Brief Description
           </label>
           <input
             type="text"
             value={row.reason}
             onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs placeholder:text-slate-400 font-body"
+            className="h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-2xs placeholder:text-slate-400 font-body"
             placeholder="e.g. Client lunch meeting in Chicago..."
           />
         </div>
@@ -574,13 +611,13 @@ function AdvanceExpenseMobileRow({
           <div className={`grid ${(!portalMode && showSessionPayout) && showProjectColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-3 items-start`}>
             {!portalMode && showSessionPayout && (
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
                   Payout <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={row.payoutMethod}
                   onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                  className="h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
                 >
                   <option value="Immediate">Immediate</option>
                   <option value="With Salary">Monthly</option>
@@ -589,13 +626,13 @@ function AdvanceExpenseMobileRow({
             )}
             {showProjectColumn && (
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
+                <label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1 font-heading">
                   Project
                 </label>
                 <select
                   value={row.project}
                   onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
+                  className="h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 shadow-2xs cursor-pointer"
                 >
                   <option value="">Select project...</option>
                   <option value="P-0001">P-0001</option>
@@ -612,49 +649,50 @@ function AdvanceExpenseMobileRow({
         {/* Advance Fields & Paid To Popover */}
         {showAdvanceFields && (
           <div className="rounded-xl bg-slate-50/80 p-3 border border-slate-200/80">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 font-heading">
-              Paid to / advance reference
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 font-heading">
+                Paid to / advance reference
+              </label>
+              {(row.paidTo || row.paidToCustomName) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRowChange(row.id, 'paidTo', '')
+                    handleRowChange(row.id, 'paidToCustomName', '')
+                    handleRowChange(row.id, 'paidToName', '')
+                  }}
+                  className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold cursor-pointer underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
             <PaidToDropdown rowId={row.id} row={row} isMobile />
           </div>
         )}
         {categoryRequiresPaidTo && !showAdvanceFields && (
           <div className="rounded-xl bg-blue-50/70 p-3 border border-blue-200/70">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1 font-heading">
-              Paid to
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-blue-700 font-heading">
+                Paid to (Recipient) <span className="text-rose-500">*</span>
+              </label>
+              {(row.paidTo || row.paidToCustomName) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRowChange(row.id, 'paidTo', '')
+                    handleRowChange(row.id, 'paidToCustomName', '')
+                    handleRowChange(row.id, 'paidToName', '')
+                  }}
+                  className="text-[10px] text-rose-600 hover:text-rose-800 font-semibold cursor-pointer underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
             <PaidToDropdown rowId={row.id} row={row} isMobile />
           </div>
         )}
-      </div>
-
-      {/* Card Bottom Footer Action Bar ("Bottom Card Toolbar" from Stitch dae3df6671fd4c67bd09c109fda69136) */}
-      <div className="bg-slate-50/80 border-t border-slate-100 px-4 py-2.5 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-white border border-slate-200/90 px-2 py-0.5 rounded-md font-mono shadow-2xs">
-            Row {idx + 1}
-          </span>
-        </div>
-        <div className="flex items-center space-x-1.5">
-          <button
-            type="button"
-            onClick={() => handleDuplicateRow(row.id)}
-            className="inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-lg active:scale-95 transition cursor-pointer font-heading"
-            title="Duplicate row"
-          >
-            <Copy size={13} className="text-slate-500" />
-            <span>Duplicate</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDeleteRow(row.id)}
-            className="inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg active:scale-95 transition cursor-pointer font-heading"
-            title="Delete row"
-          >
-            <Trash2 size={13} className="text-rose-500" />
-            <span>Delete</span>
-          </button>
-        </div>
       </div>
     </article>
   )
@@ -1816,8 +1854,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   // Paid To Dropdown Component Helper
   const PaidToDropdown = ({ rowId, row, isMobile = false }) => {
-    const requiresPaidTo = isCategoryPayableToOthers(row.category)
-    const isSubcontractor = isSubcontractorCategory(row.category)
+    const requiresPaidTo = isCategoryPayableToOthers(row.category) || isCategoryPayableToOthers(row.customCategory)
+    const isSubcontractor = isSubcontractorCategory(row.category) || isSubcontractorCategory(row.customCategory)
 
     const selfExpenseEmployeeId = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : ''
     const currentPaymentSource = row.paymentSource || (activeModule === 'Add Advance' ? 'company_account' : 'employee')
@@ -1829,6 +1867,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       && (currentPaymentSource === 'company_account' || employee.id !== selfExpenseEmployeeId)
     ))
     const employeeOptions = activeEmps.map(e => ({ label: e.name, value: e.id }))
+
+    if (row.paidTo && !employeeOptions.some(o => o.value === row.paidTo)) {
+      const selectedEmp = employees.find(e => e.id === row.paidTo)
+      if (selectedEmp) {
+        employeeOptions.unshift({ label: selectedEmp.name, value: selectedEmp.id })
+      }
+    }
 
     // Subcontractor options: list of saved contractors for this tenant
     const subcontractorOptions = (subcontractors || [])
@@ -1931,17 +1976,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           value={
             isSubcontractor
               ? (row.paidToCustomName || '')
-              : (row.paidToType === 'employee' ? (row.paidTo || '') : '')
+              : (row.paidTo || '')
           }
           onChange={(val) => {
             if (isSubcontractor) {
-              handleRowChange(rowId, 'paidToType', 'custom')
               handleRowChange(rowId, 'paidToCustomName', val)
-              handleRowChange(rowId, 'paidTo', '')
             } else {
               handleRowChange(rowId, 'paidTo', val)
-              handleRowChange(rowId, 'paidToType', 'employee')
-              handleRowChange(rowId, 'paidToCustomName', '')
             }
           }}
           options={isSubcontractor ? subcontractorOptions : employeeOptions}
@@ -1953,9 +1994,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             handleRowChange(rowId, 'paidToType', 'custom')
             if (!row.paidToCustomName) handleRowChange(rowId, 'paidToCustomName', '')
           }}
-          size={isMobile ? 'md' : 'xs'}
-          panelWidth={isMobile ? 'w-64' : undefined}
+          size={isMobile ? 'sm' : 'xs'}
+          panelWidth={isMobile ? 'w-[min(20rem,calc(100vw-2rem))]' : 'w-64'}
+          mobileMenu={isMobile}
+          autoFocusSearch={false}
           emptyText={isSubcontractor ? 'No contractors saved. Click "+ Add Other..." below' : 'No employees'}
+          className="w-full [&>button]:h-10 [&>button]:rounded-xl [&>button]:border-slate-200 [&>button]:text-xs [&>button]:font-semibold [&>button]:shadow-2xs"
         />
 
         {/* Custom Name / Inline Save Input:
@@ -2346,7 +2390,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (!target) return
     const newRow = {
       ...target,
-      id: Date.now() + Math.random()
+      id: Date.now() + Math.floor(Math.random() * 1000)
     }
     const idx = addRows.findIndex(r => r.id === rowId)
     const updated = [...addRows]
@@ -2637,13 +2681,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const isSelfEntry = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self'
     const isEmployeeEntry = !portalMode && ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'employee'
     const activeEmp = isSelfEntry ? getMyEmpId() : (sessionDefaultEmp || getMyEmpId() || '')
-    const newId = Date.now() + Math.random()
+    const newId = Date.now() + Math.floor(Math.random() * 1000)
     setAddRows(prev => [...prev, { id: newId, date: sessionDate || new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '', siteName: '', vehicleId: null, vehicleNo: '', vehicleName: '', vehicleNumber: '', vehicleLabel: '', customVehicleNo: '', isMedical: false, isDeductible: activeModule === 'Add Advance' }])
     // Employee-entry grids intentionally begin the next row in Employee;
     // self-entry grids keep the faster Category-first data-entry flow.
     setTimeout(() => {
+      const mobileCard = document.getElementById(`mobile-card-${newId}`)
+      if (mobileCard) {
+        mobileCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
       if (isEmployeeEntry) {
-        const employeeSelector = document.querySelector(`#employee-cell-${newId} select`)
+        const employeeCell = document.getElementById(`employee-cell-${newId}`)
+        const employeeSelector = employeeCell ? employeeCell.querySelector('select') : null
         if (employeeSelector) {
           employeeSelector.focus()
           return
@@ -2666,7 +2715,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const firstBlankRow = addRows.find((row) => !row.category && !row.amount && !row.reason)
     if (!firstBlankRow) return undefined
     const timer = window.setTimeout(() => {
-      document.querySelector(`#category-cell-${firstBlankRow.id} button`)?.focus()
+      const blankCatCell = document.getElementById(`category-cell-${firstBlankRow.id}`)
+      if (blankCatCell) {
+        blankCatCell.querySelector('button')?.focus()
+      }
     }, 120)
     return () => window.clearTimeout(timer)
   }, [activeModule, expenseMode])
@@ -2865,25 +2917,31 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         if (field === 'paidToType') {
           return { 
             ...row, 
-            [field]: value,
-            paidTo: value === 'employee' ? '' : row.paidTo,
-            paidToCustomName: value === 'custom' ? row.paidToCustomName : ''
+            paidToType: value,
+            paidTo: value === 'custom' ? '' : row.paidTo,
+            paidToName: value === 'custom' ? (row.paidToCustomName || '') : (row.paidToName || ''),
+            paidToCustomName: value === 'employee' ? '' : row.paidToCustomName
           }
         }
         // Handle paidTo employee selection
         if (field === 'paidTo') {
+          const emp = employees.find(e => e.id === value)
           return { 
             ...row, 
-            [field]: value,
-            paidToType: 'employee'
+            paidTo: value,
+            paidToName: emp ? emp.name : (value || ''),
+            paidToType: 'employee',
+            paidToCustomName: ''
           }
         }
         // Handle paidToCustomName
         if (field === 'paidToCustomName') {
           return { 
             ...row, 
-            [field]: value,
-            paidToType: 'custom'
+            paidToCustomName: value,
+            paidToName: value || '',
+            paidToType: 'custom',
+            paidTo: ''
           }
         }
         // Handle siteName selection
@@ -7709,7 +7767,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             })()}
 
                 {/* Mobile Cards List (Stitch dae3df6671fd4c67bd09c109fda69136) */}
-                <div className="md:hidden space-y-3.5 p-1">
+                <div className="md:hidden space-y-2.5 p-1 pb-32">
                   {addRows.map((row, idx) => (
                     <AdvanceExpenseMobileRow
                       key={row.id}
@@ -7727,7 +7785,37 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       hideEmployee={isSelfEntry}
                       handleRowChange={handleRowChange}
                       handleDuplicateRow={handleDuplicateRow}
-                      handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
+                      handleDeleteRow={(rowId) => {
+                        setAddRows(prev => {
+                          if (prev.length <= 1) {
+                            return [{
+                              id: Date.now(),
+                              date: sessionDate || new Date().toISOString().split('T')[0],
+                              employeeId: isSelfEntry ? getMyEmpId() : (sessionDefaultEmp || getMyEmpId() || ''),
+                              category: '',
+                              amount: '',
+                              reason: '',
+                              project: '',
+                              requestType: 'Reimbursement',
+                              payoutMethod: sessionPayout || 'Immediate',
+                              transferredToName: '',
+                              paidTo: '',
+                              paidToType: 'employee',
+                              paidToCustomName: '',
+                              siteName: '',
+                              vehicleId: null,
+                              vehicleNo: '',
+                              vehicleName: '',
+                              vehicleNumber: '',
+                              vehicleLabel: '',
+                              customVehicleNo: '',
+                              isMedical: false,
+                              isDeductible: activeModule === 'Add Advance'
+                            }]
+                          }
+                          return prev.filter(item => item.id !== rowId)
+                        })
+                      }}
                       PaidToDropdown={PaidToDropdown}
                       enableSiteRemarks={enableSiteRemarks}
                       availableSiteNames={availableSiteNames}
@@ -7742,12 +7830,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
 
                 {/* Mobile Sticky Action Bar (Stitch dae3df6671fd4c67bd09c109fda69136) */}
-                <div className="md:hidden sticky bottom-16 sm:bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-3 shadow-lg flex items-center gap-3 font-body">
+                <div className="md:hidden sticky bottom-16 sm:bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-2.5 shadow-lg flex items-center gap-2.5 font-body">
                   {/* Add Row Button */}
                   <button
                     type="button"
                     onClick={handleAddRow}
-                    className="w-1/3 py-3 px-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 active:scale-95 transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer font-heading"
+                    className="w-1/3 py-2.5 px-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 active:scale-95 transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer font-heading"
                   >
                     <Plus size={14} className="text-slate-600" />
                     <span>Add Row</span>
@@ -7758,7 +7846,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     type="button"
                     onClick={handleSubmitAll}
                     disabled={submitting}
-                    className="flex-1 py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-[0.98] text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-blue-500/20 transition flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-heading"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-[0.98] text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-blue-500/20 transition flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-heading"
                   >
                     {submitting ? (
                       <Spinner size="w-3.5 h-3.5" color="text-white" />
